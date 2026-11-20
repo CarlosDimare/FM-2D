@@ -1,0 +1,8 @@
+{
+  "name": "Remix Tactical Pitch Simulator",
+  "description": "Experience a realistic football simulation engine featuring advanced tactical decision-making, real-time match dynamics, and comprehensive analytical statistics.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

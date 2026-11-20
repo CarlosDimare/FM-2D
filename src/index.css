@@ -1,0 +1,174 @@
+@import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-display: "Barlow Condensed", sans-serif;
+  --font-sans: "Plus Jakarta Sans", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+}
+
+:root {
+  --bg-primary: #d4dcd4;
+  --bg-secondary: #e8f0e8;
+  --bg-card: #ffffff;
+  --bg-card-alt: #f2f7f2;
+  --text-primary: #1e293b;
+  --text-secondary: #64748b;
+  --border-color: #cbd5e1;
+  --bg-header: #e2e8f0;
+}
+
+.dark {
+  --bg-primary: #0f172a;
+  --bg-secondary: #1e293b;
+  --bg-card: #1e293b;
+  --bg-card-alt: #0f172a;
+  --text-primary: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --border-color: #334155;
+  --bg-header: #0f172a;
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    font-family: var(--font-sans);
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    overscroll-behavior: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  button,
+  a,
+  input,
+  select,
+  textarea,
+  [role="button"] {
+    touch-action: manipulation;
+  }
+}
+
+#root::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: url('/campo-futbol.jpg') center/cover no-repeat;
+  opacity: 0.04;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Custom scrollbars for FM2 panels & tactical match drawers */
+.custom-scroll::-webkit-scrollbar,
+.tactical-scroll::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+
+.custom-scroll::-webkit-scrollbar-track {
+  background: rgba(148, 163, 184, 0.25);
+}
+
+.custom-scroll::-webkit-scrollbar-thumb {
+  background: rgba(71, 85, 105, 0.6);
+  border-radius: 3px;
+}
+
+.custom-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(30, 41, 59, 0.85);
+}
+
+.tactical-scroll::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.25);
+}
+
+.tactical-scroll::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.55);
+  border-radius: 3px;
+}
+
+.tactical-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.8);
+}
+
+@keyframes fm-fade-in {
+  from { opacity: 0; transform: translateX(-8px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes fm-fade-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fm-score-flash {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.22); color: #facc15; }
+  100% { transform: scale(1); }
+}
+
+@keyframes fm-zoom-in {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes fm-slide-up {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+@keyframes fm-progress-pulse {
+  0%, 100% { box-shadow: 0 0 2px rgba(250, 204, 21, 0.4); }
+  50% { box-shadow: 0 0 8px rgba(250, 204, 21, 0.85); }
+}
+
+.animate-fade-in {
+  animation: fm-fade-in 0.2s ease-out forwards;
+}
+
+.animate-fade-up {
+  animation: fm-fade-up 0.22s ease-out forwards;
+}
+
+.animate-score-flash {
+  animation: fm-score-flash 0.5s ease-out;
+}
+
+.animate-overlay-in {
+  animation: fm-fade-in 0.16s ease-out forwards;
+}
+
+.animate-zoom-in {
+  animation: fm-zoom-in 0.18s ease-out forwards;
+}
+
+.animate-slide-up {
+  animation: fm-slide-up 0.22s ease-out forwards;
+}
+
+.animate-progress-pulse {
+  animation: fm-progress-pulse 1.5s ease-in-out infinite;
+}
