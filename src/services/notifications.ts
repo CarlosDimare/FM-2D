@@ -2,6 +2,9 @@ import { NotificationPriority } from '../types';
 
 const NOTIFICATION_KEY = 'fm_arg_notifications_enabled';
 
+const iconAssetUrl = (): string =>
+  `${import.meta.env.BASE_URL}icon-192.svg`;
+
 export const isNotificationSupported = (): boolean => {
   return typeof window !== 'undefined' && 'Notification' in window;
 };
@@ -30,8 +33,8 @@ export const sendNotification = (title: string, body: string, tag?: string): voi
   if (Notification.permission !== 'granted') return;
   const options: NotificationOptions = {
     body,
-    icon: '/icon-192.svg',
-    badge: '/icon-192.svg',
+    icon: iconAssetUrl(),
+    badge: iconAssetUrl(),
     tag: tag || 'fm-argentina',
     requireInteraction: false,
   };
