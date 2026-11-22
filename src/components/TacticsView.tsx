@@ -6,8 +6,9 @@ import { notifyPlayers, notifyTactics, useWorldStore } from '../stores/worldStor
 import { useDialogueStore } from '../stores/dialogueStore';
 import { useGameStore } from '../stores/gameStore';
 import { SLOT_CONFIG } from '../services/engine';
+import { inferExactFormationLabelFromSlots } from '../services/matchEngineBridge';
 import { checkAssistantTrigger, checkReserveManagerTrigger, checkYouthManagerTrigger } from '../services/dialogueTriggers';
-import { Save, UserCheck, MousePointer2, ArrowUpRight, LayoutGrid, ClipboardList, X, Users, Star, Trash2, GitBranch, User, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Save, UserCheck, MousePointer2, ArrowUpRight, LayoutGrid, ClipboardList, X, Users, Star, Trash2, User, ChevronLeft, ChevronRight } from 'lucide-react';
 import { FMButton, FMBox } from './FMUI';
 import { DialogueAvatar } from './dialogs/DialogueAvatar';
 
@@ -197,13 +198,10 @@ export const TacticsView: React.FC<TacticsViewProps> = ({ players, club, squad =
    }, [storeTactics, storePlayers]);
 
    const [draggingSlot, setDraggingSlot] = useState<number | null>(null);
-   const [drawingArrowFrom, setDrawingArrowFrom] = useState<number | null>(null);
    const [currentHoverSlot, setCurrentHoverSlot] = useState<number | null>(null);
 
    const [pickSlot, setPickSlot] = useState<number | null>(null);
    const [pickBenchSeat, setPickBenchSeat] = useState<number | null>(null);
-   const [arrowMode, setArrowMode] = useState(false);
-   const [arrowMenuSlot, setArrowMenuSlot] = useState<number | null>(null);
     const [confirmAction, setConfirmAction] = useState<'CLEAR' | null>(null);
 
     const currentDate = useGameStore(s => s.currentDate);
@@ -334,20 +332,6 @@ export const TacticsView: React.FC<TacticsViewProps> = ({ players, club, squad =
          if (slots.includes(activeTactic.arrows[parseInt(from, 10)])) delete activeTactic.arrows[parseInt(from, 10)];
       });
       notifyTactics();
-   };
-
-   const handleArrowTap = (slotIdx: number) => {
-      if (activeTactic.arrows[slotIdx] !== undefined) {
-         setArrowMenuSlot(slotIdx);
-         return;
-      }
-      if (drawingArrowFrom === null) {
-         setDrawingArrowFrom(slotIdx);
-      } else if (drawingArrowFrom === slotIdx) {
-         setDrawingArrowFrom(null);
-      } else {
-         handleCreateArrow(slotIdx);
-      }
    };
 
    const handlePickForSlot = (player: Player) => {
@@ -503,17 +487,6 @@ export const TacticsView: React.FC<TacticsViewProps> = ({ players, club, squad =
       notifyPlayers(); notifyTactics();
    };
 
-   const handleCreateArrow = (targetSlot: number) => {
-        if (drawingArrowFrom === null) return;
-        if (drawingArrowFrom !== targetSlot) {
-            activeTactic.arrows[drawingArrowFrom] = targetSlot;
-        } else {
-            delete activeTactic.arrows[drawingArrowFrom];
-        }
-        setDrawingArrowFrom(null);
-        notifyTactics();
-   };
-
    const getMentalityLabel = (v: number) => v <= 4 ? "Ultra Def." : v <= 8 ? "Defensiva" : v <= 12 ? "Normal" : v <= 16 ? "Atacante" : "Agobio";
 
    const touchStartSlot = useRef<number | null>(null);
@@ -552,7 +525,7 @@ export const TacticsView: React.FC<TacticsViewProps> = ({ players, club, squad =
       touchStartSlot.current = slotIdx;
       touchOriginPos.current = t ? { x: t.clientX, y: t.clientY } : null;
       touchDragged.current = false;
-      if (!arrowMode) setDraggingSlot(slotIdx);
+      setDraggingSlot(slotIdx);
       setSelectedSlot(slotIdx);
       setCurrentHoverSlot(slotIdx);
    };
@@ -580,9 +553,7 @@ export const TacticsView: React.FC<TacticsViewProps> = ({ players, club, squad =
       const touch = e.changedTouches[0];
       const targetSlot = touch ? resolveNearestSlotFromTouch(touch.clientX, touch.clientY) : currentHoverSlot;
       if (targetSlot !== null) {
-         if (arrowMode) {
-            handleArrowTap(targetSlot);
-         } else if (touchDragged.current && startSlot !== targetSlot) {
+         if (touchDragged.current && startSlot !== targetSlot) {
             handleSlotDrop(targetSlot, startSlot);
          } else if (!touchDragged.current) {
             setPickSlot(startSlot);
@@ -594,6 +565,15 @@ export const TacticsView: React.FC<TacticsViewProps> = ({ players, club, squad =
       setDraggingSlot(null);
       setCurrentHoverSlot(null);
    };
+
+    const liveShapeLabel = (() => {
+       const placed = starters
+          .map(p => p.tacticalPosition)
+          .filter((s): s is number => s !== undefined);
+       if (placed.length >= 10) return inferExactFormationLabelFromSlots(placed);
+       if (activeTactic?.positions?.length >= 10) return inferExactFormationLabelFromSlots(activeTactic.positions);
+       return '';
+    })();
 
     const renderTacticSelectorBar = () => (
        <div className="w-full lg:max-w-[420px] shrink-0 flex items-center justify-between gap-2 bg-[#e8ece8] border border-[#8e9b90] rounded-[2px] px-2 py-1 shadow-xs">
@@ -608,6 +588,11 @@ export const TacticsView: React.FC<TacticsViewProps> = ({ players, club, squad =
                 <option key={t.id} value={t.id}>{t.name}</option>
              ))}
           </select>
+          {liveShapeLabel && (
+             <span className="px-1.5 py-0.5 rounded-[2px] bg-[#2b5d2c] text-white font-mono text-[9px] font-black tracking-tight shrink-0" title="Dibujo detectado en cancha">
+                {liveShapeLabel}
+             </span>
+          )}
           <span className="text-[8px] font-mono font-bold text-[#2b5d2c] shrink-0">
              {starters.length}/11 · {benchSeated.length} sup
           </span>
@@ -616,8 +601,8 @@ export const TacticsView: React.FC<TacticsViewProps> = ({ players, club, squad =
 
     const renderPitch = (compact?: boolean) => (
        <div ref={pitchRef}
-            className={`relative touch-none select-none ${compact ? 'h-[min(40vh,400px)] aspect-[3/4] w-auto shrink-0 min-w-0 lg:h-auto lg:w-full lg:max-w-[420px]' : 'flex-1 min-h-0 w-full lg:flex-none lg:h-auto lg:w-full lg:max-w-[420px] lg:aspect-[3/4] lg:min-h-0'} shadow-2xl bg-[#1e3a29] border-[3px] border-white/30 rounded-sm overflow-hidden ring-4 ring-[#a0b0a0]/30 ${arrowMode ? 'cursor-crosshair' : ''}`}
-            onMouseLeave={() => { setDraggingSlot(null); setDrawingArrowFrom(null); setCurrentHoverSlot(null); }}
+            className={`relative touch-none select-none ${compact ? 'h-[min(40vh,400px)] aspect-[3/4] w-auto shrink-0 min-w-0 lg:h-auto lg:w-full lg:max-w-[420px]' : 'flex-1 min-h-0 w-full lg:flex-none lg:h-auto lg:w-full lg:max-w-[420px] lg:aspect-[3/4] lg:min-h-0'} shadow-2xl bg-[#1e3a29] border-[3px] border-white/30 rounded-sm overflow-hidden ring-4 ring-[#a0b0a0]/30`}
+            onMouseLeave={() => { setDraggingSlot(null); setCurrentHoverSlot(null); }}
             onTouchMove={handlePitchTouchMove}
             onTouchEnd={handlePitchTouchEnd}
             onTouchCancel={() => { touchStartSlot.current = null; touchDragged.current = false; setDraggingSlot(null); setCurrentHoverSlot(null); }}>
@@ -629,23 +614,6 @@ export const TacticsView: React.FC<TacticsViewProps> = ({ players, club, squad =
                  <rect x="25%" y="5%" width="50%" height="15%" />
                  <rect x="25%" y="80%" width="50%" height="15%" />
               </g>
-           </svg>
-
-           <svg className="absolute inset-0 w-full h-full pointer-events-none z-0">
-               <defs>
-                   <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="0" refY="3.5" orient="auto">
-                       <polygon points="0 0, 10 3.5, 0 7" fill="#fbbf24" />
-                   </marker>
-               </defs>
-               {Object.entries(activeTactic.arrows).map(([from, to]) => {
-                   const start = SLOT_COORDS[parseInt(from)];
-                   const end = SLOT_COORDS[to];
-                   if (!start || !end) return null;
-                   return (
-                       <line key={from} x1={`${start.l}%`} y1={`${start.t}%`} x2={`${end.l}%`} y2={`${end.t}%`} 
-                             stroke="#fbbf24" strokeWidth="2" strokeDasharray="4" markerEnd="url(#arrowhead)" />
-                   );
-               })}
            </svg>
 
            {Object.entries(SLOT_COORDS).map(([idx, coords]) => {
@@ -663,24 +631,19 @@ export const TacticsView: React.FC<TacticsViewProps> = ({ players, club, squad =
                      className={`absolute transform -translate-x-1/2 -translate-y-1/2 w-12 h-12 sm:w-16 sm:h-16 flex flex-col items-center justify-center z-10 
                                  ${draggingSlot === slotIdx ? 'opacity-40 scale-90' : ''}
                                  ${currentHoverSlot === slotIdx && isDragActive ? 'ring-2 ring-[#facc15] bg-[#facc15]/25 rounded-full scale-105' : ''}
-                                 ${!isTacticSlot && isDragActive ? 'opacity-75' : ''}
-                                 ${drawingArrowFrom === slotIdx ? 'ring-2 ring-amber-400 rounded-full' : ''}`} 
+                                 ${!isTacticSlot && isDragActive ? 'opacity-75' : ''}`} 
                      style={{ top: `${coords.t}%`, left: `${coords.l}%` }}
                      onMouseEnter={() => setCurrentHoverSlot(slotIdx)}
                       onMouseDown={(e) => {
-                          if (e.button === 0 && !arrowMode) setDraggingSlot(slotIdx);
-                          if (e.button === 2 && !arrowMode) setDrawingArrowFrom(slotIdx);
+                          if (e.button === 0) setDraggingSlot(slotIdx);
                           setSelectedSlot(slotIdx);
                       }}
                       onMouseUp={() => {
-                          if (arrowMode) {
-                             handleArrowTap(slotIdx);
-                          } else if (draggingSlot === slotIdx) {
+                          if (draggingSlot === slotIdx) {
                              setPickSlot(slotIdx);
                           } else if (draggingSlot !== null) {
                              handleSlotDrop(slotIdx);
                           }
-                          if (drawingArrowFrom !== null && !arrowMode) handleCreateArrow(slotIdx);
                           setDraggingSlot(null);
                       }}
                      onContextMenu={(e) => { e.preventDefault(); if (p) onContextMenu?.(e, p); }}
@@ -900,10 +863,6 @@ export const TacticsView: React.FC<TacticsViewProps> = ({ players, club, squad =
                      className={`flex-1 flex flex-col sm:flex-row items-center justify-center gap-0.5 px-0.5 sm:px-2 py-1.5 lg:py-2 rounded-[1px] text-[7px] sm:text-[8px] font-black uppercase transition-all cursor-pointer ${viewMode === 'INSTRUCTIONS' ? 'bg-[#3a4a3a] text-white shadow-md' : 'bg-[#bcc8bc] text-slate-700 hover:bg-black/5'}`}>
                      <ClipboardList size={10} /> <span className="hidden lg:inline">INSTRUC.</span>
                   </button>
-                  <button onClick={() => setArrowMode(!arrowMode)} aria-label="Flechas" title="Flechas"
-                     className={`flex-1 flex flex-col sm:flex-row items-center justify-center gap-0.5 px-0.5 sm:px-2 py-1.5 lg:py-2 rounded-[1px] text-[7px] sm:text-[8px] font-black uppercase transition-all cursor-pointer ${arrowMode ? 'bg-amber-500 text-black shadow-md' : 'bg-[#bcc8bc] text-slate-700 hover:bg-black/5'}`}>
-                     <GitBranch size={10} /> <span className="hidden lg:inline">FLECHAS</span>
-                  </button>
                   <button onClick={() => setIsSaveModalOpen(true)} aria-label="Guardar táctica" title="Guardar táctica"
                      className="flex-1 flex flex-col sm:flex-row items-center justify-center gap-0.5 px-0.5 sm:px-2 py-1.5 lg:py-2 rounded-[1px] text-[7px] sm:text-[8px] font-black uppercase transition-all bg-[#bcc8bc] text-slate-700 hover:bg-black/5 cursor-pointer">
                      <Save size={10} /> <span className="hidden lg:inline">GUARDAR</span>
@@ -947,7 +906,6 @@ export const TacticsView: React.FC<TacticsViewProps> = ({ players, club, squad =
                        >
                            <span className="flex items-center gap-1 shrink-0"><MousePointer2 size={7} className="text-slate-400" /> CLICK: ELEGIR</span>
                            <span className="flex items-center gap-1 shrink-0"><ArrowUpRight size={7} className="text-slate-400" /> ARRASTRAR: MOVER</span>
-                           <span className="flex items-center gap-1 shrink-0"><GitBranch size={7} className="text-amber-600" /> FLECHAS: ORIGEN→DESTINO</span>
                        </div>
                        {lupe && (
                           <div className="fixed z-[700] pointer-events-none flex justify-center" style={{ left: 0, right: 0, top: Math.max(8, lupe.y - 130) }}>
@@ -956,8 +914,6 @@ export const TacticsView: React.FC<TacticsViewProps> = ({ players, club, squad =
                                    <span>CLICK FICHA: ELEGIR</span>
                                    <span className="text-amber-500">·</span>
                                    <span>ARRASTRAR: MOVER / INTERCAMBIAR</span>
-                                   <span className="text-amber-500">·</span>
-                                   <span>FLECHAS: ORIGEN → DESTINO</span>
                                 </div>
                                 <div className="mt-1.5 text-[8px] font-bold text-white/60 uppercase tracking-widest">Soltá el dedo para cerrar</div>
                              </div>
@@ -1068,32 +1024,6 @@ export const TacticsView: React.FC<TacticsViewProps> = ({ players, club, squad =
 
          {renderPickModal()}
          {renderBenchPickModal()}
-
-         {/* Arrow Menu Modal */}
-         {arrowMenuSlot !== null && (
-            <div className="fixed inset-0 z-[500] bg-black/70 flex items-center justify-center p-4 backdrop-blur-sm animate-overlay-in" onClick={() => setArrowMenuSlot(null)}>
-               <FMBox title="Flecha de ataque" className="w-full max-w-sm shadow-2xl border-2 border-slate-400">
-                  <div className="p-6 space-y-6">
-                     <div className="flex items-start gap-3">
-                        <div className="w-10 h-10 rounded-full bg-amber-500 text-white flex items-center justify-center shrink-0"><GitBranch size={18} /></div>
-                        <div>
-                           <p className="text-xs font-black text-slate-900 uppercase leading-snug">Existe una flecha desde {SLOT_CONFIG[arrowMenuSlot]?.abbr || arrowMenuSlot}</p>
-                           <p className="text-[10px] text-slate-600 mt-1 leading-relaxed">Podés borrarla o dibujar una nueva hacia otro puesto.</p>
-                        </div>
-                     </div>
-                     <div className="flex flex-col gap-2">
-                        <FMButton variant="danger" onClick={() => { deleteArrowsForSlots([arrowMenuSlot]); setArrowMenuSlot(null); }} className="w-full py-3">
-                           <Trash2 size={12}/> BORRAR FLECHA
-                        </FMButton>
-                        <FMButton variant="secondary" onClick={() => { setDrawingArrowFrom(arrowMenuSlot); setArrowMenuSlot(null); }} className="w-full py-3">
-                           <GitBranch size={12}/> DIBUJAR OTRA
-                        </FMButton>
-                        <FMButton variant="secondary" onClick={() => setArrowMenuSlot(null)} className="w-full py-3">CANCELAR</FMButton>
-                     </div>
-                  </div>
-               </FMBox>
-            </div>
-         )}
 
          {/* Confirm Modal: Clear Selection */}
          {confirmAction && (

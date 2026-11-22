@@ -145,10 +145,12 @@ export const StaffView: React.FC<StaffViewProps> = ({ staff: staffProp, club }) 
      return 0;
   });
 
+  const headCoach = staff.find(s => s.role === 'HEAD_COACH');
+
   const DELEGABLE_TASKS: { key: 'trainingDelegatedTo' | 'pressDelegatedTo' | 'talksDelegatedTo' | 'reserveDelegatedTo' | 'u20DelegatedTo' | 'scoutingDelegatedTo' | 'financeDelegatedTo'; label: string; icon: React.ReactNode; suggestedRoles: string[] }[] = [
-    { key: 'trainingDelegatedTo', label: 'Entrenamiento', icon: <Dumbbell size={12} />, suggestedRoles: ['FITNESS_COACH', 'ASSISTANT_MANAGER', 'HEAD_COACH'] },
-    { key: 'pressDelegatedTo', label: 'Prensa', icon: <Mic size={12} />, suggestedRoles: ['ASSISTANT_MANAGER', 'HEAD_COACH'] },
-    { key: 'talksDelegatedTo', label: 'Charlas', icon: <MessageCircle size={12} />, suggestedRoles: ['ASSISTANT_MANAGER', 'HEAD_COACH'] },
+    { key: 'trainingDelegatedTo', label: 'Entrenamiento', icon: <Dumbbell size={12} />, suggestedRoles: ['FITNESS_COACH', 'ASSISTANT_MANAGER'] },
+    { key: 'pressDelegatedTo', label: 'Prensa', icon: <Mic size={12} />, suggestedRoles: ['ASSISTANT_MANAGER', 'SPORTING_DIRECTOR'] },
+    { key: 'talksDelegatedTo', label: 'Charlas', icon: <MessageCircle size={12} />, suggestedRoles: ['ASSISTANT_MANAGER'] },
     { key: 'reserveDelegatedTo', label: 'Reserva', icon: <Users size={12} />, suggestedRoles: ['RESERVE_MANAGER', 'ASSISTANT_MANAGER'] },
     { key: 'u20DelegatedTo', label: 'Sub-20', icon: <GraduationCap size={12} />, suggestedRoles: ['YOUTH_MANAGER', 'ASSISTANT_MANAGER'] },
     { key: 'scoutingDelegatedTo', label: 'Scouting', icon: <Binoculars size={12} />, suggestedRoles: ['SCOUT', 'SPORTING_DIRECTOR', 'ASSISTANT_MANAGER'] },
@@ -157,7 +159,7 @@ export const StaffView: React.FC<StaffViewProps> = ({ staff: staffProp, club }) 
 
   const setDelegation = (key: string, staffId: string | undefined) => {
     if (!liveClub) return;
-    if (staffId) liveClub[key as 'trainingDelegatedTo'] = staffId;
+    if (staffId && staffId !== headCoach?.id) liveClub[key as 'trainingDelegatedTo'] = staffId;
     else delete liveClub[key as 'trainingDelegatedTo'];
     notifyClubs();
   };
@@ -165,7 +167,7 @@ export const StaffView: React.FC<StaffViewProps> = ({ staff: staffProp, club }) 
   const delegateAllRecommended = () => {
     if (!liveClub) return;
     DELEGABLE_TASKS.forEach(task => {
-      const best = staff.find(s => task.suggestedRoles.includes(s.role));
+      const best = staff.find(s => s.role !== 'HEAD_COACH' && task.suggestedRoles.includes(s.role));
       if (best) liveClub[task.key] = best.id;
     });
     notifyClubs();
@@ -220,8 +222,9 @@ export const StaffView: React.FC<StaffViewProps> = ({ staff: staffProp, club }) 
 
           <div className="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-2 gap-1.5 content-start overflow-y-auto custom-scroll">
             {DELEGABLE_TASKS.map(task => {
-              const delegatedId = liveClub[task.key] || '';
-              const candidates = staff.filter(s => task.suggestedRoles.includes(s.role));
+              const rawDelegatedId = liveClub[task.key] || '';
+              const delegatedId = rawDelegatedId === headCoach?.id ? '' : rawDelegatedId;
+              const candidates = staff.filter(s => s.role !== 'HEAD_COACH' && task.suggestedRoles.includes(s.role));
               return (
                 <div key={task.key} className="bg-white border border-[#a0b0a0] rounded-sm px-2.5 py-1.5 flex items-center justify-between gap-2 shadow-xs">
                   <div className="flex items-center gap-2 min-w-0">
@@ -239,9 +242,9 @@ export const StaffView: React.FC<StaffViewProps> = ({ staff: staffProp, club }) 
                     value={delegatedId}
                     onChange={(e) => setDelegation(task.key, e.target.value || undefined)}
                     aria-label={`Responsable de ${task.label}`}
-                    className="max-w-[155px] sm:max-w-[190px] bg-gradient-to-b from-[#f3f4f6] to-[#d4d8de] border border-[#737a82] rounded-[2px] px-1.5 py-1 text-[9px] font-black uppercase text-[#1f2428] outline-none cursor-pointer"
+                    className="max-w-[165px] sm:max-w-[205px] bg-gradient-to-b from-[#f3f4f6] to-[#d4d8de] border border-[#737a82] rounded-[2px] px-1.5 py-1 text-[9px] font-black uppercase text-[#1f2428] outline-none cursor-pointer"
                   >
-                    <option value="">Tú (Manager)</option>
+                    <option value="">{headCoach ? `Tú (${headCoach.name} · DT)` : 'Tú (DT)'}</option>
                     {candidates.map(c => (
                       <option key={c.id} value={c.id}>{c.name} ({getRoleShort(c.role)})</option>
                     ))}

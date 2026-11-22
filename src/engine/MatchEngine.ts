@@ -1,4 +1,10 @@
-import { FORMATIONS } from './formations';
+import {
+  computeFormationLabel,
+  FORMATIONS,
+  FormationSlot,
+  inferRoleFromCoords,
+  nearestPresetFormationId,
+} from './formations';
 import { soundEngine } from './soundEngine';
 import {
   BallState,
@@ -353,9 +359,21 @@ export class MatchEngine {
     this.setupKickoff('home', true);
   }
 
+  private getSlotTemplate(p: PlayerMatchState, tactics: TeamTactics): FormationSlot {
+    if (p.customAnchor) {
+      return {
+        role: p.customAnchor.role,
+        xNorm: p.customAnchor.xNorm,
+        zNorm: p.customAnchor.zNorm,
+      };
+    }
+    const slots = FORMATIONS[tactics.formation] || FORMATIONS['4-4-2'];
+    return slots[Math.min(10, p.slotIndex)] || slots[0];
+  }
+
   private initSquads() {
-    const homeSlots = FORMATIONS[this.homeTactics.formation];
-    const awaySlots = FORMATIONS[this.awayTactics.formation];
+    const homeSlots = FORMATIONS[this.homeTactics.formation] || FORMATIONS['4-4-2'];
+    const awaySlots = FORMATIONS[this.awayTactics.formation] || FORMATIONS['4-4-2'];
 
     const buildPlayer = (
       p: ClubPreset['squad'][number],
@@ -364,9 +382,13 @@ export class MatchEngine {
       slots: typeof homeSlots
     ): PlayerMatchState => ({
       ...p,
+      customAnchor: p.customAnchor ? { ...p.customAnchor } : undefined,
       side,
       slotIndex: idx,
-      assignedRole: idx < 11 ? slots[idx].role : p.naturalRole,
+      assignedRole:
+        idx < 11
+          ? p.customAnchor?.role ?? (slots[idx]?.role || p.naturalRole)
+          : p.naturalRole,
       instruction: p.initialInstruction ?? 'equilibrado',
       onPitch: idx < 11,
       startedMatch: idx < 11,
@@ -562,10 +584,9 @@ export class MatchEngine {
     const positionTeam = (players: PlayerMatchState[], side: TeamSide) => {
       const dir = this.getAttackDir(side);
       const tactics = side === 'home' ? this.homeTactics : this.awayTactics;
-      const slots = FORMATIONS[tactics.formation];
       players.forEach((p) => {
         if (!p.onPitch || p.redCard) return;
-        const slot = slots[Math.min(10, p.slotIndex)];
+        const slot = this.getSlotTemplate(p, tactics);
         let px = -dir * HALF_L + dir * (slot.xNorm * HALF_L * 0.92);
         let pz = slot.zNorm * PITCH_WIDTH * 0.9;
         if (side === team && p.slotIndex === 9) {
@@ -631,21 +652,24 @@ export class MatchEngine {
   public updateTeamTactics(side: TeamSide, partial: Partial<TeamTactics>) {
     const current = side === 'home' ? this.homeTactics : this.awayTactics;
     const prevFormation = current.formation;
+    const prevLabel = current.customLabel || prevFormation;
     const next = { ...current, ...partial };
-    if (side === 'home') this.homeTactics = next;
-    else this.awayTactics = next;
+    const formationRequested = Boolean(partial.formation);
+    const shouldResetToPreset =
+      formationRequested &&
+      (partial.formation !== prevFormation || prevLabel !== partial.formation);
 
-    if (partial.formation && partial.formation !== prevFormation) {
-      const slots = FORMATIONS[partial.formation];
+    if (shouldResetToPreset && partial.formation) {
+      next.customLabel = partial.formation;
+      const slots = FORMATIONS[partial.formation] || FORMATIONS['4-4-2'];
       const players = side === 'home' ? this.homePlayers : this.awayPlayers;
       const club = side === 'home' ? this.homeClub : this.awayClub;
-      players
-        .filter((p) => p.onPitch && !p.redCard)
-        .forEach((p) => {
-          if (slots[p.slotIndex]) {
-            p.assignedRole = slots[p.slotIndex].role;
-          }
-        });
+      players.forEach((p) => {
+        p.customAnchor = undefined;
+        if (p.onPitch && !p.redCard && slots[p.slotIndex]) {
+          p.assignedRole = slots[p.slotIndex].role;
+        }
+      });
       this.addEvent(
         'tactical_change',
         `Cambio de dibujo: ${partial.formation}`,
@@ -656,6 +680,9 @@ export class MatchEngine {
         true
       );
     }
+
+    if (side === 'home') this.homeTactics = next;
+    else this.awayTactics = next;
   }
 
   public updateHomeTactics(partial: Partial<TeamTactics>) {
@@ -670,15 +697,76 @@ export class MatchEngine {
 
   public swapTeamSlots(side: TeamSide, playerAId: string, playerBId: string) {
     const players = side === 'home' ? this.homePlayers : this.awayPlayers;
+    const tactics = side === 'home' ? this.homeTactics : this.awayTactics;
     const a = players.find((pl) => pl.id === playerAId);
     const b = players.find((pl) => pl.id === playerBId);
     if (!a || !b || a.id === b.id) return;
+    const baseSlots = FORMATIONS[tactics.formation] || FORMATIONS['4-4-2'];
+    const anchorA = a.customAnchor
+      ? { ...a.customAnchor }
+      : { ...baseSlots[Math.min(10, a.slotIndex)] };
+    const anchorB = b.customAnchor
+      ? { ...b.customAnchor }
+      : { ...baseSlots[Math.min(10, b.slotIndex)] };
+
     const tempSlot = a.slotIndex;
     const tempRole = a.assignedRole;
     a.slotIndex = b.slotIndex;
     a.assignedRole = b.assignedRole;
     b.slotIndex = tempSlot;
     b.assignedRole = tempRole;
+
+    if (a.customAnchor || b.customAnchor) {
+      a.customAnchor = { ...anchorB };
+      b.customAnchor = { ...anchorA };
+    }
+  }
+
+  public setPlayerCustomPosition(
+    side: TeamSide,
+    playerId: string,
+    xNorm: number,
+    zNorm: number
+  ) {
+    const players = side === 'home' ? this.homePlayers : this.awayPlayers;
+    const tactics = side === 'home' ? this.homeTactics : this.awayTactics;
+    const p = players.find((pl) => pl.id === playerId && pl.onPitch && !pl.redCard);
+    if (!p) return;
+
+    const baseSlots = FORMATIONS[tactics.formation] || FORMATIONS['4-4-2'];
+    // Materialize current anchors for all onPitch teammates so they stay fixed where the user expects
+    players
+      .filter((pl) => pl.onPitch && !pl.redCard && pl.id !== p.id && !pl.customAnchor)
+      .forEach((pl) => {
+        const tmpl = baseSlots[Math.min(10, pl.slotIndex)] || baseSlots[0];
+        pl.customAnchor = {
+          xNorm: tmpl.xNorm,
+          zNorm: tmpl.zNorm,
+          role: pl.assignedRole,
+        };
+      });
+
+    const isFixedGk = p.slotIndex === 0 && p.assignedRole === 'POR';
+    const clampedX = isFixedGk
+      ? clamp(xNorm, 0.03, 0.14)
+      : clamp(xNorm, 0.12, 0.88);
+    const clampedZ = isFixedGk
+      ? clamp(zNorm, -0.15, 0.15)
+      : clamp(zNorm, -0.45, 0.45);
+    const role: PlayerRole = isFixedGk
+      ? 'POR'
+      : inferRoleFromCoords(clampedX, clampedZ, true);
+
+    p.customAnchor = {
+      xNorm: Number(clampedX.toFixed(3)),
+      zNorm: Number(clampedZ.toFixed(3)),
+      role,
+    };
+    p.assignedRole = role;
+
+    const nextLabel = computeFormationLabel(players, tactics.formation);
+    tactics.customLabel = nextLabel;
+    tactics.formation = nearestPresetFormationId(nextLabel, tactics.formation);
   }
 
   public swapHomeSlots(playerAId: string, playerBId: string) {
@@ -705,6 +793,7 @@ export class MatchEngine {
     inP.onPitch = true;
     inP.slotIndex = outP.slotIndex;
     inP.assignedRole = outP.assignedRole;
+    inP.customAnchor = outP.customAnchor ? { ...outP.customAnchor } : undefined;
     inP.instruction = outP.instruction;
     inP.subbedInMinute = changeMin;
     inP.x = outP.x;
@@ -1158,7 +1247,7 @@ export class MatchEngine {
   ): { x: number; z: number } {
     const tactics = p.side === 'home' ? this.homeTactics : this.awayTactics;
     const dir = this.getAttackDir(p.side);
-    const slot = FORMATIONS[tactics.formation][Math.min(10, p.slotIndex)];
+    const slot = this.getSlotTemplate(p, tactics);
     const ballXNorm = clamp((this.ball.x * dir + HALF_L) / PITCH_LENGTH, 0, 1);
 
     if (p.assignedRole === 'POR') {
@@ -5072,7 +5161,9 @@ export class MatchEngine {
     const diff = myScore - oppScore;
     const dominated = myStats.fieldTiltPct < 36 || oppStats.xg - myStats.xg > 0.65;
 
-    if (minute >= cooldown) {
+    const isAssistantDelegated = this.assistantDelegatedSide === side;
+
+    if (minute >= cooldown && !isAssistantDelegated) {
       if (minute >= 55 && diff < 0 && tactics.mentality !== 'ofensiva') {
         tactics.mentality = 'ofensiva';
         tactics.pressing = 'gegenpress';
@@ -5080,20 +5171,18 @@ export class MatchEngine {
         tactics.width = 'amplio';
         if (tactics.formation !== '4-3-3') {
           tactics.formation = '4-3-3';
+          tactics.customLabel = '4-3-3';
           const slots = FORMATIONS['4-3-3'];
           players
             .filter((p) => p.onPitch && !p.redCard)
             .forEach((p) => {
+              p.customAnchor = undefined;
               if (slots[p.slotIndex]) p.assignedRole = slots[p.slotIndex].role;
             });
         }
-        const actor =
-          this.assistantDelegatedSide === side
-            ? `Ajuste del Ayudante (${club.shortCode})`
-            : `Ajuste táctico (${club.shortCode})`;
         this.addEvent(
           'tactical_change',
-          actor,
+          `Ajuste táctico (${club.shortCode})`,
           `${club.shortCode} adelanta líneas al 4-3-3 con presión alta buscando el empate.`,
           side
         );
@@ -5104,13 +5193,9 @@ export class MatchEngine {
         tactics.tempo = 'pausado';
         tactics.width = 'estrecho';
         tactics.counterAttack = true;
-        const actor =
-          this.assistantDelegatedSide === side
-            ? `Cierre del Ayudante (${club.shortCode})`
-            : `Cierre defensivo (${club.shortCode})`;
         this.addEvent(
           'tactical_change',
-          actor,
+          `Cierre defensivo (${club.shortCode})`,
           `${club.shortCode} compacta el bloque y busca sentenciar al contraataque.`,
           side
         );

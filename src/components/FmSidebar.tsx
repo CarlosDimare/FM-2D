@@ -305,12 +305,24 @@ export const FmSidebar: React.FC<FmSidebarProps> = ({
             <span className="text-[10px] font-semibold text-[#3c423c]">Formación</span>
             <select
               aria-label="Formación táctica"
-              value={userTactics.formation}
-              onChange={(e) =>
-                onUpdateTactics({ formation: e.target.value as FormationId })
+              value={
+                userTactics.customLabel &&
+                !FORMATION_LIST.includes(userTactics.customLabel as FormationId)
+                  ? `CUSTOM:${userTactics.customLabel}`
+                  : userTactics.customLabel || userTactics.formation
               }
+              onChange={(e) => {
+                if (e.target.value.startsWith('CUSTOM:')) return;
+                onUpdateTactics({ formation: e.target.value as FormationId });
+              }}
               className="w-full bg-white border border-[#969c91] rounded-xs px-1.5 py-1 text-[11px] font-mono font-semibold text-[#181c18] focus:outline-none focus:border-[#1f5922] cursor-pointer"
             >
+              {userTactics.customLabel &&
+                !FORMATION_LIST.includes(userTactics.customLabel as FormationId) && (
+                  <option value={`CUSTOM:${userTactics.customLabel}`}>
+                    Personalizada ({userTactics.customLabel})
+                  </option>
+                )}
               {FORMATION_LIST.map((f) => (
                 <option key={f} value={f}>
                   {f}

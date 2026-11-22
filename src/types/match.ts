@@ -6,7 +6,12 @@ export type FormationId =
   | '3-5-2'
   | '4-4-2'
   | '5-3-2'
-  | '4-1-4-1';
+  | '4-1-4-1'
+  | '4-2-4'
+  | '5-4-1'
+  | '3-4-3'
+  | '4-4-1-1'
+  | '4-2-2-2';
 
 export type MentalityLevel =
   | 'muy_defensiva'
@@ -62,6 +67,13 @@ export type PlayerInstruction =
   | 'libertad_creativa'
   | 'marcaje_ferreo';
 
+export interface CustomPlayerAnchor {
+  xNorm: number;
+  zNorm: number;
+  role: PlayerRole;
+  fm2Slot?: number;
+}
+
 export interface PlayerAttributes {
   pace: number;       // Velocidad (50-99)
   passing: number;    // Pase (50-99)
@@ -86,6 +98,7 @@ export interface PlayerProfile {
   initialStamina?: number;
   initialMorale?: number;
   initialInstruction?: PlayerInstruction;
+  customAnchor?: CustomPlayerAnchor;
 }
 
 export type PlayerIntent =
@@ -220,6 +233,7 @@ export interface PlayerMatchState extends PlayerProfile {
 
 export interface TeamTactics {
   formation: FormationId;
+  customLabel?: string;
   mentality: MentalityLevel;
   pressing: PressingIntensity;
   passing: PassingStyle;

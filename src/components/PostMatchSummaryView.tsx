@@ -847,12 +847,12 @@ export const PostMatchSummaryView: React.FC<PostMatchSummaryViewProps> = ({
                   {renderTeamLineupCard(
                     homeTeam,
                     homeEntries,
-                    optaSnapshot?.homeTactics.formation
+                    optaSnapshot?.homeTactics.customLabel || optaSnapshot?.homeTactics.formation
                   )}
                   {renderTeamLineupCard(
                     awayTeam,
                     awayEntries,
-                    optaSnapshot?.awayTactics.formation
+                    optaSnapshot?.awayTactics.customLabel || optaSnapshot?.awayTactics.formation
                   )}
                 </div>
               </div>

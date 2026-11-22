@@ -146,10 +146,12 @@ export const useUIStore = create<UIStore>((set) => ({
   selectedNationalTeamId: null,
 
   setGameState: (gameState) => set({ gameState }),
-  setView: (currentView) => set((state) => ({
+  setView: (currentView) => set({
     currentView,
-    selectedStaff: currentView === 'STAFF' ? state.selectedStaff : null,
-  })),
+    selectedPlayer: null,
+    selectedStaff: null,
+    contextMenu: null,
+  }),
   setSelectedPlayer: (selectedPlayer) => set({ selectedPlayer }),
   setSelectedStaff: (selectedStaff) => set({ selectedStaff }),
   setContextMenu: (contextMenu) => set({ contextMenu }),

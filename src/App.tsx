@@ -38,6 +38,7 @@ import {
   FmMatchupBanner,
   getClubHexPalette,
 } from './components/ClubBannerChrome';
+import { LeagueLogoBadge, NationalJerseyIcon } from './components/LeagueAndKitIcons';
 
 function lazyWithReload(importFn: () => Promise<any>) {
   return lazy(() => importFn().catch(err => {
@@ -906,7 +907,7 @@ const startVacation = async (targetOverride?: Date) => {
         world.checkDressingRoomConflicts(userClub.id, tempDate);
         world.checkTransferRequestMotives(userClub.id, tempDate);
         world.generateNarrativeEvents(userClub.id, tempDate);
-        detectPlayerDialogueTriggers(userClub.id);
+        detectPlayerDialogueTriggers(userClub.id, tempDate);
       }
 
       await simulateDayFixtures({
@@ -1070,7 +1071,7 @@ const startVacation = async (targetOverride?: Date) => {
         world.ensureMinimumSquadSizes();
       }
 
-      if (userClub) detectPlayerDialogueTriggers(userClub.id);
+      if (userClub) detectPlayerDialogueTriggers(userClub.id, tempDate);
 
       // Cosecha de cantera + retiros + purga (1 de agosto) — mismo gate que advanceTime
       if (tempDate.getMonth() === 7 && tempDate.getDate() === 1) {
@@ -1567,9 +1568,9 @@ const startVacation = async (targetOverride?: Date) => {
                       statusText = rank > 0 ? `${rank}º` : '-';
                     } else statusText = "En curso";
                     return (
-                      <div key={comp.id} className="flex justify-between items-center p-1.5 bg-slate-300/50 rounded-sm border-l-2 border-slate-500">
-                        <span className="text-[9px] font-black text-slate-700 uppercase truncate max-w-[80px]">{comp.name}</span>
-                        <span className="text-[9px] font-bold text-slate-950 uppercase">{statusText}</span>
+                      <div key={comp.id} className="flex justify-between items-center gap-2 p-1.5 bg-slate-300/50 rounded-sm border-l-2 border-[#3a4a3a]">
+                        <span className="text-[10px] font-black text-slate-800 uppercase leading-snug break-words flex-1 min-w-0">{comp.name}</span>
+                        <span className="text-[10px] font-bold text-slate-950 uppercase shrink-0 font-mono tabular-nums">{statusText}</span>
                       </div>
                     );
                   })}
@@ -2375,9 +2376,12 @@ const startVacation = async (targetOverride?: Date) => {
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {nationalTeam && (
-              <button onClick={() => setPreviewNationalTeamId(nationalTeam.id)} className="p-5 bg-[#3a4a3a] hover:bg-[#2a3a2a] border border-[#2a3a2a] rounded-sm text-left transition-all shadow-sm flex flex-col cursor-pointer">
-                <h3 className="text-base font-black text-white mb-1 italic uppercase truncate">🏳️ Selección</h3>
-                <p className="text-[9px] text-slate-300">{nationalTeam.name}{nationalEligibleCount !== undefined ? ` · ${nationalEligibleCount} elegibles` : ' · Ver plantel e info'}</p>
+              <button onClick={() => setPreviewNationalTeamId(nationalTeam.id)} className="p-4 sm:p-5 bg-[#3a4a3a] hover:bg-[#2a3a2a] border border-[#2a3a2a] rounded-sm text-left transition-all shadow-sm flex items-center gap-3.5 cursor-pointer">
+                <NationalJerseyIcon country={nationalTeam.country || country || ''} name={nationalTeam.name} className="w-12 h-12 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-base font-black text-white mb-0.5 italic uppercase truncate">Selección Nacional</h3>
+                  <p className="text-[10px] text-slate-200 font-bold truncate">{nationalTeam.name}{nationalEligibleCount !== undefined ? ` · ${nationalEligibleCount} elegibles` : ' · Ver plantel e info'}</p>
+                </div>
               </button>
             )}
             {leagues.map(league => {
@@ -2388,16 +2392,19 @@ const startVacation = async (targetOverride?: Date) => {
               const tierLabel = league.tier === 1 ? '1ª División' : league.tier === 2 ? '2ª División' : `${league.tier}ª División`;
               return (
                 <button key={league.id} onClick={() => { setSelectedLeague(league); setPreviewClub(null); useGameStore.getState().setDeepSimLeagues([league.id]); setGameState('SETUP_TEAM'); }}
-                  className="p-5 bg-[#f2f7f2] hover:bg-[#e2eae2] hover:border-[#3a4a3a] border border-[#a0b0a0] rounded-sm text-left transition-all shadow-sm flex flex-col group cursor-pointer">
-                  <div className="flex items-start justify-between gap-2 mb-1">
-                    <h3 className="text-base font-black text-slate-900 italic uppercase truncate group-hover:text-[#3a4a3a]">{league.name}</h3>
-                    <span className="shrink-0 text-[10px] tracking-tight">{'★'.repeat(repStars)}<span className="text-slate-300">{'★'.repeat(5 - repStars)}</span></span>
-                  </div>
-                  <p className="text-[9px] text-slate-500 font-bold uppercase tracking-wide">{tierLabel} · {clubCount} equipo{clubCount !== 1 ? 's' : ''}</p>
-                  <div className="mt-2 pt-2 border-t border-[#c8d4c8] flex items-center gap-3 text-[9px] text-slate-600">
-                    <span className="font-black text-emerald-800">£{prize.toFixed(1)}M</span>
-                    <span className="font-bold uppercase tracking-wider">Premio total</span>
-                    <span className="ml-auto font-bold text-slate-500 uppercase">{league.confederation || '—'}</span>
+                  className="p-4 sm:p-5 bg-[#f2f7f2] hover:bg-[#e2eae2] hover:border-[#3a4a3a] border border-[#a0b0a0] rounded-sm text-left transition-all shadow-sm flex items-center gap-3.5 group cursor-pointer">
+                  <LeagueLogoBadge league={league} className="w-12 h-12 shrink-0" />
+                  <div className="flex-1 min-w-0 flex flex-col">
+                    <div className="flex items-start justify-between gap-2 mb-0.5">
+                      <h3 className="text-sm sm:text-base font-black text-slate-900 italic uppercase truncate group-hover:text-[#3a4a3a]">{league.name}</h3>
+                      <span className="shrink-0 text-[10px] tracking-tight">{'★'.repeat(repStars)}<span className="text-slate-300">{'★'.repeat(5 - repStars)}</span></span>
+                    </div>
+                    <p className="text-[9px] text-slate-500 font-bold uppercase tracking-wide">{tierLabel} · {clubCount} equipo{clubCount !== 1 ? 's' : ''}</p>
+                    <div className="mt-2 pt-1.5 border-t border-[#c8d4c8] flex items-center gap-3 text-[9px] text-slate-600">
+                      <span className="font-black text-emerald-800">£{prize.toFixed(1)}M</span>
+                      <span className="font-bold uppercase tracking-wider">Premio total</span>
+                      <span className="ml-auto font-bold text-slate-500 uppercase">{league.confederation || '—'}</span>
+                    </div>
                   </div>
                 </button>
               );

@@ -8,6 +8,7 @@ import {
   buildClubPresetFromFm2,
   extractFm2ResultFromSnapshot,
   resolveKitColors,
+  syncEnginePositionsToFm2,
   syncEngineTacticsToFm2Settings,
 } from '../services/matchEngineBridge';
 import { getBenchSizeForCompetition, world } from '../services/worldManager';
@@ -375,10 +376,15 @@ export const MatchView: React.FC<MatchViewProps> = ({
       const targetTactic = tacticOverride || world.getActiveTactic();
       if (!isNationalMatch) {
         syncEngineTacticsToFm2Settings(updated, targetTactic);
+        if (partial.formation) {
+          const engPlayers = userSide === 'home' ? eng.homePlayers : eng.awayPlayers;
+          const fmPlayers = userSide === 'home' ? homePlayers : awayPlayers;
+          syncEnginePositionsToFm2(engPlayers, fmPlayers, targetTactic, updated.formation);
+        }
       }
       syncNow();
     },
-    [isNationalMatch, syncNow, tacticOverride, userSide]
+    [awayPlayers, homePlayers, isNationalMatch, syncNow, tacticOverride, userSide]
   );
 
   const handleUpdateInstruction = useCallback(
@@ -391,10 +397,44 @@ export const MatchView: React.FC<MatchViewProps> = ({
 
   const handleSwapSlots = useCallback(
     (aId: string, bId: string) => {
-      engineRef.current?.swapTeamSlots(userSide, aId, bId);
+      const eng = engineRef.current;
+      if (!eng) return;
+      eng.swapTeamSlots(userSide, aId, bId);
+      if (!isNationalMatch) {
+        const updated = userSide === 'home' ? eng.homeTactics : eng.awayTactics;
+        const engPlayers = userSide === 'home' ? eng.homePlayers : eng.awayPlayers;
+        const fmPlayers = userSide === 'home' ? homePlayers : awayPlayers;
+        syncEnginePositionsToFm2(
+          engPlayers,
+          fmPlayers,
+          tacticOverride || world.getActiveTactic(),
+          updated.formation
+        );
+      }
       syncNow();
     },
-    [syncNow, userSide]
+    [awayPlayers, homePlayers, isNationalMatch, syncNow, tacticOverride, userSide]
+  );
+
+  const handleMovePlayerCustom = useCallback(
+    (playerId: string, xNorm: number, zNorm: number) => {
+      const eng = engineRef.current;
+      if (!eng) return;
+      eng.setPlayerCustomPosition(userSide, playerId, xNorm, zNorm);
+      if (!isNationalMatch) {
+        const updated = userSide === 'home' ? eng.homeTactics : eng.awayTactics;
+        const engPlayers = userSide === 'home' ? eng.homePlayers : eng.awayPlayers;
+        const fmPlayers = userSide === 'home' ? homePlayers : awayPlayers;
+        syncEnginePositionsToFm2(
+          engPlayers,
+          fmPlayers,
+          tacticOverride || world.getActiveTactic(),
+          updated.formation
+        );
+      }
+      syncNow();
+    },
+    [awayPlayers, homePlayers, isNationalMatch, syncNow, tacticOverride, userSide]
   );
 
   const handleSubstitute = useCallback(
@@ -754,6 +794,7 @@ export const MatchView: React.FC<MatchViewProps> = ({
                     onUpdateTactics={handleUpdateTactics}
                     onUpdateInstruction={handleUpdateInstruction}
                     onSwapSlots={handleSwapSlots}
+                    onMovePlayerCustom={handleMovePlayerCustom}
                     visualLayers={visualLayers}
                     onToggleLayer={handleToggleLayer}
                   />

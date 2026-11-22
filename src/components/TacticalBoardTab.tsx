@@ -1,6 +1,11 @@
-import React, { useState } from 'react';
-import { ArrowLeftRight, Layers } from 'lucide-react';
-import { FORMATION_LIST, FORMATIONS, ROLE_LABELS } from '../engine/formations';
+import React, { useEffect, useRef, useState } from 'react';
+import { ArrowLeftRight, Layers, Move } from 'lucide-react';
+import {
+  FORMATION_LIST,
+  FORMATIONS,
+  inferRoleFromCoords,
+  ROLE_LABELS,
+} from '../engine/formations';
 import {
   DefensiveLineLevel,
   FormationId,
@@ -18,6 +23,7 @@ interface TacticalBoardTabProps {
   onUpdateTactics: (partial: Partial<TeamTactics>) => void;
   onUpdateInstruction: (playerId: string, instruction: PlayerInstruction) => void;
   onSwapSlots: (aId: string, bId: string) => void;
+  onMovePlayerCustom: (playerId: string, xNorm: number, zNorm: number) => void;
   visualLayers: VisualLayers;
   onToggleLayer: (key: keyof VisualLayers) => void;
 }
@@ -31,12 +37,25 @@ const INSTRUCTION_OPTIONS: { id: PlayerInstruction; label: string }[] = [
   { id: 'marcaje_ferreo', label: 'Marcaje férreo' },
 ];
 
+interface DragState {
+  playerId: string;
+  startClientX: number;
+  startClientY: number;
+  xNorm: number;
+  zNorm: number;
+  moved: boolean;
+  hoverTargetId: string | null;
+}
+
+const clampNum = (val: number, min: number, max: number) => Math.max(min, Math.min(max, val));
+
 export const TacticalBoardTab: React.FC<TacticalBoardTabProps> = ({
   snapshot,
   userSide = 'home',
   onUpdateTactics,
   onUpdateInstruction,
   onSwapSlots,
+  onMovePlayerCustom,
   visualLayers,
   onToggleLayer,
 }) => {
@@ -44,12 +63,25 @@ export const TacticalBoardTab: React.FC<TacticalBoardTabProps> = ({
   const homePlayers = userSide === 'home' ? snapshot.homePlayers : snapshot.awayPlayers;
   const homeClub = userSide === 'home' ? snapshot.homeClub : snapshot.awayClub;
   const starters = homePlayers.filter((p) => p.onPitch && !p.redCard);
-  const slots = FORMATIONS[homeTactics.formation];
+  const slots = FORMATIONS[homeTactics.formation] || FORMATIONS['4-4-2'];
+  const activeFormationLabel = homeTactics.customLabel || homeTactics.formation;
 
   const [focusedId, setFocusedId] = useState<string | null>(starters[9]?.id || starters[0]?.id || null);
   const [swapMode, setSwapMode] = useState(false);
+  const [dragState, setDragState] = useState<DragState | null>(null);
+  const pitchRef = useRef<HTMLDivElement | null>(null);
+  const startersRef = useRef(starters);
+  startersRef.current = starters;
 
   const focusedPlayer = starters.find((p) => p.id === focusedId) || starters[0];
+
+  const getPlayerAnchor = (p: (typeof starters)[number]) => {
+    if (p.customAnchor) {
+      return { xNorm: p.customAnchor.xNorm, zNorm: p.customAnchor.zNorm };
+    }
+    const slot = slots[Math.min(10, p.slotIndex)] || slots[0];
+    return { xNorm: slot.xNorm, zNorm: slot.zNorm };
+  };
 
   const handlePlayerClick = (id: string) => {
     if (swapMode && focusedId && focusedId !== id) {
@@ -61,13 +93,99 @@ export const TacticalBoardTab: React.FC<TacticalBoardTabProps> = ({
     }
   };
 
+  useEffect(() => {
+    if (!dragState) return;
+
+    const toPitchNorm = (clientX: number, clientY: number) => {
+      const rect = pitchRef.current?.getBoundingClientRect();
+      if (!rect || rect.width === 0 || rect.height === 0) return null;
+      const pctX = ((clientX - rect.left) / rect.width) * 100;
+      const pctY = ((clientY - rect.top) / rect.height) * 100;
+      const xNorm = clampNum((pctX - 4) / 88, 0.04, 0.88);
+      const zNorm = clampNum((pctY - 50) / 86, -0.45, 0.45);
+      return { xNorm, zNorm };
+    };
+
+    const handlePointerMove = (e: PointerEvent) => {
+      const coords = toPitchNorm(e.clientX, e.clientY);
+      if (!coords) return;
+
+      setDragState((prev) => {
+        if (!prev) return null;
+        const distPx = Math.hypot(e.clientX - prev.startClientX, e.clientY - prev.startClientY);
+        const moved = prev.moved || distPx >= 6;
+        if (!moved) return prev;
+
+        const draggingPl = startersRef.current.find((pl) => pl.id === prev.playerId);
+        const isFixedGk = draggingPl?.slotIndex === 0 && draggingPl?.assignedRole === 'POR';
+        const finalX = isFixedGk ? clampNum(coords.xNorm, 0.03, 0.14) : clampNum(coords.xNorm, 0.12, 0.88);
+        const finalZ = isFixedGk ? clampNum(coords.zNorm, -0.15, 0.15) : clampNum(coords.zNorm, -0.45, 0.45);
+
+        let hoverTargetId: string | null = null;
+        let bestDist = 0.068;
+        for (const pl of startersRef.current) {
+          if (pl.id === prev.playerId) continue;
+          const anchor = pl.customAnchor
+            ? { xNorm: pl.customAnchor.xNorm, zNorm: pl.customAnchor.zNorm }
+            : slots[Math.min(10, pl.slotIndex)] || slots[0];
+          const d = Math.hypot(anchor.xNorm - finalX, anchor.zNorm - finalZ);
+          if (d < bestDist) {
+            bestDist = d;
+            hoverTargetId = pl.id;
+          }
+        }
+
+        return {
+          ...prev,
+          moved: true,
+          xNorm: finalX,
+          zNorm: finalZ,
+          hoverTargetId,
+        };
+      });
+    };
+
+    const handlePointerUp = () => {
+      setDragState((prev) => {
+        if (!prev) return null;
+        if (!prev.moved) {
+          if (swapMode && focusedId && focusedId !== prev.playerId) {
+            onSwapSlots(focusedId, prev.playerId);
+            setSwapMode(false);
+            setFocusedId(prev.playerId);
+          } else {
+            setFocusedId(prev.playerId);
+          }
+        } else if (prev.hoverTargetId) {
+          onSwapSlots(prev.playerId, prev.hoverTargetId);
+          setFocusedId(prev.playerId);
+          setSwapMode(false);
+        } else {
+          onMovePlayerCustom(prev.playerId, prev.xNorm, prev.zNorm);
+          setFocusedId(prev.playerId);
+          setSwapMode(false);
+        }
+        return null;
+      });
+    };
+
+    window.addEventListener('pointermove', handlePointerMove, { passive: true });
+    window.addEventListener('pointerup', handlePointerUp);
+    window.addEventListener('pointercancel', handlePointerUp);
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+      window.removeEventListener('pointercancel', handlePointerUp);
+    };
+  }, [dragState !== null, focusedId, onMovePlayerCustom, onSwapSlots, slots, swapMode]);
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
       {/* Left: Interactive 2D Formation Pitch */}
       <div className="lg:col-span-5 flex flex-col gap-2">
-        <div className="flex items-center justify-between">
-          <div className="text-xs font-semibold text-slate-200">
-            Pizarra Táctica · {homeClub.shortCode} ({homeTactics.formation})
+        <div className="flex items-center justify-between gap-2">
+          <div className="text-xs font-semibold text-slate-200 truncate">
+            Pizarra Táctica · {homeClub.shortCode} ({activeFormationLabel})
           </div>
           <button
             onClick={() => setSwapMode((v) => !v)}
@@ -83,7 +201,10 @@ export const TacticalBoardTab: React.FC<TacticalBoardTabProps> = ({
         </div>
 
         {/* 2D Pitch Diagram (Horizontal: defending left, attacking right) */}
-        <div className="relative w-full aspect-[105/68] rounded-xl border border-emerald-700/50 bg-[#184f29] overflow-hidden">
+        <div
+          ref={pitchRef}
+          className="relative w-full aspect-[105/68] rounded-xl border border-emerald-700/50 bg-[#184f29] overflow-hidden touch-none select-none"
+        >
           {/* Pitch SVG lines */}
           <svg viewBox="0 0 105 68" className="absolute inset-0 w-full h-full pointer-events-none">
             <rect x="2" y="2" width="101" height="64" fill="none" stroke="rgba(255,255,255,0.38)" strokeWidth="0.45" />
@@ -93,28 +214,68 @@ export const TacticalBoardTab: React.FC<TacticalBoardTabProps> = ({
             <rect x="86.5" y="13.84" width="16.5" height="40.32" fill="none" stroke="rgba(255,255,255,0.38)" strokeWidth="0.45" />
           </svg>
 
-          {/* Starters positioned by formation slot */}
+          {/* Starters positioned by customAnchor or formation slot */}
           {starters.map((p) => {
-            const slot = slots[Math.min(10, p.slotIndex)];
-            const leftPct = 4 + slot.xNorm * 88;
-            const topPct = 50 + slot.zNorm * 86;
+            const isDraggingThis = dragState?.moved && dragState.playerId === p.id;
+            const isSwapTarget = dragState?.moved && dragState.hoverTargetId === p.id;
+            const anchor = isDraggingThis
+              ? { xNorm: dragState.xNorm, zNorm: dragState.zNorm }
+              : getPlayerAnchor(p);
+            const leftPct = 4 + anchor.xNorm * 88;
+            const topPct = 50 + anchor.zNorm * 86;
             const isSelected = p.id === focusedPlayer?.id;
             const isGK = p.assignedRole === 'POR';
+            const liveRole = isDraggingThis
+              ? p.slotIndex === 0 && isGK
+                ? 'POR'
+                : inferRoleFromCoords(anchor.xNorm, anchor.zNorm, true)
+              : p.assignedRole;
 
             return (
               <button
                 key={p.id}
-                onClick={() => handlePlayerClick(p.id)}
+                type="button"
+                onPointerDown={(e) => {
+                  if (e.button !== 0 && e.pointerType === 'mouse') return;
+                  e.preventDefault();
+                  const base = getPlayerAnchor(p);
+                  setDragState({
+                    playerId: p.id,
+                    startClientX: e.clientX,
+                    startClientY: e.clientY,
+                    xNorm: base.xNorm,
+                    zNorm: base.zNorm,
+                    moved: false,
+                    hoverTargetId: null,
+                  });
+                }}
+                onClick={(e) => {
+                  // Pointer handlers manage tap & drag; keep keyboard Enter accessible
+                  if (e.detail === 0) handlePlayerClick(p.id);
+                }}
                 style={{ left: `${leftPct}%`, top: `${topPct}%` }}
-                className="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center group cursor-pointer focus:outline-none"
+                className={`absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center group focus:outline-none touch-none ${
+                  isDraggingThis ? 'z-30 scale-110 cursor-grabbing' : 'z-10 cursor-grab'
+                }`}
               >
+                {isDraggingThis && (
+                  <span className="mb-0.5 px-1.5 py-px rounded bg-amber-400 text-slate-950 font-mono text-[9px] font-black shadow">
+                    {dragState?.hoverTargetId ? 'PERMUTAR' : liveRole}
+                  </span>
+                )}
                 <div
-                  className={`w-7 h-7 rounded-full flex items-center justify-center font-mono text-[11px] font-bold border-2 transition-transform group-hover:scale-110 ${
-                    isSelected ? 'ring-2 ring-amber-400 scale-110' : ''
+                  className={`w-7 h-7 rounded-full flex items-center justify-center font-mono text-[11px] font-bold border-2 transition-transform ${
+                    isDraggingThis
+                      ? 'ring-2 ring-amber-300 shadow-xl'
+                      : isSwapTarget
+                      ? 'ring-4 ring-amber-400 scale-125'
+                      : isSelected
+                      ? 'ring-2 ring-amber-400 scale-110'
+                      : 'group-hover:scale-110'
                   }`}
                   style={{
                     backgroundColor: isGK ? homeClub.colors.gkPrimary : homeClub.colors.primary,
-                    borderColor: isSelected ? '#fbbf24' : '#f8fafc',
+                    borderColor: isSelected || isSwapTarget ? '#fbbf24' : '#f8fafc',
                     color: '#ffffff',
                   }}
                 >
@@ -127,6 +288,11 @@ export const TacticalBoardTab: React.FC<TacticalBoardTabProps> = ({
             );
           })}
         </div>
+
+        <div className="flex items-center gap-1.5 text-[10.5px] text-slate-400 px-0.5">
+          <Move className="w-3 h-3 text-emerald-400 shrink-0" />
+          <span>Arrastrá cualquier ficha en la cancha para moverla o soltala sobre un compañero para permutar.</span>
+        </div>
       </div>
 
       {/* Right: Team Structural Controls + Focused Player Instruction + 3D Layers */}
@@ -135,14 +301,17 @@ export const TacticalBoardTab: React.FC<TacticalBoardTabProps> = ({
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {/* Formation Picker */}
           <div className="space-y-1.5">
-            <div className="text-[11px] font-medium text-slate-400">Dibujo Táctico</div>
+            <div className="flex items-center justify-between text-[11px] font-medium text-slate-400">
+              <span>Dibujo Táctico</span>
+              <span className="font-mono text-sky-300 font-semibold">{activeFormationLabel}</span>
+            </div>
             <div className="grid grid-cols-3 gap-1">
               {FORMATION_LIST.map((f: FormationId) => (
                 <button
                   key={f}
                   onClick={() => onUpdateTactics({ formation: f })}
                   className={`py-1.5 px-2 rounded-md font-mono text-xs font-semibold border transition-colors cursor-pointer ${
-                    homeTactics.formation === f
+                    activeFormationLabel === f
                       ? 'bg-sky-600 border-sky-400 text-white'
                       : 'bg-slate-900 border-slate-800 text-slate-300 hover:border-slate-600'
                   }`}

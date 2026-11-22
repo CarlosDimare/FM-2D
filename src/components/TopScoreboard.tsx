@@ -231,7 +231,7 @@ export const TopScoreboard: React.FC<TopScoreboardProps> = ({
           </button>
           <div className="min-w-0">
             <div className="font-semibold text-slate-100 truncate">
-              {userClub.name} ({userTactics.formation})
+              {userClub.name} ({userTactics.customLabel || userTactics.formation})
             </div>
             <div className="text-[10px] text-slate-400 truncate">
               {homeClub.shortCode} vs {awayClub.shortCode} · {phaseLabel}

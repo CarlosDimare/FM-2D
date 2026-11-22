@@ -125,61 +125,78 @@ export const MarketView: React.FC<MarketViewProps> = ({ onSelectPlayer, userClub
         </div>
       </header>
 
-      <FMBox title={`Resultados del Mercado (${marketPlayers.length})`} className="flex-1" noPadding>
-         <FMTable 
-            headers={['Jugador', 'Club', 'Estado', 'Valor', 'Acción']}
-            colWidths={['auto', 'auto', '80px', '80px', '70px']}
-         >
-            {marketPlayers.map((p, idx) => (
-               <tr 
-                  key={p.id} 
-                  onClick={() => onSelectPlayer(p)}
-                  className={`
-                    cursor-pointer transition-colors
-                    ${idx % 2 === 0 ? 'bg-white' : 'bg-[#f2f7f2]'}
-                    hover:bg-[#ccd9cc]
-                  `}
+      <FMBox title={`Resultados del Mercado (${marketPlayers.length})`} className="flex-1 min-h-0" noPadding>
+         <div className="w-full h-full overflow-y-auto overflow-x-hidden bg-white custom-scroll">
+            <table className="w-full table-fixed text-left border-collapse">
+               <thead
+                  className="sticky top-0 z-10 text-[9.5px] sm:text-[10.5px] font-bold text-[#1f2428] shadow-xs border-b border-[#737a82]"
+                  style={{ background: 'linear-gradient(180deg, #f3f4f6 0%, #d4d8de 52%, #c2c8cf 100%)' }}
                >
-                  <FMTableCell>
-                     <div className="flex flex-col">
-                        <span className="font-bold text-slate-900 text-[11px]">{p.name}</span>
-                        <span className="text-[9px] text-slate-500 font-bold uppercase">{p.positions[0]}</span>
-                     </div>
-                  </FMTableCell>
-                  <FMTableCell className="text-slate-700 text-[10px] italic">
-                     {filter === 'FREE' ? <span className="text-slate-400">Sin club</span> : world.getClub(p.clubId)?.name}
-                  </FMTableCell>
-                  <FMTableCell className="text-center">
-                     {filter === 'FREE' ? (
-                        <span className="px-1.5 py-0.5 rounded-[1px] text-[8px] font-bold uppercase tracking-tighter border bg-slate-50 text-slate-600 border-slate-200">LIBRE</span>
-                     ) : (
-                        <span className={`px-1.5 py-0.5 rounded-[1px] text-[8px] font-bold uppercase tracking-tighter border ${p.transferStatus === 'TRANSFERABLE' ? 'bg-orange-50 text-orange-700 border-orange-200' : 'bg-blue-50 text-blue-700 border-blue-200'}`}>
-                           {p.transferStatus === 'TRANSFERABLE' ? 'TRN' : 'CED'}
-                        </span>
-                     )}
-                  </FMTableCell>
-                  <FMTableCell className="text-right font-bold text-slate-900" isNumber>
-                     £{(p.value / 1000000).toFixed(1)}M
-                  </FMTableCell>
-                  <FMTableCell className="text-center">
-                    {filter !== 'FREE' ? (
-                      <button
-                        onClick={(e) => { e.stopPropagation(); setOfferPlayer(p); }}
-                        className="px-2 py-1 rounded-[1px] text-[8px] font-black uppercase tracking-tight border bg-[#3a4a3a] text-white border-[#1a2a1a] hover:brightness-110 transition-all flex items-center gap-1"
-                        title={`Hacer oferta por ${p.name}`}
-                      >
-                        <HandCoins size={11} /> Ofertar
-                      </button>
-                    ) : (
-                      <span className="text-[8px] text-slate-400 italic font-bold uppercase">Agente libre</span>
-                    )}
-                  </FMTableCell>
-               </tr>
-            ))}
-         </FMTable>
-         {marketPlayers.length === 0 && (
-            <div className="p-20 text-center text-slate-400 italic uppercase font-bold tracking-widest text-[10px]">No se encontraron registros activos</div>
-         )}
+                  <tr>
+                     <th className="px-2 py-1.5 border-r border-[#9aa2ab]/60 uppercase tracking-tight w-auto">Jugador</th>
+                     <th className="hidden sm:table-cell px-2 py-1.5 border-r border-[#9aa2ab]/60 uppercase tracking-tight w-[26%]">Club</th>
+                     <th className="px-1.5 sm:px-2 py-1.5 border-r border-[#9aa2ab]/60 uppercase tracking-tight text-center w-[48px] sm:w-[68px]">Est.</th>
+                     <th className="px-1.5 sm:px-2 py-1.5 border-r border-[#9aa2ab]/60 uppercase tracking-tight text-right w-[58px] sm:w-[76px]">Valor</th>
+                     <th className="px-1.5 sm:px-2 py-1.5 uppercase tracking-tight text-center w-[74px] sm:w-[92px]">Acción</th>
+                  </tr>
+               </thead>
+               <tbody className="text-[11px] text-[#1a1a1a]">
+                  {marketPlayers.map((p, idx) => {
+                     const clubName = filter === 'FREE' ? 'Sin club' : (world.getClub(p.clubId)?.shortName || world.getClub(p.clubId)?.name || '—');
+                     const fullClubName = filter === 'FREE' ? 'Sin club' : (world.getClub(p.clubId)?.name || '—');
+                     return (
+                        <tr
+                           key={p.id}
+                           onClick={() => onSelectPlayer(p)}
+                           className={`cursor-pointer transition-colors border-b border-[#e2e7e2] ${idx % 2 === 0 ? 'bg-white' : 'bg-[#f2f7f2]'} hover:bg-[#ccd9cc]`}
+                        >
+                           <td className="px-2 py-1.5 min-w-0">
+                              <div className="flex flex-col min-w-0">
+                                 <span className="font-bold text-slate-900 text-[11px] truncate">{p.name}</span>
+                                 <span className="text-[8.5px] text-slate-500 font-bold uppercase truncate">
+                                    {p.positions[0]}
+                                    <span className="sm:hidden font-normal normal-case text-slate-600"> · {clubName}</span>
+                                 </span>
+                              </div>
+                           </td>
+                           <td className="hidden sm:table-cell px-2 py-1.5 text-slate-700 text-[10px] italic truncate">
+                              {filter === 'FREE' ? <span className="text-slate-400">Sin club</span> : fullClubName}
+                           </td>
+                           <td className="px-1 sm:px-2 py-1.5 text-center">
+                              {filter === 'FREE' ? (
+                                 <span className="inline-block px-1 py-0.5 rounded-[1px] text-[8px] font-bold uppercase tracking-tight border bg-slate-50 text-slate-600 border-slate-200">LIB</span>
+                              ) : (
+                                 <span className={`inline-block px-1 py-0.5 rounded-[1px] text-[8px] font-bold uppercase tracking-tight border ${p.transferStatus === 'TRANSFERABLE' ? 'bg-orange-50 text-orange-700 border-orange-200' : 'bg-blue-50 text-blue-700 border-blue-200'}`}>
+                                    {p.transferStatus === 'TRANSFERABLE' ? 'TRN' : 'CED'}
+                                 </span>
+                              )}
+                           </td>
+                           <td className="px-1.5 sm:px-2 py-1.5 text-right font-mono tabular-nums font-bold text-slate-900 text-[10px] sm:text-[11px] whitespace-nowrap">
+                              £{(p.value / 1000000).toFixed(1)}M
+                           </td>
+                           <td className="px-1 sm:px-2 py-1.5 text-center">
+                             {filter !== 'FREE' ? (
+                               <button
+                                 type="button"
+                                 onClick={(e) => { e.stopPropagation(); setOfferPlayer(p); }}
+                                 className="mx-auto px-1.5 sm:px-2 py-1 rounded-[2px] text-[8px] sm:text-[8.5px] font-black uppercase tracking-tight border bg-[#2b5d2c] text-white border-[#133014] hover:brightness-110 transition-all inline-flex items-center justify-center gap-1 cursor-pointer whitespace-nowrap"
+                                 title={`Hacer oferta por ${p.name}`}
+                               >
+                                 <HandCoins size={10} /> Ofertar
+                               </button>
+                             ) : (
+                               <span className="text-[8px] text-slate-400 italic font-bold uppercase">Libre</span>
+                             )}
+                           </td>
+                        </tr>
+                     );
+                  })}
+               </tbody>
+            </table>
+            {marketPlayers.length === 0 && (
+               <div className="p-20 text-center text-slate-400 italic uppercase font-bold tracking-widest text-[10px]">No se encontraron registros activos</div>
+            )}
+         </div>
       </FMBox>
 
       {offerPlayer && (

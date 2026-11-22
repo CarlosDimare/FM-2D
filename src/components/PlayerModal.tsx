@@ -13,7 +13,7 @@ import { confirmAction, showToast } from '../stores/feedbackStore';
 import { getAttributeTag } from '../services/playerGenerator';
 import { useUIStore } from '../stores/uiStore';
 import { useDialogueStore } from '../stores/dialogueStore';
-import { clearPlayerDialogue } from '../services/playerDialogueTriggers';
+import { clearPlayerDialogue, getDaysSinceLastDialogue } from '../services/playerDialogueTriggers';
 import { notifyAll } from '../stores/worldStore';
 import { FmClubShield, getClubHexPalette } from './ClubBannerChrome';
 
@@ -71,43 +71,75 @@ const VisibleAttrCard: React.FC<{
   internalKeys: string[];
 }> = ({ label, value, isKey, expanded, onToggle, internals, internalKeys }) => {
   const pct = Math.round((value / 20) * 100);
-  const barColor = value >= 16 ? 'bg-blue-700' : value >= 11 ? 'bg-blue-500' : value >= 7 ? 'bg-slate-400' : 'bg-slate-300';
-  const textColor = value >= 16 ? 'text-blue-900' : value >= 11 ? 'text-blue-700' : 'text-slate-500';
+  const badgeBoxStyle =
+    value >= 16
+      ? 'bg-[#2b5d2c] text-[#facc15] border-[#133014]'
+      : value >= 11
+      ? 'bg-[#dce7dc] text-[#1d431e] border-[#7a967a]'
+      : value >= 7
+      ? 'bg-[#e8ece8] text-[#2d3238] border-[#8e9b90]'
+      : 'bg-[#f1f3f1] text-slate-500 border-[#b0bab0]';
+
+  const barFillColor =
+    value >= 16
+      ? 'bg-[#2b5d2c]'
+      : value >= 11
+      ? 'bg-[#4f7d50]'
+      : value >= 7
+      ? 'bg-[#737a82]'
+      : 'bg-[#a0a8b0]';
+
+  const tagBadgeStyle =
+    value >= 16
+      ? 'bg-[#2b5d2c]/10 border-[#2b5d2c]/40 text-[#1d431e]'
+      : value >= 11
+      ? 'bg-[#e8f0e8] border-[#8e9b90] text-[#2b5d2c]'
+      : value >= 7
+      ? 'bg-[#eef1ee] border-[#a0b0a0] text-[#3a3f45]'
+      : 'bg-slate-100 border-slate-300 text-slate-500';
 
   return (
-    <div className={`border border-[#a0b0a0] rounded-sm overflow-hidden transition-all ${expanded ? 'bg-white shadow-md' : 'bg-white hover:shadow-sm cursor-pointer'}`}>
-      <button onClick={onToggle} className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-[#f0f4f0] transition-colors">
-        <div className={`w-10 h-10 rounded-sm flex items-center justify-center shrink-0 ${isKey ? 'bg-blue-100 border border-blue-300' : 'bg-slate-100 border border-slate-200'}`}>
-          <span className={`text-lg font-black ${textColor}`}>{value}</span>
+    <div className={`border rounded-[2px] overflow-hidden transition-colors ${expanded ? 'bg-white border-[#3a4a3a] shadow-sm' : 'bg-[#f8faf8] border-[#8e9b90] hover:bg-white cursor-pointer'}`}>
+      <button type="button" onClick={onToggle} className="w-full flex items-center gap-2.5 px-2.5 py-2 text-left hover:bg-[#eef3ee] transition-colors cursor-pointer">
+        <div className={`w-9 h-9 rounded-[2px] border flex items-center justify-center shrink-0 shadow-xs font-mono tabular-nums ${badgeBoxStyle}`}>
+          <span className="text-base font-black leading-none">{value}</span>
         </div>
         <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-[10px] font-black uppercase tracking-wide text-slate-700">{ATTRIBUTE_LABELS[label] || label}</span>
-            <span className="text-[16px] font-black uppercase tracking-wide leading-none" style={{
-              color: value === 20 ? '#FFF4B0' : value >= 17 ? '#FFE55C' : value >= 13 ? '#FFD700' : value >= 9 ? '#DAA520' : value >= 5 ? '#A67C00' : '#8B6914'
-            }}>{getAttributeTag(label, value)}</span>
+          <div className="flex items-center justify-between gap-2 mb-1.5">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <span className="text-[10.5px] font-black uppercase tracking-wide text-[#1f2428] truncate">
+                {ATTRIBUTE_LABELS[label] || label}
+              </span>
+              {isKey && (
+                <span title="Atributo clave para su puesto" className="shrink-0 flex items-center">
+                  <Star size={10} className="text-[#2b5d2c] fill-[#facc15]" />
+                </span>
+              )}
+            </div>
+            <span className={`px-1.5 py-0.5 rounded-[2px] border text-[9px] font-black uppercase tracking-wide leading-none shrink-0 ${tagBadgeStyle}`}>
+              {getAttributeTag(label, value)}
+            </span>
           </div>
-          <div className="h-2 bg-slate-100 rounded-full overflow-hidden border border-slate-200">
-            <div className={`h-full rounded-full transition-all duration-500 ${barColor}`} style={{ width: `${pct}%` }} />
+          <div className="h-2 bg-[#dce3dc] rounded-[1px] overflow-hidden border border-[#9aa79c]">
+            <div className={`h-full transition-all duration-300 ${barFillColor}`} style={{ width: `${pct}%` }} />
           </div>
         </div>
-        {isKey && <div className="w-1.5 h-1.5 rounded-full bg-blue-400 shrink-0" />}
-        <ChevronRight size={14} className={`text-slate-400 shrink-0 transition-transform ${expanded ? 'rotate-90' : ''}`} />
+        <ChevronRight size={14} className={`text-[#5f666e] shrink-0 transition-transform ${expanded ? 'rotate-90 text-[#2b5d2c]' : ''}`} />
       </button>
       {expanded && (
-        <div className="border-t border-[#a0b0a0]/50 bg-[#f8faf8] px-3 py-2 space-y-1.5">
+        <div className="border-t border-[#8e9b90]/60 bg-[#eef3ee] px-3 py-2 space-y-1.5">
           {internalKeys.map(ik => {
             const iv = internals[ik];
             const iPct = Math.round((iv / 20) * 100);
-            const iBarColor = iv >= 16 ? 'bg-blue-700' : iv >= 11 ? 'bg-blue-500' : iv >= 7 ? 'bg-slate-400' : 'bg-slate-300';
-            const iTextColor = iv >= 16 ? 'text-blue-800' : iv >= 11 ? 'text-blue-600' : 'text-slate-500';
+            const iBarColor = iv >= 16 ? 'bg-[#2b5d2c]' : iv >= 11 ? 'bg-[#4f7d50]' : iv >= 7 ? 'bg-[#737a82]' : 'bg-[#a0a8b0]';
+            const iTextColor = iv >= 16 ? 'text-[#1d431e]' : iv >= 11 ? 'text-[#2b5d2c]' : 'text-[#4b525a]';
             return (
               <div key={ik} className="flex items-center gap-2">
-                <span className="text-[8px] font-bold text-slate-500 uppercase w-20 truncate">{ATTRIBUTE_LABELS[ik] || ik}</span>
-                <div className="flex-1 h-1.5 bg-slate-200 rounded-full overflow-hidden">
-                  <div className={`h-full rounded-full ${iBarColor}`} style={{ width: `${iPct}%` }} />
+                <span className="text-[9px] font-bold text-[#3a3f45] uppercase w-24 truncate">{ATTRIBUTE_LABELS[ik] || ik}</span>
+                <div className="flex-1 h-1.5 bg-[#d4dcd4] border border-[#a0b0a0] rounded-[1px] overflow-hidden">
+                  <div className={`h-full ${iBarColor}`} style={{ width: `${iPct}%` }} />
                 </div>
-                <span className={`text-[10px] font-black w-5 text-right ${iTextColor}`}>{iv}</span>
+                <span className={`text-[10.5px] font-mono tabular-nums font-black w-5 text-right ${iTextColor}`}>{iv}</span>
               </div>
             );
           })}
@@ -124,8 +156,11 @@ export const PlayerModal: React.FC<PlayerModalProps> = ({ player, onClose, userC
   
   const { comparePlayerA, setComparePlayerA, setComparePlayerB } = useUIStore();
   
-  // Dialogue state
-  const [dialogueType, setDialogueType] = useState<DialogueType>('PRAISE_FORM');
+  const [dialogueType, setDialogueType] = useState<DialogueType>(() => {
+    if (player?.transferRequestReason) return 'CONVINCE_TO_STAY';
+    if (player && player.morale < 45) return 'DEMAND_MORE';
+    return 'PRAISE_FORM';
+  });
   const [dialogueTone, setDialogueTone] = useState<DialogueTone>('MODERATE');
   const [dialogueResult, setDialogueResult] = useState<DialogueResult | null>(null);
 
@@ -135,6 +170,7 @@ export const PlayerModal: React.FC<PlayerModalProps> = ({ player, onClose, userC
    const personality = ProfileNarrativeEngine.getPersonalityLabel(player);
    const isUserPlayer = player.clubId === userClubId;
    const keyAttributes = getKeyAttributes(player.positions[0]);
+   const daysSinceLastDialogue = getDaysSinceLastDialogue(player.id, currentDate);
 
   const handleRescind = async () => {
     const ok = await confirmAction({
@@ -155,6 +191,8 @@ export const PlayerModal: React.FC<PlayerModalProps> = ({ player, onClose, userC
     const result = DialogueSystem.resolveCoachPlayerInteraction(player, dialogueType, dialogueTone, currentDate);
     setDialogueResult(result);
     player.morale = Math.max(0, Math.min(100, player.morale + result.moraleChange));
+    clearPlayerDialogue(player.id);
+    notifyAll();
   };
 
   const isInFolder = userClubId ? world.isInTransferFolder(userClubId, player.id) : false;
@@ -257,38 +295,44 @@ export const PlayerModal: React.FC<PlayerModalProps> = ({ player, onClose, userC
           {/* Nav Tabs — FM08 Steel Sub-Toolbar */}
           <div className="flex items-center bg-[#3a3f45] border-b border-[#1c1f24] px-2 py-1.5 gap-1 shrink-0 overflow-x-auto no-scrollbar">
              {[
-                { id: 'PROFILE', icon: Activity, label: 'Perfil' },
-                { id: 'PERSONAL', icon: Info, label: 'Personal' },
-                { id: 'POSITIONS', icon: Map, label: 'Posiciones' },
-                { id: 'HISTORY', icon: History, label: 'Historial' },
-                { id: 'CONTRACT', icon: FileText, label: 'Contrato' },
-                ...(userClubId ? [{ id: 'INTERACTION', icon: MessageSquare, label: 'Charla' }] : []),
+                { id: 'PROFILE', icon: Activity, label: 'Perfil', shortLabel: 'Perfil' },
+                { id: 'PERSONAL', icon: Info, label: 'Personal', shortLabel: 'Info' },
+                { id: 'POSITIONS', icon: Map, label: 'Posiciones', shortLabel: 'Pos.' },
+                { id: 'HISTORY', icon: History, label: 'Historial', shortLabel: 'Hist.' },
+                { id: 'CONTRACT', icon: FileText, label: 'Contrato', shortLabel: 'Contr.' },
+                ...(userClubId ? [{ id: 'INTERACTION', icon: MessageSquare, label: 'Charla', shortLabel: 'Charla' }] : []),
              ].map(t => (
                 <button
                   key={t.id}
+                  type="button"
                   onClick={() => setActiveTab(t.id as any)}
-                  className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded text-xs font-semibold transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+                  className={`flex items-center justify-center gap-1 px-2.5 sm:px-3 py-1.5 rounded text-[10.5px] sm:text-xs font-semibold transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
                     activeTab === t.id
                       ? 'bg-[#2b5d2c] text-white shadow-inner border border-[#1a3a1b]'
                       : 'text-slate-200 hover:bg-white/10 border border-transparent'
                   }`}
                 >
                     <t.icon className="w-3.5 h-3.5 shrink-0" />
+                    <span className="sm:hidden">{t.shortLabel}</span>
                     <span className="hidden sm:inline">{t.label}</span>
+                    {t.id === 'INTERACTION' && player.pendingDialogue && (
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#facc15] shrink-0" />
+                    )}
                 </button>
              ))}
           </div>
 
-          <div className="flex-1 overflow-hidden flex flex-col bg-[#d4dcd4] p-2 md:p-3 relative">
+          <div className="flex-1 min-h-0 overflow-y-auto md:overflow-hidden flex flex-col bg-[#d4dcd4] p-2 md:p-3 relative">
              {activeTab === 'PROFILE' && (
-                <div className="h-full flex flex-col gap-2 overflow-hidden">
-                   <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-3 overflow-hidden">
+                <div className="h-full flex flex-col gap-2 overflow-y-auto md:overflow-hidden">
+                   <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-2.5 md:overflow-hidden">
                       {/* VISIBLES - Main column */}
-                      <div className="md:col-span-2 flex flex-col overflow-hidden">
-                         <div className="px-2 py-1.5 mb-2 bg-gradient-to-r from-[#3a4a3a] to-[#2a3a2a] rounded-sm shrink-0">
-                            <h3 className="text-white font-black text-[9px] uppercase tracking-widest">ATRIBUTOS VISIBLES</h3>
-                         </div>
-                         <div className="flex-1 overflow-y-auto custom-scroll space-y-1.5 pr-1">
+                      <FMBox
+                        title="Atributos Visibles"
+                        className="md:col-span-2 flex flex-col min-h-0"
+                        headerRight={<span className="text-[9px] text-slate-300 font-semibold hidden sm:inline">Tocá un bloque para ver detalle</span>}
+                      >
+                         <div className="space-y-1.5">
                             {(['fisico', 'mental', 'tecnica', 'agresividad', 'polivalencia'] as const).map(k => (
                               <VisibleAttrCard
                                 key={k}
@@ -302,22 +346,22 @@ export const PlayerModal: React.FC<PlayerModalProps> = ({ player, onClose, userC
                               />
                             ))}
                          </div>
-                      </div>
+                      </FMBox>
 
                       {/* FORMA - Side column */}
-                      <div className="flex flex-col gap-1.5 overflow-hidden">
-                         <div className="bg-white border border-[#a0b0a0] shrink-0 shadow-sm overflow-hidden rounded-[2px]">
-                            <div className="p-1.5 flex flex-col gap-1">
-                               <div className="flex justify-between items-center px-1.5 py-1">
-                                  <span className="text-[8px] font-black text-slate-600 uppercase tracking-wider">Forma</span>
-                                  <span className={`text-xs font-black tabular-nums ${player.fitness >= 80 ? 'text-green-700' : player.fitness >= 60 ? 'text-amber-600' : 'text-red-600'}`}>
+                      <div className="flex flex-col gap-1.5">
+                         <div className="bg-[#e8ece8] border border-[#8e9b90] shrink-0 shadow-sm overflow-hidden rounded-sm">
+                            <div className="p-2 flex flex-col gap-1.5 bg-white">
+                               <div className="flex justify-between items-center px-1 py-0.5">
+                                  <span className="text-[9px] font-black text-[#3a3f45] uppercase tracking-wider">Condición Física</span>
+                                  <span className={`text-xs font-black font-mono tabular-nums ${player.fitness >= 80 ? 'text-[#2b5d2c]' : player.fitness >= 60 ? 'text-amber-600' : 'text-red-600'}`}>
                                     {Math.round(player.fitness)}%
                                   </span>
                                </div>
-                               <div className="px-1.5 pb-1">
-                                  <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden border border-slate-300">
+                               <div className="px-1 pb-1">
+                                  <div className="w-full h-2 bg-[#d4dcd4] rounded-[1px] overflow-hidden border border-[#8e9b90]">
                                      <div
-                                        className={`h-full transition-all ${player.fitness >= 80 ? 'bg-green-600' : player.fitness >= 60 ? 'bg-amber-500' : 'bg-red-600'}`}
+                                        className={`h-full transition-all ${player.fitness >= 80 ? 'bg-[#2b5d2c]' : player.fitness >= 60 ? 'bg-amber-500' : 'bg-red-600'}`}
                                         style={{ width: `${Math.max(0, Math.min(100, Math.round(player.fitness)))}%` }}
                                      />
                                   </div>
@@ -480,46 +524,52 @@ export const PlayerModal: React.FC<PlayerModalProps> = ({ player, onClose, userC
              )}
 
                {activeTab === 'INTERACTION' && (
-                 <div className="h-full flex flex-col gap-1.5 min-h-0 overflow-hidden">
+                 <div className="h-full flex flex-col gap-2 min-h-0 overflow-y-auto custom-scroll pb-2">
                     {player.pendingDialogue && (() => {
                       const isManagerInitiated = ['PRE_MATCH_CHAT', 'POST_MATCH_WARNING', 'POST_MATCH_PRAISE', 'CONTRACT_RENEWAL'].includes(player.pendingDialogue);
                       const motiveText = player.pendingDialogue === 'MINUTES_DISCONTENT' ? 'No estoy contento con los minutos.' : player.pendingDialogue === 'CONTRACT_EXPIRING' ? 'Mi contrato está por vencer.' : player.pendingDialogue === 'TRANSFER_RUMOR' ? 'Vi rumores sobre mi futuro.' : player.pendingDialogue === 'DRESSING_ROOM_CONFLICT' ? 'Hay algo en el vestuario que hablar.' : player.pendingDialogue === 'PRE_MATCH_CHAT' ? 'Listo para el partido.' : player.pendingDialogue === 'POST_MATCH_WARNING' ? 'Asumo mi responsabilidad.' : player.pendingDialogue === 'POST_MATCH_PRAISE' ? 'Gracias por confiar en mí.' : 'Hablemos de mi futuro aquí.';
                       return (
-                      <div className={`px-2 py-1.5 rounded-sm flex items-center gap-2 shrink-0 ${isManagerInitiated ? 'bg-blue-100 border border-blue-300' : 'bg-amber-100 border border-amber-300'}`}>
-                         <MessageCircle size={14} className="shrink-0" style={{color: isManagerInitiated ? '#2563eb' : '#d97706'}} />
+                      <div className={`px-2.5 py-2 rounded-sm flex items-center gap-2 shrink-0 ${isManagerInitiated ? 'bg-[#e8f0e8] border border-[#7a967a]' : 'bg-amber-50 border border-amber-400'}`}>
+                         <MessageCircle size={15} className="shrink-0" style={{color: isManagerInitiated ? '#2b5d2c' : '#d97706'}} />
                          <div className="flex-1 min-w-0">
-                            <p className={`text-[8px] font-black uppercase truncate leading-tight ${isManagerInitiated ? 'text-blue-700' : 'text-amber-700'}`}>{isManagerInitiated ? 'Charla pendiente' : 'Quiere hablar contigo'}</p>
-                            <p className="text-[9.5px] italic font-bold text-slate-800 truncate leading-tight">"{motiveText}"</p>
+                            <p className={`text-[8.5px] font-black uppercase truncate leading-tight ${isManagerInitiated ? 'text-[#1d431e]' : 'text-amber-800'}`}>{isManagerInitiated ? 'Charla pendiente' : 'Quiere hablar contigo'}</p>
+                            <p className="text-[10px] italic font-bold text-slate-800 leading-snug">"{motiveText}"</p>
                          </div>
-                         <button type="button" onClick={() => { clearPlayerDialogue(player.id); useDialogueStore.getState().open('PLAYER_DIALOG', { clubId: userClubId || '', playerId: player.id, initiatedBy: isManagerInitiated ? 'MANAGER' : 'PLAYER', context: player.pendingDialogue }); }} className="shrink-0 text-[8.5px] bg-[#2b5d2c] text-white px-2 py-1 font-black uppercase rounded-[2px] cursor-pointer">Hablar</button>
+                         <button type="button" onClick={() => { const ctx = player.pendingDialogue; clearPlayerDialogue(player.id); useDialogueStore.getState().open('PLAYER_DIALOG', { clubId: userClubId || '', playerId: player.id, initiatedBy: isManagerInitiated ? 'MANAGER' : 'PLAYER', context: ctx }); }} className="shrink-0 text-[9px] bg-[#2b5d2c] text-white px-2.5 py-1.5 font-black uppercase rounded-[2px] border border-[#133014] cursor-pointer">Hablar</button>
                       </div>
                       );
                     })()}
                    {dialogueResult ? (
-                    <div className="flex-1 min-h-0 bg-white border border-[#a0b0a0] p-3 rounded-sm text-center flex flex-col items-center justify-center gap-2 animate-zoom-in">
-                       <div className={`p-2 rounded-full border-2 ${dialogueResult.reactionType === 'POSITIVE' ? 'bg-green-100 border-green-500 text-green-600' : dialogueResult.reactionType === 'NEGATIVE' ? 'bg-red-100 border-red-500 text-red-600' : 'bg-slate-100 border-slate-400 text-slate-600'}`}>
+                    <div className="flex-1 min-h-[200px] bg-white border border-[#8e9b90] p-4 rounded-sm text-center flex flex-col items-center justify-center gap-2.5 animate-zoom-in">
+                       <div className={`p-2.5 rounded-full border-2 ${dialogueResult.reactionType === 'POSITIVE' ? 'bg-green-100 border-[#2b5d2c] text-[#2b5d2c]' : dialogueResult.reactionType === 'NEGATIVE' ? 'bg-red-100 border-red-600 text-red-700' : 'bg-slate-100 border-slate-400 text-slate-600'}`}>
                           <MessageCircle size={24} />
                        </div>
-                       <h4 className="text-xs font-black uppercase italic tracking-tight text-[#1a1a1a]">Respuesta del Jugador</h4>
-                       <p className="text-[11px] font-bold italic text-slate-700 max-w-md">"{dialogueResult.text}"</p>
+                       <h4 className="text-xs font-black uppercase tracking-tight text-[#1a1a1a]">Respuesta del Jugador</h4>
+                       <p className="text-[11px] font-bold italic text-slate-700 max-w-md leading-relaxed">"{dialogueResult.text}"</p>
                        <div className="flex gap-2 items-center text-[10px] font-black">
                           <span className="text-slate-500 uppercase">Moral:</span>
-                          <span className={dialogueResult.moraleChange >= 0 ? 'text-green-600' : 'text-red-600'}>
+                          <span className={dialogueResult.moraleChange >= 0 ? 'text-[#2b5d2c]' : 'text-red-700'}>
                              {dialogueResult.moraleChange >= 0 ? '+' : ''}{dialogueResult.moraleChange}
                           </span>
                        </div>
-                       <FMButton variant="secondary" onClick={() => setDialogueResult(null)} className="mt-1 px-6 py-1.5 text-[10px]">Finalizar Charla</FMButton>
+                       <FMButton variant="secondary" onClick={() => setDialogueResult(null)} className="mt-1 px-6 py-2 text-[10px]">Finalizar Charla</FMButton>
                     </div>
                   ) : (
-                    <div className="flex-1 min-h-0 flex flex-col bg-[#e8ece8] border border-[#a0b0a0] rounded-sm shadow-sm overflow-hidden">
-                       <div className="border-b border-[#a0b0a0] px-2 py-1 shrink-0 flex items-center justify-between" style={{ background: 'linear-gradient(to bottom, #cfd8cf 0%, #a3b4a3 100%)' }}>
-                          <span className="text-[#1a1a1a] font-bold text-[9px] uppercase tracking-tight" style={{ fontFamily: 'Verdana, sans-serif' }}>Charla Privada</span>
-                          <span className="text-[8px] font-bold text-slate-700 uppercase">Moral {Math.round(player.morale)}%</span>
+                    <div className="shrink-0 md:flex-1 min-h-0 flex flex-col bg-[#e8ece8] border border-[#8e9b90] rounded-sm shadow-sm">
+                       <div className="border-b border-[#1c1f24] px-2.5 py-1.5 shrink-0 flex items-center justify-between" style={{ background: 'linear-gradient(180deg, #434950 0%, #2d3238 100%)' }}>
+                          <span className="text-slate-100 font-bold text-[10px] uppercase tracking-wide">Charla Privada</span>
+                          <span className="text-[9px] font-mono font-bold text-[#facc15] uppercase">Moral {Math.round(player.morale)}%</span>
                        </div>
-                       <div className="flex-1 min-h-0 p-2 flex flex-col justify-between gap-1.5 bg-white/90 overflow-hidden">
-                          <div className="shrink-0">
-                             <label className="text-[7.5px] font-black text-slate-500 uppercase tracking-widest block mb-0.5">Tema</label>
-                             <div className="grid grid-cols-2 gap-1">
+                       <div className="p-2.5 flex flex-col gap-2.5 bg-white/95">
+                          {daysSinceLastDialogue !== null && daysSinceLastDialogue < 14 && (
+                            <div className="px-2 py-1 bg-[#eef3ee] border border-[#8e9b90] rounded-[2px] text-[9px] font-bold text-[#3a4a3a]">
+                              Ya hablaste con él hace {daysSinceLastDialogue === 0 ? 'hoy' : `${daysSinceLastDialogue} día${daysSinceLastDialogue === 1 ? '' : 's'}`}. Conviene darle espacio antes de otra charla intensa.
+                            </div>
+                          )}
+
+                          <div>
+                             <label className="text-[8px] font-black text-slate-600 uppercase tracking-widest block mb-1">Tema de conversación</label>
+                             <div className="grid grid-cols-2 gap-1.5">
                                 {[
                                   { id: 'PRAISE_FORM', label: 'Elogiar Forma' },
                                   { id: 'CRITICIZE_FORM', label: 'Criticar Juego' },
@@ -528,27 +578,27 @@ export const PlayerModal: React.FC<PlayerModalProps> = ({ player, onClose, userC
                                   { id: 'WARN_CONDUCT', label: 'Advertir Disciplina' },
                                   ...(player.transferRequestReason ? [{ id: 'CONVINCE_TO_STAY' as const, label: 'Pedir que Siga' }] : []),
                                 ].map(opt => (
-                                  <button type="button" key={opt.id} onClick={() => setDialogueType(opt.id as any)} className={`px-2 py-1.5 text-[8.5px] font-black uppercase rounded-[2px] border transition-all cursor-pointer truncate ${dialogueType === opt.id ? 'bg-[#2b5d2c] text-white border-[#133014] shadow-sm' : 'bg-white text-slate-700 border-[#a0b0a0] hover:bg-[#f2f7f2]'}`}>{opt.label}</button>
+                                  <button type="button" key={opt.id} onClick={() => setDialogueType(opt.id as any)} className={`px-2 py-1.5 text-[9px] font-black uppercase rounded-[2px] border transition-all cursor-pointer truncate ${dialogueType === opt.id ? 'bg-[#2b5d2c] text-white border-[#133014] shadow-sm' : 'bg-white text-slate-700 border-[#8e9b90] hover:bg-[#f2f7f2]'}`}>{opt.label}</button>
                                 ))}
                              </div>
                           </div>
 
-                          <div className="shrink-0">
-                             <label className="text-[7.5px] font-black text-slate-500 uppercase tracking-widest block mb-0.5">Tono</label>
-                             <div className="flex bg-[#bcc8bc] p-0.5 rounded-sm border border-[#a0b0a0] shadow-inner gap-0.5">
+                          <div>
+                             <label className="text-[8px] font-black text-slate-600 uppercase tracking-widest block mb-1">Tono del mensaje</label>
+                             <div className="flex bg-[#bcc8bc] p-0.5 rounded-sm border border-[#8e9b90] shadow-inner gap-0.5">
                                 {['MILD', 'MODERATE', 'AGGRESSIVE'].map(t => (
-                                  <button type="button" key={t} onClick={() => setDialogueTone(t as any)} className={`flex-1 py-1 text-[8.5px] font-black uppercase rounded-[1px] transition-all cursor-pointer ${dialogueTone === t ? (t === 'AGGRESSIVE' ? 'bg-red-700 text-white' : 'bg-[#2b5d2c] text-white') : 'text-slate-700'}`}>{t === 'MILD' ? 'Tranquilo' : t === 'MODERATE' ? 'Directo' : 'Agresivo'}</button>
+                                  <button type="button" key={t} onClick={() => setDialogueTone(t as any)} className={`flex-1 py-1.5 text-[9px] font-black uppercase rounded-[1px] transition-all cursor-pointer ${dialogueTone === t ? (t === 'AGGRESSIVE' ? 'bg-red-700 text-white' : 'bg-[#2b5d2c] text-white') : 'text-slate-700'}`}>{t === 'MILD' ? 'Tranquilo' : t === 'MODERATE' ? 'Directo' : 'Agresivo'}</button>
                                 ))}
                              </div>
                           </div>
 
-                          <div className="bg-slate-100 px-2 py-1.5 border border-slate-300 rounded-sm italic text-[9.5px] leading-snug font-bold text-slate-700 line-clamp-2 shrink-0">
+                          <div className="bg-[#f2f7f2] px-2.5 py-2 border border-[#a0b0a0] rounded-sm italic text-[10px] leading-snug font-bold text-slate-700">
                              "{DialogueSystem.getTopicOptions(dialogueType)[dialogueTone]}"
                           </div>
 
-                          <div className="shrink-0 pt-0.5">
-                             <FMButton variant="primary" onClick={handleTalk} className="w-full py-2 text-[10px] tracking-wider">
-                                <MessageCircle size={13}/> Iniciar Diálogo
+                          <div className="pt-0.5">
+                             <FMButton variant="primary" onClick={handleTalk} className="w-full py-2.5 text-[10.5px] tracking-wider">
+                                <MessageCircle size={14}/> Iniciar Diálogo
                              </FMButton>
                           </div>
                        </div>

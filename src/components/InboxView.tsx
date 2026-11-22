@@ -32,8 +32,15 @@ export const InboxView: React.FC<InboxViewProps> = ({ setView }) => {
   }, [userClub?.id]);
 
   const handleOpenPlayerDialog = (playerId: string) => {
+    const context = world.getPlayer(playerId)?.pendingDialogue || 'GENERAL';
+    const isManagerInitiated = ['PRE_MATCH_CHAT', 'POST_MATCH_WARNING', 'POST_MATCH_PRAISE', 'CONTRACT_RENEWAL'].includes(context);
     clearPlayerDialogue(playerId);
-    useDialogueStore.getState().open('PLAYER_DIALOG', { clubId: userClub?.id || '', playerId, initiatedBy: 'PLAYER', context: world.getPlayer(playerId)?.pendingDialogue || 'GENERAL' });
+    useDialogueStore.getState().open('PLAYER_DIALOG', {
+      clubId: userClub?.id || '',
+      playerId,
+      initiatedBy: isManagerInitiated ? 'MANAGER' : 'PLAYER',
+      context,
+    });
   };
 
   const filteredMessages = useMemo(() => {
@@ -182,7 +189,16 @@ export const InboxView: React.FC<InboxViewProps> = ({ setView }) => {
                 >
                   <MessageCircle size={14} className="text-amber-600" />
                   <span className="text-[10px] font-black text-slate-900 uppercase">{p.name}</span>
-                  <span className="text-[8px] font-bold text-amber-700 uppercase">{p.pendingDialogue === 'MINUTES_DISCONTENT' ? 'Minutos' : p.pendingDialogue === 'CONTRACT_EXPIRING' ? 'Contrato' : p.pendingDialogue === 'TRANSFER_RUMOR' ? 'Rumor' : 'Vestuario'}</span>
+                  <span className="text-[8px] font-bold text-amber-700 uppercase">
+                    {p.pendingDialogue === 'MINUTES_DISCONTENT' ? 'Minutos'
+                      : p.pendingDialogue === 'CONTRACT_EXPIRING' ? 'Contrato'
+                      : p.pendingDialogue === 'CONTRACT_RENEWAL' ? 'Renovación'
+                      : p.pendingDialogue === 'TRANSFER_RUMOR' ? 'Rumor'
+                      : p.pendingDialogue === 'PRE_MATCH_CHAT' ? 'Previa'
+                      : p.pendingDialogue === 'POST_MATCH_PRAISE' ? 'Elogio'
+                      : p.pendingDialogue === 'POST_MATCH_WARNING' ? 'Charla'
+                      : 'Vestuario'}
+                  </span>
                 </button>
               ))}
             </div>

@@ -1,4 +1,9 @@
-import { FORMATIONS } from '../engine/formations';
+import {
+  computeFormationLabel,
+  FORMATIONS,
+  inferRoleFromCoords,
+  nearestPresetFormationId,
+} from '../engine/formations';
 import { MatchEngine } from '../engine/MatchEngine';
 import {
   Club,
@@ -13,6 +18,7 @@ import {
 } from '../types';
 import {
   ClubPreset,
+  CustomPlayerAnchor,
   DefensiveLineLevel,
   FormationId,
   MatchEvent as EngineMatchEvent,
@@ -201,36 +207,148 @@ function getRoleLineGroup(role: PlayerRole): 'GK' | 'DEF' | 'MID' | 'ATT' {
   return 'ATT';
 }
 
-export function inferFormationFromFm2(tactic?: Tactic, starters?: Player[]): FormationId {
-  // 1) Try tactic name first (e.g. "4-3-3", "4-2-3-1", "4-4-2", "3-5-2", "5-3-2", "4-1-4-1")
-  const name = tactic?.name || '';
-  const known: FormationId[] = ['4-3-3', '4-2-3-1', '3-5-2', '4-4-2', '5-3-2', '4-1-4-1'];
-  for (const f of known) {
-    if (name.includes(f)) return f;
+type Fm2SlotLine = 'GK' | 'SW' | 'DEF' | 'DM' | 'MID' | 'AM' | 'ATT';
+
+export const FM2_SLOT_LAYOUT: Record<
+  number,
+  { line: Fm2SlotLine; role: PlayerRole; xNorm: number; zNorm: number; sortOrder: number }
+> = {
+  0:  { line: 'GK',  role: 'POR', xNorm: 0.04, zNorm: 0,     sortOrder: 0 },
+  31: { line: 'SW',  role: 'DFC', xNorm: 0.13, zNorm: 0,     sortOrder: 1 },
+  1:  { line: 'DEF', role: 'LI',  xNorm: 0.21, zNorm: -0.37, sortOrder: 2 },
+  2:  { line: 'DEF', role: 'DFC', xNorm: 0.18, zNorm: -0.17, sortOrder: 3 },
+  3:  { line: 'DEF', role: 'DFC', xNorm: 0.17, zNorm: 0,     sortOrder: 4 },
+  4:  { line: 'DEF', role: 'DFC', xNorm: 0.18, zNorm: 0.17,  sortOrder: 5 },
+  5:  { line: 'DEF', role: 'LD',  xNorm: 0.21, zNorm: 0.37,  sortOrder: 6 },
+  9:  { line: 'DM',  role: 'CAR', xNorm: 0.35, zNorm: -0.39, sortOrder: 7 },
+  6:  { line: 'DM',  role: 'MCD', xNorm: 0.35, zNorm: -0.17, sortOrder: 8 },
+  8:  { line: 'DM',  role: 'MCD', xNorm: 0.35, zNorm: 0,     sortOrder: 9 },
+  7:  { line: 'DM',  role: 'MCD', xNorm: 0.35, zNorm: 0.17,  sortOrder: 10 },
+  10: { line: 'DM',  role: 'CAR', xNorm: 0.35, zNorm: 0.39,  sortOrder: 11 },
+  11: { line: 'MID', role: 'EI',  xNorm: 0.48, zNorm: -0.38, sortOrder: 12 },
+  12: { line: 'MID', role: 'MC',  xNorm: 0.47, zNorm: -0.16, sortOrder: 13 },
+  13: { line: 'MID', role: 'MC',  xNorm: 0.47, zNorm: 0,     sortOrder: 14 },
+  14: { line: 'MID', role: 'MC',  xNorm: 0.47, zNorm: 0.16,  sortOrder: 15 },
+  15: { line: 'MID', role: 'ED',  xNorm: 0.48, zNorm: 0.38,  sortOrder: 16 },
+  16: { line: 'AM',  role: 'EI',  xNorm: 0.61, zNorm: -0.36, sortOrder: 17 },
+  19: { line: 'AM',  role: 'MCO', xNorm: 0.60, zNorm: -0.17, sortOrder: 18 },
+  17: { line: 'AM',  role: 'MCO', xNorm: 0.59, zNorm: 0,     sortOrder: 19 },
+  20: { line: 'AM',  role: 'MCO', xNorm: 0.60, zNorm: 0.17,  sortOrder: 20 },
+  18: { line: 'AM',  role: 'ED',  xNorm: 0.61, zNorm: 0.36,  sortOrder: 21 },
+  27: { line: 'ATT', role: 'EI',  xNorm: 0.71, zNorm: -0.35, sortOrder: 22 },
+  29: { line: 'ATT', role: 'DC',  xNorm: 0.75, zNorm: -0.16, sortOrder: 23 },
+  26: { line: 'ATT', role: 'DC',  xNorm: 0.76, zNorm: 0,     sortOrder: 24 },
+  30: { line: 'ATT', role: 'DC',  xNorm: 0.75, zNorm: 0.16,  sortOrder: 25 },
+  28: { line: 'ATT', role: 'ED',  xNorm: 0.71, zNorm: 0.35,  sortOrder: 26 },
+};
+
+export function fm2SlotToAnchor(slot: number): CustomPlayerAnchor {
+  const layout = FM2_SLOT_LAYOUT[slot] || FM2_SLOT_LAYOUT[13];
+  return {
+    xNorm: layout.xNorm,
+    zNorm: layout.zNorm,
+    role: layout.role,
+    fm2Slot: slot,
+  };
+}
+
+export function findNearestFm2Slot(
+  xNorm: number,
+  zNorm: number,
+  occupiedSlots: Set<number>
+): number {
+  let bestSlot = 13;
+  let bestDist = Infinity;
+  for (const [slotStr, layout] of Object.entries(FM2_SLOT_LAYOUT)) {
+    const slot = Number(slotStr);
+    if (slot === 0) continue;
+    if (occupiedSlots.has(slot)) continue;
+    const dx = layout.xNorm - xNorm;
+    const dz = layout.zNorm - zNorm;
+    const d = dx * dx + dz * dz;
+    if (d < bestDist) {
+      bestDist = d;
+      bestSlot = slot;
+    }
+  }
+  return bestSlot;
+}
+
+export function inferExactFormationLabelFromSlots(slots: number[]): string {
+  const unique = Array.from(new Set(slots)).filter((s) => s !== 0 && FM2_SLOT_LAYOUT[s]);
+  if (unique.length < 7) return '4-4-2';
+
+  let def = 0;
+  let dm = 0;
+  let mid = 0;
+  let am = 0;
+  let wideAm = 0;
+  let att = 0;
+
+  for (const s of unique) {
+    const line = FM2_SLOT_LAYOUT[s].line;
+    if (line === 'SW' || line === 'DEF') def++;
+    else if (line === 'DM') dm++;
+    else if (line === 'MID') mid++;
+    else if (line === 'AM') {
+      am++;
+      if (s === 16 || s === 18) wideAm++;
+    } else if (line === 'ATT') att++;
   }
 
-  // 2) Infer from FM2 26-slot tactic positions (indices 1..25)
-  if (tactic?.positions && tactic.positions.length >= 11) {
-    let def = 0;
-    let dm = 0;
-    let mid = 0;
-    let am = 0;
-    let att = 0;
-    for (const slot of tactic.positions) {
-      if (slot === 0) continue;
-      if (slot >= 1 && slot <= 6) def++;
-      else if (slot >= 7 && slot <= 11) dm++;
-      else if (slot >= 12 && slot <= 16) mid++;
-      else if (slot >= 17 && slot <= 21) am++;
-      else if (slot >= 22 && slot <= 25) att++;
-    }
-    if (def >= 5) return '5-3-2';
-    if (def === 3) return '3-5-2';
-    if (att >= 2) return '4-4-2';
-    if (dm >= 2 && am >= 2) return '4-2-3-1';
-    if (dm === 1 && mid >= 3 && att <= 1) return '4-1-4-1';
-    if (am >= 2 && att === 1) return '4-3-3';
-    return '4-2-3-1';
+  // Classic 4-2-3-1 (4 DEF, 2 DM, 3 AM, 1 ATT)
+  if (dm === 2 && mid === 0 && am === 3 && att === 1) return `${def}-2-3-1`;
+  // Classic 4-1-4-1 (4 DEF, 1 DM, 4 MID, 1 ATT)
+  if (dm === 1 && mid === 4 && am === 0 && att === 1) return `${def}-1-4-1`;
+  // Classic 4-3-3 Ofensiva (1 DM + 2 MID + 2 inside/wide AM + 1 ST OR 3 MID + 3 ATT)
+  if (dm + mid === 3 && am === 2 && att === 1) return `${def}-3-3`;
+  // Wide AM wingers + 2 ST with 2 midfielders -> 4-2-4
+  if (dm + mid === 2 && wideAm === 2 && am === 2 && att === 2) return `${def}-2-4`;
+  // 4-2-2-2 (2 DM, 2 central AM, 2 ST)
+  if (dm === 2 && mid === 0 && am === 2 && wideAm === 0 && att === 2) return `${def}-2-2-2`;
+  // 4-4-1-1 (4 DEF, 4 MID, 1 AM, 1 ATT)
+  if (dm === 0 && mid >= 3 && am === 1 && att === 1) return `${def}-${mid}-1-1`;
+  // Generic 4-band if DM + AM both explicitly populated with no central MID
+  if (dm > 0 && mid === 0 && am > 0 && att > 0) return `${def}-${dm}-${am}-${att}`;
+
+  const totalMid = dm + mid + am;
+  return `${def}-${totalMid}-${att}`;
+}
+
+export function inferFormationFromFm2(tactic?: Tactic, starters?: Player[]): FormationId {
+  // 1) ALWAYS inspect actual placed starter slots first (drag-and-drop moves update starter.tacticalPosition & tactic.positions!)
+  const starterSlots = (starters || [])
+    .map((p) => p.tacticalPosition)
+    .filter((s): s is number => s !== undefined && Boolean(FM2_SLOT_LAYOUT[s]));
+  const activeSlots =
+    starterSlots.length >= 10
+      ? starterSlots
+      : tactic?.positions && tactic.positions.length >= 10
+      ? tactic.positions
+      : [];
+
+  if (activeSlots.length >= 10) {
+    const label = inferExactFormationLabelFromSlots(activeSlots);
+    return nearestPresetFormationId(label, '4-4-2');
+  }
+
+  // 2) Try tactic name if no concrete slot positions were available
+  const name = tactic?.name || '';
+  const known: FormationId[] = [
+    '4-2-3-1',
+    '4-1-4-1',
+    '4-4-1-1',
+    '4-2-2-2',
+    '4-3-3',
+    '4-2-4',
+    '4-4-2',
+    '3-5-2',
+    '5-3-2',
+    '5-4-1',
+    '3-4-3',
+  ];
+  for (const f of known) {
+    if (name.includes(f)) return f;
   }
 
   // 3) Fallback from starter natural positions
@@ -243,9 +361,10 @@ export function inferFormationFromFm2(tactic?: Tactic, starters?: Player[]): For
       if (g === 'DEF') def++;
       else if (g === 'ATT') att++;
     }
-    if (def >= 5) return '5-3-2';
-    if (def <= 3) return '3-5-2';
-    if (att >= 3) return '4-3-3';
+    if (def >= 5) return att <= 1 ? '5-4-1' : '5-3-2';
+    if (def <= 3) return att >= 3 ? '3-4-3' : '3-5-2';
+    if (att >= 4) return '4-2-4';
+    if (att === 3) return '4-3-3';
     if (att === 2) return '4-4-2';
   }
   return '4-2-3-1';
@@ -254,13 +373,15 @@ export function inferFormationFromFm2(tactic?: Tactic, starters?: Player[]): For
 export function mapFm2SettingsToTeamTactics(
   formation: FormationId,
   settings?: TacticSettings,
-  club?: Club
+  club?: Club,
+  customLabel?: string
 ): TeamTactics {
   if (!settings) {
     // Derive realistic AI club tactics from club reputation/cohesion
     const rep = club?.reputation ?? 5000;
     return {
       formation,
+      customLabel: customLabel || formation,
       mentality: rep >= 7500 ? 'ofensiva' : rep >= 4500 ? 'equilibrada' : 'defensiva',
       pressing: rep >= 7000 ? 'presion_alta' : 'bloque_medio',
       passing: rep >= 7000 ? 'corto' : rep >= 4500 ? 'mixto' : 'directo',
@@ -303,6 +424,7 @@ export function mapFm2SettingsToTeamTactics(
 
   return {
     formation,
+    customLabel: customLabel || formation,
     mentality,
     pressing,
     passing,
@@ -366,6 +488,42 @@ export function syncEngineTacticsToFm2Settings(
   s.defensiveLine = defLineMap[tactics.defensiveLine];
   s.playOffside = tactics.defensiveLine === 'fuera_de_juego';
   s.counterAttack = tactics.counterAttack;
+}
+
+export function syncEnginePositionsToFm2(
+  enginePlayers: PlayerMatchState[],
+  fm2Players: Player[],
+  fm2Tactic: Tactic | undefined,
+  fallbackFormation: FormationId
+): void {
+  const activeEngine = enginePlayers
+    .filter((p) => p.onPitch && !p.redCard)
+    .sort((a, b) => a.slotIndex - b.slotIndex);
+  if (activeEngine.length < 10) return;
+
+  const baseSlots = FORMATIONS[fallbackFormation] || FORMATIONS['4-4-2'];
+  const occupied = new Set<number>([0]);
+  const newPositions: number[] = [];
+  const playerById = new Map(fm2Players.map((p) => [p.id, p]));
+
+  for (const ep of activeEngine) {
+    const fmPlayer = playerById.get(ep.id);
+    if (!fmPlayer) continue;
+    let mappedSlot: number;
+    if (ep.slotIndex === 0 && ep.assignedRole === 'POR') {
+      mappedSlot = 0;
+    } else {
+      const anchor = ep.customAnchor || baseSlots[Math.min(10, ep.slotIndex)] || baseSlots[1];
+      mappedSlot = findNearestFm2Slot(anchor.xNorm, anchor.zNorm, occupied);
+      occupied.add(mappedSlot);
+    }
+    fmPlayer.tacticalPosition = mappedSlot;
+    newPositions.push(mappedSlot);
+  }
+
+  if (fm2Tactic && newPositions.length === 11) {
+    fm2Tactic.positions = newPositions;
+  }
 }
 
 function mapPlayerTacticToInstruction(ind?: PlayerTacticSettings): PlayerInstruction {
@@ -513,7 +671,7 @@ function orderSquadForFormation(
   tactic: Tactic | undefined,
   benchLimit: number
 ): PlayerProfile[] {
-  const slots = FORMATIONS[formation];
+  const slots = FORMATIONS[formation] || FORMATIONS['4-4-2'];
   const eligible = rawPlayers.filter((p) => !p.injury && !(p.suspension && p.suspension.matchesLeft > 0));
   const pool = eligible.length >= 11 ? eligible : rawPlayers;
 
@@ -530,52 +688,94 @@ function orderSquadForFormation(
     starters = [...starters, ...extras.slice(0, 11 - starters.length)];
   }
 
-  // Ensure a real goalkeeper is assigned to slot 0 if available
-  const assignedStarters: (Player | null)[] = new Array(11).fill(null);
-  const remaining = [...starters];
+  // Check if starters carry explicit FM2 dragged/placed tactical positions (at least 10 valid)
+  const placedCount = starters.filter(
+    (p) => p.tacticalPosition !== undefined && Boolean(FM2_SLOT_LAYOUT[p.tacticalPosition])
+  ).length;
 
-  const gkIdx = remaining.findIndex(
-    (p) => p.primaryPosition === Position.GK || p.positions?.includes(Position.GK)
-  );
-  if (gkIdx >= 0) {
-    assignedStarters[0] = remaining.splice(gkIdx, 1)[0];
-  } else if (remaining.length > 0) {
-    assignedStarters[0] = remaining.shift()!;
-  }
+  let starterProfiles: PlayerProfile[];
 
-  // Assign remaining 10 outfield players greedily by best role/line match
-  const scoreFit = (p: Player, slotRole: PlayerRole): number => {
-    const pRole = mapFm2PositionToRole(p.primaryPosition || p.positions?.[0]);
-    if (pRole === slotRole) return 100;
-    const secondaryRoles = (p.positions || []).map(mapFm2PositionToRole);
-    if (secondaryRoles.includes(slotRole)) return 75;
-    if (getRoleLineGroup(pRole) === getRoleLineGroup(slotRole)) return 45;
-    if (pRole === 'POR') return -50;
-    return 10;
-  };
+  if (placedCount >= 10) {
+    // Preserve exact FM2 tactical positions (dragged 4-2-4, wingers, custom lines, etc.) 1-to-1!
+    const gkPlayer =
+      starters.find((p) => p.tacticalPosition === 0) ||
+      starters.find((p) => p.primaryPosition === Position.GK || p.positions?.includes(Position.GK)) ||
+      starters[0];
 
-  for (let sIdx = 1; sIdx < 11; sIdx++) {
-    const slotRole = slots[sIdx].role;
-    let bestIdx = -1;
-    let bestScore = -999;
-    for (let i = 0; i < remaining.length; i++) {
-      const sc = scoreFit(remaining[i], slotRole) + (remaining[i].currentAbility ?? 100) * 0.05;
-      if (sc > bestScore) {
-        bestScore = sc;
-        bestIdx = i;
+    const outfieldPlayers = starters
+      .filter((p) => p.id !== gkPlayer.id)
+      .sort((a, b) => {
+        const ordA = FM2_SLOT_LAYOUT[a.tacticalPosition ?? 99]?.sortOrder ?? 99;
+        const ordB = FM2_SLOT_LAYOUT[b.tacticalPosition ?? 99]?.sortOrder ?? 99;
+        return ordA - ordB;
+      });
+
+    const ordered = [gkPlayer, ...outfieldPlayers].slice(0, 11);
+    starterProfiles = ordered.map((p, sIdx) => {
+      const indSettings =
+        p.tacticalPosition !== undefined ? tactic?.individualSettings?.[p.tacticalPosition] : undefined;
+      const prof = mapFm2PlayerToProfile(p, sIdx + 1, mapPlayerTacticToInstruction(indSettings));
+      if (sIdx === 0) {
+        prof.customAnchor = fm2SlotToAnchor(p.tacticalPosition === 0 ? 0 : 0);
+      } else if (p.tacticalPosition !== undefined && FM2_SLOT_LAYOUT[p.tacticalPosition]) {
+        prof.customAnchor = fm2SlotToAnchor(p.tacticalPosition);
+      } else {
+        const fallbackSlot = slots[Math.min(10, sIdx)];
+        prof.customAnchor = {
+          xNorm: fallbackSlot.xNorm,
+          zNorm: fallbackSlot.zNorm,
+          role: fallbackSlot.role,
+        };
+      }
+      return prof;
+    });
+  } else {
+    // Fallback: auto-assign onto preset slots when no tacticalPosition layout exists
+    const assignedStarters: (Player | null)[] = new Array(11).fill(null);
+    const remaining = [...starters];
+
+    const gkIdx = remaining.findIndex(
+      (p) => p.primaryPosition === Position.GK || p.positions?.includes(Position.GK)
+    );
+    if (gkIdx >= 0) {
+      assignedStarters[0] = remaining.splice(gkIdx, 1)[0];
+    } else if (remaining.length > 0) {
+      assignedStarters[0] = remaining.shift()!;
+    }
+
+    const scoreFit = (p: Player, slotRole: PlayerRole): number => {
+      const pRole = mapFm2PositionToRole(p.primaryPosition || p.positions?.[0]);
+      if (pRole === slotRole) return 100;
+      const secondaryRoles = (p.positions || []).map(mapFm2PositionToRole);
+      if (secondaryRoles.includes(slotRole)) return 75;
+      if (getRoleLineGroup(pRole) === getRoleLineGroup(slotRole)) return 45;
+      if (pRole === 'POR') return -50;
+      return 10;
+    };
+
+    for (let sIdx = 1; sIdx < 11; sIdx++) {
+      const slotRole = slots[sIdx].role;
+      let bestIdx = -1;
+      let bestScore = -999;
+      for (let i = 0; i < remaining.length; i++) {
+        const sc = scoreFit(remaining[i], slotRole) + (remaining[i].currentAbility ?? 100) * 0.05;
+        if (sc > bestScore) {
+          bestScore = sc;
+          bestIdx = i;
+        }
+      }
+      if (bestIdx >= 0) {
+        assignedStarters[sIdx] = remaining.splice(bestIdx, 1)[0];
       }
     }
-    if (bestIdx >= 0) {
-      assignedStarters[sIdx] = remaining.splice(bestIdx, 1)[0];
-    }
-  }
 
-  const starterProfiles: PlayerProfile[] = assignedStarters.map((p, sIdx) => {
-    if (!p) return createFallbackAcademyProfile(clubId, sIdx, slots[sIdx].role);
-    const indSettings =
-      p.tacticalPosition !== undefined ? tactic?.individualSettings?.[p.tacticalPosition] : undefined;
-    return mapFm2PlayerToProfile(p, sIdx + 1, mapPlayerTacticToInstruction(indSettings));
-  });
+    starterProfiles = assignedStarters.map((p, sIdx) => {
+      if (!p) return createFallbackAcademyProfile(clubId, sIdx, slots[sIdx].role);
+      const indSettings =
+        p.tacticalPosition !== undefined ? tactic?.individualSettings?.[p.tacticalPosition] : undefined;
+      return mapFm2PlayerToProfile(p, sIdx + 1, mapPlayerTacticToInstruction(indSettings));
+    });
+  }
 
   const starterIds = new Set(starterProfiles.map((p) => p.id));
   const benchCandidates = pool
@@ -603,13 +803,43 @@ export function buildClubPresetFromFm2(
   settingsOverride?: TacticSettings,
   benchLimit = 7
 ): ClubPreset {
-  const formation = inferFormationFromFm2(tactic, players.filter((p) => p.isStarter));
+  const activeStarters = players.filter((p) => p.isStarter);
+  const starterSlots = activeStarters
+    .map((p) => p.tacticalPosition)
+    .filter((s): s is number => s !== undefined && Boolean(FM2_SLOT_LAYOUT[s]));
+  const rawSlots =
+    starterSlots.length >= 10
+      ? starterSlots
+      : tactic?.positions && tactic.positions.length >= 10
+      ? tactic.positions
+      : [];
+
+  const formation = inferFormationFromFm2(tactic, activeStarters);
+  const exactCustomLabel =
+    rawSlots.length >= 10 ? inferExactFormationLabelFromSlots(rawSlots) : formation;
+
+  const squad = orderSquadForFormation(players, formation, club.id, tactic, benchLimit);
+  const computedLabel =
+    squad.slice(0, 11).some((p) => p.customAnchor)
+      ? computeFormationLabel(
+          squad.slice(0, 11).map((p, idx) => ({
+            slotIndex: idx,
+            assignedRole: p.customAnchor?.role || p.naturalRole,
+            customAnchor: p.customAnchor,
+            onPitch: true,
+            redCard: false,
+          })),
+          formation
+        )
+      : exactCustomLabel;
+
+  const finalLabel = rawSlots.length >= 10 ? exactCustomLabel : computedLabel;
   const defaultTactics = mapFm2SettingsToTeamTactics(
     formation,
     settingsOverride || tactic?.settings,
-    club
+    club,
+    finalLabel
   );
-  const squad = orderSquadForFormation(players, formation, club.id, tactic, benchLimit);
 
   return {
     id: club.id,
@@ -622,6 +852,9 @@ export function buildClubPresetFromFm2(
     squad,
   };
 }
+
+// Keep unused-export lint satisfied if inferRoleFromCoords is imported for symmetry
+export { inferRoleFromCoords };
 
 // ─── Result Extraction (MatchSnapshot -> FM2 Stats, Events, Injuries & Opta) ─
 
