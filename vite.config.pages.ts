@@ -3,11 +3,6 @@ import react from '@vitejs/plugin-react';
 import {defineConfig} from 'vite';
 import baseConfig from './vite.config.base';
 
-// Plugins declared by the base config that must not run for static GitHub Pages
-// builds. `vite-plugin-pwa` needs the virtual module `virtual:pwa-register`
-// (unused by the Pages entrypoint) and its manifest assumes a root deployment.
-const PAGES_EXCLUDED_PLUGINS = new Set(['vite-plugin-pwa']);
-
 // GitHub Pages serves project sites from a sub-path (e.g. https://user.github.io/FM-2D/),
 // so every built asset reference must be prefixed with the repository base URL.
 // The base is resolved from the repository name (GITHUB_REPOSITORY) and can be
@@ -24,8 +19,21 @@ const repoBase = (): string => {
   return name.endsWith('.github.io') ? '/' : `/${name}/`;
 };
 
+// Mock virtual:pwa-register for Pages builds (no service worker on static Pages)
+const mockPwaRegister = () => ({
+  name: 'mock-pwa-register',
+  resolveId(id: string) {
+    if (id === 'virtual:pwa-register') return id;
+  },
+  load(id: string) {
+    if (id === 'virtual:pwa-register') {
+      return `export function registerSW() { console.log('[PWA] SW registration skipped on Pages'); }`;
+    }
+  },
+});
+
 export default defineConfig(() => ({
   ...baseConfig,
   base: repoBase(),
-  plugins: [react(), tailwindcss()],
+  plugins: [react(), tailwindcss(), mockPwaRegister()],
 }));
