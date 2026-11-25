@@ -1,0 +1,23 @@
+name: Update Football Data (Manual)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - name: Clone open-football-database
+        run: |
+          git clone --depth 1 --filter=blob:none --sparse https://github.com/ZOXEXIVO/open-football-database.git /tmp/open-football-database
+          cd /tmp/open-football-database
+          git sparse-checkout set data
+      - name: Run update script
+        run: bun run scripts/update-football-data.ts
+      - name: Commit changes
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore(data): update open-football-database snapshot"
+          file_pattern: public/data/*.json
