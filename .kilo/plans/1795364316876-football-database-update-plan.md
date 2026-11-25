@@ -203,8 +203,8 @@ jobs:
 - Document in script with clear error messages
 
 ### 5. Update `realPlayers.ts` (Argentine clubs)
-- Keep Boca/River/Central/Quilmes hardcoded overrides
-- Conversion script should **skip** players for clubs with `clubShort` in `["BOC","RIV","CEN","QUI"]` to preserve manual data
+- **NO preserve** hardcoded overrides — use fresh data from open-football-database for ALL clubs including Boca, River, Central, Quilmes
+- Conversion script processes Argentine clubs normally; `realPlayers.ts` becomes deprecated/removable
 
 ### 6. Documentation
 - Update `README.md` with data source, update schedule, how to run manually
@@ -221,6 +221,7 @@ jobs:
 | League tier mismatch (source has 3 tiers, project expects 1-2) | Only import tier 1 & 2; log tier 3+ as skipped |
 | Team colors missing | Fallback: generate from club name hash |
 | Player `history` references clubs not in dataset | Keep `history` as-is; `history_clubs.json` provides names for external clubs |
+| Argentine clubs override lost | Acceptable — fresh data from source is the new truth; `realPlayers.ts` can be deleted after verification |
 
 ---
 
@@ -228,11 +229,12 @@ jobs:
 
 1. `bun run scripts/update-football-data.ts` completes without errors
 2. `public/data/converted*.json` updated with fresh data
-3. All project leagues (minus excluded) present with correct club counts
-4. `bun run lint` passes (no type errors from new data)
-5. `bun run build:pages` succeeds
-6. Manual smoke test: start game, pick Barcelona → real squad loads (Ter Stegen, Lewandowski, Pedri, etc.)
-7. CI workflow runs weekly and commits only on changes
+3. All project leagues (minus excluded 8 countries) present with correct club counts
+4. **Argentine clubs (Boca, River, Central, Quilmes, etc.) updated from source — no hardcoded overrides**
+5. `bun run lint` passes (no type errors from new data)
+6. `bun run build:pages` succeeds
+7. Manual smoke test: start game, pick Barcelona → real squad loads (Ter Stegen, Lewandowski, Pedri, etc.); pick Boca → real squad from source
+8. CI workflow runs weekly and commits only on changes
 
 ---
 
@@ -242,6 +244,7 @@ jobs:
 - Adding new leagues not currently in project
 - Real-time data updates (weekly batch is sufficient)
 - Player photos (ZOXEXIVO doesn't include; would need separate source)
+- Keeping `realPlayers.ts` — it becomes obsolete and can be deleted after verification
 
 ---
 
