@@ -283,6 +283,7 @@ interface ZOXPlayer {
   positions: Array<{ code: string; level: number }>;
   current_ability: number; potential_ability: number; value: number;
   contract?: { salary: number; expiration: string };
+  history?: Array<{ s: number; c: string | number; p?: number; g?: number; a?: number; cs?: number }>;
 }
 
 function readJSON<T>(filePath: string): T | null {
@@ -646,8 +647,17 @@ async function main() {
           const salary = pl.contract?.salary && pl.contract.salary > 0 ? Math.round(pl.contract.salary) : Math.round(ca * 2200);
           const contractExpiry = pl.contract?.expiration || "2027-06-30";
 
+          const historyEntries = (pl.history || []).map(h => [
+            h.s,
+            String(h.c),
+            h.p || 0,
+            h.g || 0,
+            h.a || 0,
+            h.cs || 0,
+          ]);
+
           // Tuple layout:
-          // [0:id, 1:firstName, 2:lastName, 3:birthDate, 4:natIdx, 5:clubId, 6:squadIdx, 7:posIndices, 8:attrs13, 9:ca, 10:pa, 11:value, 12:salary, 13:contractExpiry, 14:height, 15:weight, 16:person4]
+          // [0:id, 1:firstName, 2:lastName, 3:birthDate, 4:natIdx, 5:clubId, 6:squadIdx, 7:posIndices, 8:attrs13, 9:ca, 10:pa, 11:value, 12:salary, 13:contractExpiry, 14:height, 15:weight, 16:person4, 17:historyEntries]
           leaguePlayers.push([
             String(pl.id),
             (pl.first_name || "").trim(),
@@ -666,6 +676,7 @@ async function main() {
             height,
             weight,
             person4,
+            historyEntries,
           ]);
           totalPlayersCount++;
         }

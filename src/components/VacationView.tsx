@@ -7,15 +7,18 @@ import { LifecycleManager } from '../services/lifecycleManager';
 import { simulateDayFixtures } from '../services/simulationService';
 import { detectPlayerDialogueTriggers } from '../services/playerDialogueTriggers';
 import { generateMonthlyChronicle } from '../services/chronicleService';
+import {
+  isTabHidden,
+  restoreTabTitle,
+  setSimulationTabTitle,
+  yieldToMain,
+} from '../services/backgroundYield';
 import { FMBox, FMSpinner, FMButton } from './FMUI';
 import { Sun, ChevronRight, AlertCircle, Calendar, Trophy, Play } from 'lucide-react';
 
 interface VacationViewProps {
   onBack: () => void;
 }
-
-const yieldPaint = () =>
-  new Promise<void>((resolve) => requestAnimationFrame(() => setTimeout(resolve, 0)));
 
 export const VacationView: React.FC<VacationViewProps> = ({ onBack }) => {
   const currentDate = useUIStore((s) => s.currentDate);
@@ -50,6 +53,8 @@ export const VacationView: React.FC<VacationViewProps> = ({ onBack }) => {
 
   const simulateToDate = useCallback(async (endDate: Date) => {
     const uiState = useUIStore.getState();
+    if (uiState.isInVacation || uiState.isSimulating) return;
+
     const startDate = new Date(uiState.currentDate);
     const activeSeasonEnd = new Date(uiState.seasonEndDate);
 
@@ -59,9 +64,12 @@ export const VacationView: React.FC<VacationViewProps> = ({ onBack }) => {
     }
 
     cancelledRef.current = false;
+    uiState.resetVacationState();
     setIsSimulating(true);
     setIsInVacation(true);
-    setProgress(2);
+    uiState.setIsSimulating(true);
+    uiState.setVacationProgress(1);
+    setProgress(1);
     setSimDateLabel(startDate.toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' }));
 
     const MAX_DAYS = 450;
@@ -69,221 +77,242 @@ export const VacationView: React.FC<VacationViewProps> = ({ onBack }) => {
     let localFixtures = [...useGameStore.getState().fixtures];
     let daysProcessed = 0;
     let userMatchesPlayed = 0;
-    let batchCount = 0;
-    const BATCH_SIZE = 2;
     const totalDays = Math.max(
       1,
       Math.min(MAX_DAYS, Math.ceil((endDate.getTime() - tempDate.getTime()) / (1000 * 60 * 60 * 24)))
     );
     lastChronicleMonthRef.current = -1;
+    const initDetail = `Iniciando simulación (${totalDays} días)…`;
     setSimStats({ days: 0, totalDays, matches: 0 });
-    setStatus(`Iniciando simulación (${totalDays} días)…`);
+    setStatus(initDetail);
+    uiState.setVacationDetail(initDetail);
+    setSimulationTabTitle(1, 'Simulando Vacaciones');
 
     // Pintar la barra de progreso antes de iniciar el ciclo pesado
-    await yieldPaint();
+    await yieldToMain('paint');
 
     const activeManagedTeamId = userClub?.id || selectedNationalTeamId || undefined;
+    let lastYieldAt = performance.now();
 
-    while (tempDate < endDate && daysProcessed < MAX_DAYS) {
-      if (cancelledRef.current) {
-        setFixtures(localFixtures);
-        setCurrentDate(new Date(tempDate));
-        if (activeManagedTeamId) {
-          useGameStore.getState().updateNextFixture(localFixtures, tempDate, activeManagedTeamId);
-        }
-        setStatus(`⏸ Simulación detenida. ${daysProcessed} días procesados y ${userMatchesPlayed} partidos jugados.`);
-        setIsSimulating(false);
-        setIsInVacation(false);
-        setProgress(0);
-        notify();
-        return;
-      }
-
-      const playedBefore = userClub
-        ? localFixtures.filter(
-            (f) =>
-              f.played &&
-              f.squadType === 'SENIOR' &&
-              (f.homeTeamId === userClub.id || f.awayTeamId === userClub.id)
-          ).length
-        : 0;
-
-      // Simular partidos programados en el día actual ANTES de pasar al día siguiente
-      await simulateDayFixtures({
-        date: tempDate,
-        fixtures: localFixtures,
-        userClub,
-        selectedNationalTeamId,
-        suppressProgress: true,
-      });
-
-      const playedAfter = userClub
-        ? localFixtures.filter(
-            (f) =>
-              f.played &&
-              f.squadType === 'SENIOR' &&
-              (f.homeTeamId === userClub.id || f.awayTeamId === userClub.id)
-          ).length
-        : 0;
-      if (playedAfter > playedBefore) {
-        userMatchesPlayed += playedAfter - playedBefore;
-      }
-
-      tempDate.setDate(tempDate.getDate() + 1);
-      daysProcessed++;
-      batchCount++;
-
-      const pct = Math.min(99, Math.max(2, Math.round((daysProcessed / totalDays) * 100)));
-      const dateText = tempDate.toLocaleDateString('es-ES', {
-        day: 'numeric',
-        month: 'short',
-        year: 'numeric',
-      });
-      setProgress(pct);
-      setSimDateLabel(dateText);
-      setSimStats({ days: daysProcessed, totalDays, matches: userMatchesPlayed });
-      setStatus(`Simulando ${dateText} · ${daysProcessed}/${totalDays} días`);
-
-      // ── Ciclo de vida diario ──
-      LifecycleManager.checkBirthdays(tempDate);
-      LifecycleManager.recoverDailyFitness();
-      LifecycleManager.processMonthlyFinances(tempDate);
-      world.checkRenewalTriggers(tempDate, userClub?.id);
-      world.processTransferDecisions(tempDate);
-      world.processAIActivity(tempDate);
-      world.processDailyContracts(tempDate, userClub?.id);
-      world.processDailyScouting(tempDate, userClub?.id);
-
-      world.generateGeneralNews(tempDate);
-      world.processLightMarketActivity(tempDate);
-      world.processQuarterlyYouthIntake(tempDate);
-      world.ensureMinimumSquadSizes();
-
-      if (tempDate.getDay() === 1) {
-        world.generateStandingsNews(tempDate, localFixtures);
-        world.simulateCoachChanges(tempDate, localFixtures);
-      }
-
-      if (tempDate.getMonth() === 7 && tempDate.getDate() === 1) {
-        world.generateYouthIntake(tempDate.getFullYear());
-      }
-
-      if (tempDate.getDate() === 1) {
-        world.recalculateAllPlayerValues();
-        if (userClub) world.computeTeamCohesion(userClub.id);
-        if (userClub && lastChronicleMonthRef.current !== tempDate.getMonth()) {
-          const prevMonth = tempDate.getMonth() === 0 ? 11 : tempDate.getMonth() - 1;
-          const prevYear = tempDate.getMonth() === 0 ? tempDate.getFullYear() - 1 : tempDate.getFullYear();
-          const monthFixtures = localFixtures.filter((f) => {
-            const fd = new Date(f.date);
-            return (
-              f.played &&
-              fd.getMonth() === prevMonth &&
-              fd.getFullYear() === prevYear &&
-              (f.homeTeamId === userClub.id || f.awayTeamId === userClub.id) &&
-              f.squadType === 'SENIOR'
-            );
-          });
-          let won = 0,
-            drawn = 0,
-            lost = 0;
-          monthFixtures.forEach((f) => {
-            const isHome = f.homeTeamId === userClub.id;
-            const us = isHome ? f.homeScore! : f.awayScore!;
-            const them = isHome ? f.awayScore! : f.homeScore!;
-            if (us > them) won++;
-            else if (us < them) lost++;
-            else drawn++;
-          });
-          if (monthFixtures.length > 0) {
-            const monthDate = new Date(prevYear, prevMonth, 15);
-            generateMonthlyChronicle(userClub.id, monthDate, { won, drawn, lost });
-            const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
-            const balanceText = won >= 4 ? 'excelente' : won >= 3 && lost <= 1 ? 'positivo' : won >= 2 && lost >= 2 ? 'de altibajos' : won >= 1 && lost >= 3 ? 'negativo' : 'para olvidar';
-            world.addSeasonPage('MONTHLY_REPORT', `Informe mensual · ${monthNames[prevMonth]}`, `El mes fue ${balanceText}: ${won} victorias, ${drawn} empates y ${lost} derrotas.`, monthDate, won >= 3 ? 'MEDIUM' : 'LOW');
+    try {
+      while (tempDate < endDate && daysProcessed < MAX_DAYS) {
+        if (cancelledRef.current || useUIStore.getState().vacationCancelled) {
+          setFixtures(localFixtures);
+          setCurrentDate(new Date(tempDate));
+          if (activeManagedTeamId) {
+            useGameStore.getState().updateNextFixture(localFixtures, tempDate, activeManagedTeamId);
           }
-          lastChronicleMonthRef.current = tempDate.getMonth();
+          setStatus(`⏸ Simulación detenida. ${daysProcessed} días procesados y ${userMatchesPlayed} partidos jugados.`);
+          setIsSimulating(false);
+          setIsInVacation(false);
+          useUIStore.getState().setIsSimulating(false);
+          useUIStore.getState().resetVacationState();
+          setProgress(0);
+          notify();
+          return;
         }
-      }
 
-      world.processDeadlineWeekActivity(tempDate);
-      world.processDeadlineDay(tempDate);
-      world.developYouthPlayers(tempDate);
-      world.autoPromoteYouthPlayers(tempDate);
+        const playedBefore = userClub
+          ? localFixtures.filter(
+              (f) =>
+                f.played &&
+                f.squadType === 'SENIOR' &&
+                (f.homeTeamId === userClub.id || f.awayTeamId === userClub.id)
+            ).length
+          : 0;
 
-      if (userClub) {
-        world.checkDressingRoomConflicts(userClub.id, tempDate);
-        world.checkTransferRequestMotives(userClub.id, tempDate);
-        world.generateNarrativeEvents(userClub.id, tempDate);
-        detectPlayerDialogueTriggers(userClub.id, tempDate);
-      }
+        // Simular partidos programados en el día actual ANTES de pasar al día siguiente
+        await simulateDayFixtures({
+          date: tempDate,
+          fixtures: localFixtures,
+          userClub,
+          selectedNationalTeamId,
+          suppressProgress: true,
+        });
 
-      const newCupFixtures = LifecycleManager.processCompetitionProgress(localFixtures, tempDate);
-      if (newCupFixtures.length > 0) {
-        localFixtures = [...localFixtures, ...newCupFixtures];
-      }
+        const playedAfter = userClub
+          ? localFixtures.filter(
+              (f) =>
+                f.played &&
+                f.squadType === 'SENIOR' &&
+                (f.homeTeamId === userClub.id || f.awayTeamId === userClub.id)
+            ).length
+          : 0;
+        if (playedAfter > playedBefore) {
+          userMatchesPlayed += playedAfter - playedBefore;
+        }
 
-      // ── Fin de temporada ──
-      if (tempDate >= activeSeasonEnd) {
-        setProgress(98);
-        setStatus('Cerrando temporada, generando crónicas y premios…');
-        await yieldPaint();
+        tempDate.setDate(tempDate.getDate() + 1);
+        daysProcessed++;
 
-        world.processLoanReturns(tempDate);
-        const result = useGameStore.getState().finishSeason(localFixtures, activeManagedTeamId, tempDate);
-        setSeasonSummary(result.summaries);
-        setUserWonLeague(result.userWonLeague);
-        const gs = useGameStore.getState();
-        gs.setManagerHistory({ ...gs.managerHistory, seasonsCompleted: gs.managerHistory.seasonsCompleted + 1 });
-        if (result.userWonLeague) gs.trackTitle('Liga');
-        const wonCups = result.summaries.filter((s: any) => s.championId === activeManagedTeamId && s.compType !== 'LEAGUE');
-        wonCups.forEach((s: any) => gs.trackTitle(s.compName));
+        const pct = Math.min(99, Math.max(1, Math.round((daysProcessed / totalDays) * 100)));
+        const dateText = tempDate.toLocaleDateString('es-ES', {
+          day: 'numeric',
+          month: 'short',
+          year: 'numeric',
+        });
+        const detailMsg = `Simulando ${dateText} · ${daysProcessed}/${totalDays} días`;
+        setProgress(pct);
+        setSimDateLabel(dateText);
+        setSimStats({ days: daysProcessed, totalDays, matches: userMatchesPlayed });
+        setStatus(detailMsg);
+        useUIStore.getState().setVacationProgress(pct);
+        useUIStore.getState().setVacationDetail(detailMsg);
+        setSimulationTabTitle(pct, 'Simulando Vacaciones');
+
+        // ── Ciclo de vida diario ──
+        LifecycleManager.checkBirthdays(tempDate);
+        LifecycleManager.recoverDailyFitness();
+        LifecycleManager.processMonthlyFinances(tempDate);
+        world.checkRenewalTriggers(tempDate, userClub?.id);
+        world.processTransferDecisions(tempDate);
+        world.processAIActivity(tempDate);
+        world.processDailyContracts(tempDate, userClub?.id);
+        world.processDailyScouting(tempDate, userClub?.id);
+
+        world.generateGeneralNews(tempDate);
+        world.processLightMarketActivity(tempDate);
+        world.processQuarterlyYouthIntake(tempDate);
+        world.ensureMinimumSquadSizes();
+
+        if (tempDate.getDay() === 1) {
+          world.generateStandingsNews(tempDate, localFixtures);
+          world.simulateCoachChanges(tempDate, localFixtures);
+        }
+
+        if (tempDate.getMonth() === 7 && tempDate.getDate() === 1) {
+          world.generateYouthIntake(tempDate.getFullYear());
+        }
+
+        if (tempDate.getDate() === 1) {
+          world.recalculateAllPlayerValues();
+          if (userClub) world.computeTeamCohesion(userClub.id);
+          if (userClub && lastChronicleMonthRef.current !== tempDate.getMonth()) {
+            const prevMonth = tempDate.getMonth() === 0 ? 11 : tempDate.getMonth() - 1;
+            const prevYear = tempDate.getMonth() === 0 ? tempDate.getFullYear() - 1 : tempDate.getFullYear();
+            const monthFixtures = localFixtures.filter((f) => {
+              const fd = new Date(f.date);
+              return (
+                f.played &&
+                fd.getMonth() === prevMonth &&
+                fd.getFullYear() === prevYear &&
+                (f.homeTeamId === userClub.id || f.awayTeamId === userClub.id) &&
+                f.squadType === 'SENIOR'
+              );
+            });
+            let won = 0,
+              drawn = 0,
+              lost = 0;
+            monthFixtures.forEach((f) => {
+              const isHome = f.homeTeamId === userClub.id;
+              const us = isHome ? f.homeScore! : f.awayScore!;
+              const them = isHome ? f.awayScore! : f.homeScore!;
+              if (us > them) won++;
+              else if (us < them) lost++;
+              else drawn++;
+            });
+            if (monthFixtures.length > 0) {
+              const monthDate = new Date(prevYear, prevMonth, 15);
+              generateMonthlyChronicle(userClub.id, monthDate, { won, drawn, lost });
+              const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+              const balanceText = won >= 4 ? 'excelente' : won >= 3 && lost <= 1 ? 'positivo' : won >= 2 && lost >= 2 ? 'de altibajos' : won >= 1 && lost >= 3 ? 'negativo' : 'para olvidar';
+              world.addSeasonPage('MONTHLY_REPORT', `Informe mensual · ${monthNames[prevMonth]}`, `El mes fue ${balanceText}: ${won} victorias, ${drawn} empates y ${lost} derrotas.`, monthDate, won >= 3 ? 'MEDIUM' : 'LOW');
+            }
+            lastChronicleMonthRef.current = tempDate.getMonth();
+          }
+        }
+
+        world.processDeadlineWeekActivity(tempDate);
+        world.processDeadlineDay(tempDate);
+        world.developYouthPlayers(tempDate);
+        world.autoPromoteYouthPlayers(tempDate);
+
         if (userClub) {
-          const leagueTable = world.getLeagueTable(userClub.leagueId, localFixtures, 'SENIOR');
-          const leaguePos = leagueTable.findIndex((e) => e.clubId === userClub.id) + 1;
-          const leagueTotal = leagueTable.length;
-          const cupWinnerId = result.summaries.find((s: any) => s.compType !== 'LEAGUE' && s.championId)?.championId;
-          const wonCup = cupWinnerId === userClub.id;
-          const titleNames: string[] = [];
-          if (result.userWonLeague) titleNames.push('Liga');
-          wonCups.forEach((s: any) => titleNames.push(s.compName));
-          world.updateManagerProfileSeasonEnd(result.userWonLeague || wonCups.length > 0, titleNames, leaguePos || 10, leagueTotal || 20);
-          world.evaluateBoardConfidence(userClub.id, leaguePos || 10, leagueTotal || 20, wonCup, false);
-          world.checkManagerJobOffers(tempDate, userClub.id, useGameStore.getState().managerReputation);
+          world.checkDressingRoomConflicts(userClub.id, tempDate);
+          world.checkTransferRequestMotives(userClub.id, tempDate);
+          world.generateNarrativeEvents(userClub.id, tempDate);
+          detectPlayerDialogueTriggers(userClub.id, tempDate);
         }
-        // Avanzar calendario al inicio de la nueva temporada (evita que Continuar dispare fin de temporada otra vez)
-        setCurrentDate(result.nextSeasonStart);
-        setSeasonEndDate(result.nextSeasonEnd);
-        if (activeManagedTeamId) {
-          useGameStore.getState().updateNextFixture(result.newFixtures, result.nextSeasonStart, activeManagedTeamId);
+
+        const newCupFixtures = LifecycleManager.processCompetitionProgress(localFixtures, tempDate);
+        if (newCupFixtures.length > 0) {
+          localFixtures = [...localFixtures, ...newCupFixtures];
         }
-        setProgress(100);
-        setIsSimulating(false);
-        setIsInVacation(false);
-        setStatus(`✓ Temporada completada (${daysProcessed} días simulados).`);
-        notify();
-        onBack();
-        return;
+
+        // ── Fin de temporada ──
+        if (tempDate >= activeSeasonEnd) {
+          setProgress(98);
+          setStatus('Cerrando temporada, generando crónicas y premios…');
+          useUIStore.getState().setVacationProgress(98);
+          useUIStore.getState().setVacationDetail('Cerrando temporada, generando crónicas y premios…');
+          await yieldToMain(isTabHidden() ? 'background' : 'paint');
+
+          world.processLoanReturns(tempDate);
+          const result = useGameStore.getState().finishSeason(localFixtures, activeManagedTeamId, tempDate);
+          setSeasonSummary(result.summaries);
+          setUserWonLeague(result.userWonLeague);
+          const gs = useGameStore.getState();
+          gs.setManagerHistory({ ...gs.managerHistory, seasonsCompleted: gs.managerHistory.seasonsCompleted + 1 });
+          if (result.userWonLeague) gs.trackTitle('Liga');
+          const wonCups = result.summaries.filter((s: any) => s.championId === activeManagedTeamId && s.compType !== 'LEAGUE');
+          wonCups.forEach((s: any) => gs.trackTitle(s.compName));
+          if (userClub) {
+            const leagueTable = world.getLeagueTable(userClub.leagueId, localFixtures, 'SENIOR');
+            const leaguePos = leagueTable.findIndex((e) => e.clubId === userClub.id) + 1;
+            const leagueTotal = leagueTable.length;
+            const cupWinnerId = result.summaries.find((s: any) => s.compType !== 'LEAGUE' && s.championId)?.championId;
+            const wonCup = cupWinnerId === userClub.id;
+            const titleNames: string[] = [];
+            if (result.userWonLeague) titleNames.push('Liga');
+            wonCups.forEach((s: any) => titleNames.push(s.compName));
+            world.updateManagerProfileSeasonEnd(result.userWonLeague || wonCups.length > 0, titleNames, leaguePos || 10, leagueTotal || 20);
+            world.evaluateBoardConfidence(userClub.id, leaguePos || 10, leagueTotal || 20, wonCup, false);
+            world.checkManagerJobOffers(tempDate, userClub.id, useGameStore.getState().managerReputation);
+          }
+          // Avanzar calendario al inicio de la nueva temporada (evita que Continuar dispare fin de temporada otra vez)
+          setCurrentDate(result.nextSeasonStart);
+          setSeasonEndDate(result.nextSeasonEnd);
+          if (activeManagedTeamId) {
+            useGameStore.getState().updateNextFixture(result.newFixtures, result.nextSeasonStart, activeManagedTeamId);
+          }
+          setProgress(100);
+          setIsSimulating(false);
+          setIsInVacation(false);
+          useUIStore.getState().setIsSimulating(false);
+          useUIStore.getState().resetVacationState();
+          setStatus(`✓ Temporada completada (${daysProcessed} días simulados).`);
+          notify();
+          onBack();
+          return;
+        }
+
+        // Foreground: ceder tras cada día para animar % y fecha en vivo.
+        // Background: procesar en bloques de ~120ms y ceder vía Web Worker para máxima velocidad sin congelar.
+        const hidden = isTabHidden();
+        const now = performance.now();
+        if (!hidden || now - lastYieldAt >= 120) {
+          setCurrentDate(new Date(tempDate));
+          lastYieldAt = now;
+          await yieldToMain(hidden ? 'background' : 'paint');
+        }
       }
 
-      if (batchCount >= BATCH_SIZE) {
-        setCurrentDate(new Date(tempDate));
-        batchCount = 0;
-        await yieldPaint();
+      setFixtures(localFixtures);
+      setCurrentDate(new Date(tempDate));
+      if (activeManagedTeamId) {
+        useGameStore.getState().updateNextFixture(localFixtures, tempDate, activeManagedTeamId);
       }
+      setIsSimulating(false);
+      setIsInVacation(false);
+      useUIStore.getState().setIsSimulating(false);
+      useUIStore.getState().resetVacationState();
+      setProgress(100);
+      setStatus(`✓ Simulación completada (${daysProcessed} días simulados).`);
+      notify();
+      onBack();
+    } finally {
+      restoreTabTitle();
     }
-
-    setFixtures(localFixtures);
-    setCurrentDate(new Date(tempDate));
-    if (activeManagedTeamId) {
-      useGameStore.getState().updateNextFixture(localFixtures, tempDate, activeManagedTeamId);
-    }
-    setIsSimulating(false);
-    setIsInVacation(false);
-    setProgress(100);
-    setStatus(`✓ Simulación completada (${daysProcessed} días simulados).`);
-    notify();
-    onBack();
   }, [userClub, selectedNationalTeamId, setFixtures, setCurrentDate, setSeasonEndDate, setSeasonSummary, setUserWonLeague, setIsInVacation, notify, onBack]);
 
   const handleSimulateSeason = async () => {
@@ -298,7 +327,7 @@ export const VacationView: React.FC<VacationViewProps> = ({ onBack }) => {
       setStatus('❌ Formato de fecha inválido. Usa YYYY-MM-DD');
       return;
     }
-    const end = new Date(parts[0], parts[1] - 1, parts[2]);
+    const end = new Date(parts[0], parts[1] - 1, parts[2], 23, 59, 0);
     if (end <= useUIStore.getState().currentDate) {
       setStatus('❌ La fecha debe ser posterior a la actual.');
       return;
@@ -308,6 +337,7 @@ export const VacationView: React.FC<VacationViewProps> = ({ onBack }) => {
 
   const handleCancel = () => {
     cancelledRef.current = true;
+    useUIStore.getState().setVacationCancelled(true);
     setStatus('⏸ Deteniendo simulación…');
   };
 

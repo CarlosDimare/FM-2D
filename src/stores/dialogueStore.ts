@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-export type DialogKind = 'ASSISTANT' | 'FITNESS' | 'TRANSFERS' | 'PLAYER_DIALOG' | 'TREASURER' | 'SCOUT' | 'PRESIDENT';
+export type DialogKind = 'ASSISTANT' | 'FITNESS' | 'TRANSFERS' | 'PLAYER_DIALOG' | 'STAFF_DIALOG' | 'TREASURER' | 'SCOUT' | 'PRESIDENT';
 
 export type DialoguePhase =
   | 'opening'
@@ -13,7 +13,7 @@ export interface DialoguePayload {
   clubId: string;
   opponentId?: string;
   tacticId?: string;
-  source?: 'PRE_MATCH' | 'TACTICS' | 'HOME' | 'TRAINING' | 'STAFF' | 'MARKET' | 'NEGOTIATIONS' | 'ECONOMY' | 'SCOUTING' | 'BOARD';
+  source?: 'PRE_MATCH' | 'TACTICS' | 'HOME' | 'TRAINING' | 'STAFF' | 'MARKET' | 'NEGOTIATIONS' | 'ECONOMY' | 'SCOUTING' | 'BOARD' | 'EXTERNAL_CLUB' | 'PEOPLE';
   playerId?: string;
   initiatedBy?: 'PLAYER' | 'MANAGER';
   context?: string;

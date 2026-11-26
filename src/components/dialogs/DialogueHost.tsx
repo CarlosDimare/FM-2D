@@ -4,6 +4,7 @@ import { AssistantAdviceDialog } from './AssistantAdviceDialog';
 import { FitnessCoachDialog } from './FitnessCoachDialog';
 import { TransferFolderDialog } from './TransferFolderDialog';
 import { PlayerDialog } from './PlayerDialog';
+import { StaffDialog } from './StaffDialog';
 import { TreasurerDialog } from './TreasurerDialog';
 import { ScoutDialog } from './ScoutDialog';
 import { PresidentDialog } from './PresidentDialog';
@@ -26,6 +27,9 @@ export const DialogueHost: React.FC<DialogueHostProps> = ({ onStartMatch }) => {
   }
   if (kind === 'PLAYER_DIALOG') {
     return <PlayerDialog />;
+  }
+  if (kind === 'STAFF_DIALOG') {
+    return <StaffDialog />;
   }
   if (kind === 'TREASURER') {
     return <TreasurerDialog />;

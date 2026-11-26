@@ -213,14 +213,24 @@ export class DialogueSystem {
           reactionType = 'NEGATIVE';
           text = "No acepta imposiciones. Se siente atrapado y su descontento crece.";
           tensionChange = 15;
-        } else if (player.loyalty >= 14 || player.personality === 'LOYAL' || player.personality === 'PROFESSIONAL') {
+        } else if (
+          player.loyalty >= 14 ||
+          player.personality === 'LOYAL' ||
+          player.personality === 'PROFESSIONAL' ||
+          player.personality === 'MODEL_PRO' ||
+          player.personality === 'RESILIENT' ||
+          player.personality === 'CHARISMATIC'
+        ) {
           moraleChange = 12;
           reactionType = 'POSITIVE';
           text = "Aprecia que valores su permanencia. Retira su pedido de traspaso y se compromete a darlo todo.";
           player.transferRequestReason = undefined;
           player.isTransferListed = false;
           player.transferStatus = 'NONE';
-        } else if (tone === 'MILD' && player.personality === 'AMBITIOUS') {
+        } else if (
+          tone === 'MILD' &&
+          (player.personality === 'AMBITIOUS' || player.personality === 'DRIVEN' || player.personality === 'COMPETITIVE')
+        ) {
           moraleChange = 5;
           reactionType = 'POSITIVE';
           text = "Acepta quedarse... por ahora. Pero deja claro que espera ver progreso en el proyecto.";

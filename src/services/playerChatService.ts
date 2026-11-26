@@ -127,27 +127,33 @@ export function getPlayerMotiveOpening(
     if (!player.clubId) {
       return `Señor${mgrFirst ? ` ${mgrFirst}` : ''}, ahora mismo estoy con el pase en mi poder escuchando propuestas deportivas serias. ¿Qué proyecto deportivo tienen en mente en ${userClubName || 'su club'}?`;
     }
-    if (personality === 'AMBITIOUS' || personality === 'MERCENARY') {
+    if (personality === 'AMBITIOUS' || personality === 'MERCENARY' || personality === 'DRIVEN') {
       return `Señor${mgrFirst ? ` ${mgrFirst}` : ''}, hoy me debo a ${playerClubName} y tengo contrato vigente, pero en el fútbol nunca se cierran puertas si aparece un desafío importante. ¿A qué se debe el contacto?`;
+    }
+    if (personality === 'CHARISMATIC') {
+      return `¡Qué tal, Señor${mgrFirst ? ` ${mgrFirst}` : ''}! Un gusto saludarlo desde ${playerClubName}. Hoy estoy metido acá con mis compañeros, cuénteme qué quería charlar.`;
+    }
+    if (personality === 'RESERVED') {
+      return `Señor${mgrFirst ? ` ${mgrFirst}` : ''}, lo escucho con respeto desde ${playerClubName}. Prefiero ir directo al grano: ¿en qué lo puedo ayudar?`;
     }
     return `Señor${mgrFirst ? ` ${mgrFirst}` : ''}, con todo respeto lo saludo desde ${playerClubName}. Hoy estoy metido de lleno en mi plantel actual, así que dígame con franqueza qué quería conversar.`;
   }
 
   switch (motive) {
     case 'TRANSFER_RUMOR':
-      if (personality === 'VOLATILE' || personality === 'AMBITIOUS') {
+      if (personality === 'VOLATILE' || personality === 'TEMPERAMENTAL' || personality === 'AMBITIOUS') {
         return `Señor, mi teléfono no para de sonar con versiones sobre mi salida de ${playerClubName}. Prefiero escuchar de su boca qué planes reales tiene conmigo.`;
       }
-      if (personality === 'LOYAL') {
+      if (personality === 'LOYAL' || personality === 'RESILIENT') {
         return `${mgrFirst ? `${mgrFirst},` : 'Señor,'} salieron notas vinculándome con otros clubes, pero mi cabeza está acá en ${playerClubName}. Solo quería confirmar que seguimos en la misma sintonía.`;
       }
       return `Señor, vi los rumores de mercado que circularon esta semana. Antes de que crezcan, quería hablarlo directo con usted.`;
 
     case 'MINUTES_DISCONTENT':
-      if (personality === 'VOLATILE') {
+      if (personality === 'VOLATILE' || personality === 'TEMPERAMENTAL' || personality === 'COMPETITIVE') {
         return `Señor, no me sirve estar mirando los partidos desde el banco en ${playerClubName}. Entreno fuerte y necesito minutos ya, o tendremos que replantear mi lugar.`;
       }
-      if (personality === 'PROFESSIONAL' || personality === 'LOYAL') {
+      if (personality === 'PROFESSIONAL' || personality === 'MODEL_PRO' || personality === 'LOYAL' || personality === 'RESERVED') {
         return `Señor, respeto sus decisiones técnicas, pero siento que vengo trabajando bien y necesito un poco más de continuidad para agarrar ritmo.`;
       }
       return `Señor, ¿podemos charlar un segundo? Me preocupa la falta de minutos en estos últimos partidos y quiero saber qué espera de mí para entrar.`;
@@ -157,7 +163,7 @@ export function getPlayerMotiveOpening(
       if (personality === 'MERCENARY') {
         return `Señor, mi contrato entra en su tramo final y ya tengo sondeos de afuera. Me gustaría saber si ${playerClubName} va a acercar una mejora acorde pronto.`;
       }
-      if (personality === 'LEADER' || personality === 'LOYAL') {
+      if (personality === 'LEADER' || personality === 'LOYAL' || personality === 'MODEL_PRO') {
         return `${mgrFirst ? `${mgrFirst},` : 'Señor,'} me siento muy cómodo en ${playerClubName} y quiero seguir siendo importante acá. ¿Cómo ve el club el tema de mi renovación?`;
       }
       return `Señor, quería conversar sobre mi situación contractual. El tiempo corre y prefiero tener claridad sobre mi futuro en el club.`;
@@ -910,7 +916,7 @@ export function sendPlayerFormulaReply(
         matchesDuration: 4,
       };
       reply =
-        personality === 'VOLATILE'
+        personality === 'VOLATILE' || personality === 'TEMPERAMENTAL'
           ? `Eso quería escuchar, ${addr}. Si me da minutos en estos partidos le voy a responder adentro de la cancha.`
           : `Le tomo la palabra, ${addr}. Voy a estar preparado para aprovechar cada oportunidad que me dé en ${clubName}.`;
       break;
@@ -950,7 +956,7 @@ export function sendPlayerFormulaReply(
       trustDelta = 5;
       tensionDelta = -9;
       reply =
-        personality === 'LEADER'
+        personality === 'LEADER' || personality === 'CHARISMATIC' || personality === 'MODEL_PRO'
           ? `Cuente conmigo, ${addr}. Voy a hablar con los muchachos para tirar todos para el mismo lado.`
           : `Tiene razón, ${addr}. Vamos a bajar un cambio y enfocarnos en el grupo.`;
       break;
@@ -958,7 +964,7 @@ export function sendPlayerFormulaReply(
     case 'SUPPORT':
       if (
         (motive === 'MINUTES_DISCONTENT' || motive === 'CONTRACT_EXPIRING') &&
-        (personality === 'VOLATILE' || personality === 'MERCENARY')
+        (personality === 'VOLATILE' || personality === 'MERCENARY' || personality === 'TEMPERAMENTAL')
       ) {
         tone = 'NEUTRAL';
         moraleDelta = 2;
@@ -973,14 +979,14 @@ export function sendPlayerFormulaReply(
         tensionDelta = -7;
         if (motive === 'TRANSFER_RUMOR') transferRequestAction = 'WITHDRAW';
         reply =
-          personality === 'LOYAL' || personality === 'LEADER'
+          personality === 'LOYAL' || personality === 'LEADER' || personality === 'MODEL_PRO' || personality === 'CHARISMATIC'
             ? `Gracias por el respaldo, ${addr}. Acá estoy al firme para lo que necesite ${clubName}.`
             : `Me sirve mucho sentir su confianza, ${addr}. Voy a seguir metiéndole para sostener este nivel.`;
       }
       break;
 
     case 'CHALLENGE':
-      if (personality === 'VOLATILE' || personality === 'LAZY') {
+      if (personality === 'VOLATILE' || personality === 'LAZY' || personality === 'TEMPERAMENTAL') {
         tone = 'NEGATIVE';
         moraleDelta = -3;
         trustDelta = -2;
@@ -994,12 +1000,21 @@ export function sendPlayerFormulaReply(
         moraleDelta = 4;
         trustDelta = 4;
         tensionDelta = -3;
-        reply = `Acepto el desafío, ${addr}. Voy a doblar el esfuerzo esta semana para demostrarle que estoy para titular.`;
+        reply =
+          personality === 'COMPETITIVE' || personality === 'PERFECTIONIST' || personality === 'DRIVEN'
+            ? `Es exactamente lo que necesitaba oír, ${addr}. Voy a exigirme el doble desde mañana.`
+            : `Acepto el desafío, ${addr}. Voy a doblar el esfuerzo esta semana para demostrarle que estoy para titular.`;
       }
       break;
 
     case 'FIRM':
-      if (personality === 'VOLATILE' || personality === 'AMBITIOUS' || personality === 'MERCENARY') {
+      if (
+        personality === 'VOLATILE' ||
+        personality === 'AMBITIOUS' ||
+        personality === 'MERCENARY' ||
+        personality === 'TEMPERAMENTAL' ||
+        personality === 'COMPETITIVE'
+      ) {
         tone = 'NEGATIVE';
         moraleDelta = -6;
         trustDelta = -5;

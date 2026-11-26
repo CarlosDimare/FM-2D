@@ -19,6 +19,7 @@ export type PlayerTuple = [
   height: number,
   weight: number,
   person4: number[],
+  historyEntries?: Array<[number, string, number, number, number, number]>,
 ];
 
 export interface PlayersManifest {

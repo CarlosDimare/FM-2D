@@ -4,6 +4,7 @@ import { world } from '../services/worldManager';
 import { DialogueSystem } from '../services/dialogueSystem';
 import { FMBox, FMButton } from './FMUI';
 import { useUIStore } from '../stores/uiStore';
+import { useDialogueStore } from '../stores/dialogueStore';
 import { Users, MessageSquare, AlertTriangle, Heart, Swords, Briefcase, Building2, X, DollarSign, Dumbbell, Newspaper, Radio, Handshake } from 'lucide-react';
 
 interface PeopleHubProps {
@@ -178,8 +179,19 @@ export const PeopleHub: React.FC<PeopleHubProps> = ({ userClub, currentDate }) =
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <FMButton onClick={() => { setSelectedStaff(member); setInteractionType(null); }} className="text-[10px]">Hablar</FMButton>
-                  <FMButton onClick={() => { setSelectedStaff(member); setInteractionType('dialog'); }} className="text-[10px]" variant="secondary">Charlar</FMButton>
+                  <FMButton
+                    onClick={() =>
+                      useDialogueStore.getState().open('STAFF_DIALOG', {
+                        clubId: userClub.id,
+                        staffId: member.id,
+                        source: 'PEOPLE',
+                      })
+                    }
+                    className="text-[10px]"
+                  >
+                    <MessageSquare size={12} /> Charlar
+                  </FMButton>
+                  <FMButton onClick={() => { setSelectedStaff(member); setInteractionType('dialog'); }} className="text-[10px]" variant="secondary">Órdenes</FMButton>
                 </div>
               </div>
             );
@@ -239,7 +251,21 @@ export const PeopleHub: React.FC<PeopleHubProps> = ({ userClub, currentDate }) =
                     </div>
                     <Handshake size={18} className={getRelationshipColor(manager.relationship)} />
                   </div>
-                  <FMButton onClick={() => handleManagerContact(manager)} className="text-[10px] mt-3" variant="secondary"><Handshake size={12} /> Contactar</FMButton>
+                  <div className="flex flex-wrap gap-2 mt-3">
+                    <FMButton
+                      onClick={() =>
+                        useDialogueStore.getState().open('STAFF_DIALOG', {
+                          clubId: userClub?.id || '',
+                          staffId: manager.managerId,
+                          source: 'PEOPLE',
+                        })
+                      }
+                      className="text-[10px]"
+                    >
+                      <MessageSquare size={12} /> Charlar
+                    </FMButton>
+                    <FMButton onClick={() => handleManagerContact(manager)} className="text-[10px]" variant="secondary"><Handshake size={12} /> Contactar</FMButton>
+                  </div>
                 </div>
               ))}
               {managerNetwork.length === 0 && <div className="text-center text-slate-400 text-[10px] italic py-8">No hay otros entrenadores disponibles todavía.</div>}

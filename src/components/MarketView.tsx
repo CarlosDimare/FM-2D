@@ -6,7 +6,7 @@ import { notifyClubs, useWorldStore } from '../stores/worldStore';
 import { openClubSquad } from '../stores/uiStore';
 import { getAttributeColor } from '../constants';
 import { getFlagUrl } from '../data/static';
-import { Search, ArrowDownUp, HandCoins, FolderOpen, Users, Briefcase, UserPlus, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Search, ArrowDownUp, HandCoins, FolderOpen, Users, Briefcase, UserPlus, CheckCircle2, AlertCircle, MessageCircle } from 'lucide-react';
 import { FMBox, FMButton, FMModal } from './FMUI';
 import { TransferOfferModal } from './TransferOfferModal';
 import { DialogueAvatar } from './dialogs/DialogueAvatar';
@@ -517,7 +517,7 @@ export const MarketView: React.FC<MarketViewProps> = ({ onSelectPlayer, userClub
                   <th className="hidden sm:table-cell px-2 py-1.5 border-r border-[#9aa2ab]/60 uppercase tracking-tight w-[24%]">Situación</th>
                   <th className="px-1 sm:px-2 py-1.5 border-r border-[#9aa2ab]/60 uppercase tracking-tight text-center w-[42px] sm:w-[56px]">Cal.</th>
                   <th className="px-1.5 sm:px-2 py-1.5 border-r border-[#9aa2ab]/60 uppercase tracking-tight text-right w-[56px] sm:w-[74px]">Sueldo</th>
-                  <th className="px-1.5 sm:px-2 py-1.5 uppercase tracking-tight text-center w-[76px] sm:w-[96px]">Acción</th>
+                  <th className="px-1.5 sm:px-2 py-1.5 uppercase tracking-tight text-center w-[112px] sm:w-[152px]">Acción</th>
                 </tr>
               </thead>
               <tbody className="text-[11px] text-[#1a1a1a]">
@@ -581,13 +581,30 @@ export const MarketView: React.FC<MarketViewProps> = ({ onSelectPlayer, userClub
                         £{(s.salary / 1000).toFixed(1)}k
                       </td>
                       <td className="px-1 sm:px-2 py-1.5 text-center">
-                        <button
-                          type="button"
-                          onClick={(e) => { e.stopPropagation(); openStaffHireModal(s); }}
-                          className="mx-auto px-1.5 sm:px-2 py-1 rounded-[2px] text-[8px] sm:text-[8.5px] font-black uppercase tracking-tight border bg-[#2b5d2c] text-white border-[#133014] hover:brightness-110 transition-all inline-flex items-center justify-center gap-1 cursor-pointer whitespace-nowrap"
-                        >
-                          <UserPlus size={10} /> Contratar
-                        </button>
+                        <div className="inline-flex items-center justify-center gap-1">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              useDialogueStore.getState().open('STAFF_DIALOG', {
+                                clubId: userClubId,
+                                staffId: s.id,
+                                source: 'MARKET',
+                              });
+                            }}
+                            className="px-1.5 py-1 rounded-[2px] text-[8px] sm:text-[8.5px] font-black uppercase tracking-tight border bg-white text-[#1f4920] border-[#7a8a7a] hover:bg-[#e8ece8] transition-all inline-flex items-center justify-center gap-1 cursor-pointer whitespace-nowrap"
+                            title={`Charlar con ${s.name}`}
+                          >
+                            <MessageCircle size={10} /> <span className="hidden sm:inline">Charlar</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); openStaffHireModal(s); }}
+                            className="px-1.5 sm:px-2 py-1 rounded-[2px] text-[8px] sm:text-[8.5px] font-black uppercase tracking-tight border bg-[#2b5d2c] text-white border-[#133014] hover:brightness-110 transition-all inline-flex items-center justify-center gap-1 cursor-pointer whitespace-nowrap"
+                          >
+                            <UserPlus size={10} /> Contratar
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -682,6 +699,40 @@ export const MarketView: React.FC<MarketViewProps> = ({ onSelectPlayer, userClub
                 ))}
               </div>
             </div>
+
+            {/* Trayectoria y Palmarés */}
+            {(() => {
+              world.ensureStaffPastHistory(selectedCandidate);
+              const prevClubs = selectedCandidate.previousClubs || [];
+              const honours = selectedCandidate.careerHonours || [];
+              if (prevClubs.length === 0 && honours.length === 0) return null;
+              return (
+                <div className="bg-white border border-[#a0b0a0] rounded-sm p-3 space-y-2">
+                  <h4 className="text-[9.5px] font-black uppercase text-slate-600 tracking-wider border-b border-slate-200 pb-1.5">
+                    Trayectoria Anterior
+                  </h4>
+                  {prevClubs.length > 0 && (
+                    <div className="divide-y divide-slate-100">
+                      {prevClubs.map((pc, idx) => (
+                        <div key={idx} className="py-1 flex items-center justify-between gap-2 text-[10.5px]">
+                          <span className="font-bold text-slate-800">{pc.clubName}</span>
+                          <span className="font-mono text-slate-500 text-[10px] shrink-0">{pc.years}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {honours.length > 0 && (
+                    <div className="flex flex-wrap gap-1 pt-1">
+                      {honours.map((h, idx) => (
+                        <span key={idx} className="px-1.5 py-0.5 bg-amber-50 border border-amber-300 rounded-sm text-amber-900 font-bold text-[9px] uppercase">
+                          {h}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
 
             {/* Condiciones del contrato */}
             <div className="bg-white border border-[#a0b0a0] rounded-sm p-3 space-y-2.5">
@@ -803,15 +854,32 @@ export const MarketView: React.FC<MarketViewProps> = ({ onSelectPlayer, userClub
                 </div>
               )}
 
-              <div className="flex justify-end gap-2 pt-1">
-                <FMButton variant="secondary" type="button" onClick={() => setSelectedCandidate(null)}>
-                  {hireFeedback?.ok ? 'Cerrar' : 'Cancelar'}
+              <div className="flex flex-wrap justify-between items-center gap-2 pt-1">
+                <FMButton
+                  variant="secondary"
+                  type="button"
+                  onClick={() => {
+                    const targetId = selectedCandidate.id;
+                    setSelectedCandidate(null);
+                    useDialogueStore.getState().open('STAFF_DIALOG', {
+                      clubId: userClubId,
+                      staffId: targetId,
+                      source: 'MARKET',
+                    });
+                  }}
+                >
+                  <MessageCircle size={13} /> Charlar
                 </FMButton>
-                {!hireFeedback?.ok && (
-                  <FMButton variant="primary" type="button" onClick={handleConfirmHire}>
-                    <UserPlus size={13} /> Confirmar Contratación
+                <div className="flex justify-end gap-2">
+                  <FMButton variant="secondary" type="button" onClick={() => setSelectedCandidate(null)}>
+                    {hireFeedback?.ok ? 'Cerrar' : 'Cancelar'}
                   </FMButton>
-                )}
+                  {!hireFeedback?.ok && (
+                    <FMButton variant="primary" type="button" onClick={handleConfirmHire}>
+                      <UserPlus size={13} /> Confirmar Contratación
+                    </FMButton>
+                  )}
+                </div>
               </div>
             </div>
           </div>

@@ -492,6 +492,7 @@ export function applyWorldState(
     if (p.consistency === undefined) p.consistency = randomInt(5, 20);
     if (p.bigMatchTemperament === undefined) p.bigMatchTemperament = randomInt(5, 20);
     if (p.pendingDialogue === undefined) p.pendingDialogue = undefined;
+    world.ensurePlayerPastHistory(p);
   });
 
   world.staff.forEach((s: any) => {
@@ -505,6 +506,7 @@ export function applyWorldState(
     if (s.pressReputation === undefined) s.pressReputation = 50;
     if (s.boardRelationship === undefined) s.boardRelationship = 60;
     if (s.siguioConsejoUltimaVez === undefined) s.siguioConsejoUltimaVez = false;
+    world.ensureStaffPastHistory(s);
   });
 
   world.competitions.forEach((c: any) => {

@@ -1,5 +1,5 @@
 
-import { Player, Club, Competition, Position, PlayerStats, PlayerMatchStats, Fixture, TableEntry, Tactic, Staff, StaffRole, SquadType, TransferOffer, InboxMessage, MessageCategory, MediaNews, NotificationPriority, NewsSection, TacticalStyle, TacticSettings, MatchSettings, ScoutingReport, InteractionLogEntry, ReputationalBuff, Chronicle, ManagerProfile, ManagerOrigin, ClubHistoryEntry, RelationshipState, RealManager, ManagerNetworkEntry, PlayerPersonality, SeasonRecord, SeasonPage, SeasonPageType, ScoutingZone, PLAYER_PERSONALITY_LABELS, PLAYER_PERSONALITY_DESC, POSITION_FULL_NAMES } from "../types";
+import { Player, Club, Competition, Position, PlayerStats, PlayerMatchStats, Fixture, TableEntry, Tactic, Staff, StaffRole, SquadType, TransferOffer, InboxMessage, MessageCategory, MediaNews, NotificationPriority, NewsSection, TacticalStyle, TacticSettings, MatchSettings, ScoutingReport, InteractionLogEntry, ReputationalBuff, Chronicle, ManagerProfile, ManagerOrigin, ClubHistoryEntry, RelationshipState, RealManager, ManagerNetworkEntry, PlayerPersonality, SeasonRecord, SeasonPage, SeasonPageType, ScoutingZone, PlayerHistoryEntry, PLAYER_PERSONALITY_LABELS, PLAYER_PERSONALITY_DESC, POSITION_FULL_NAMES } from "../types";
 import { generateUUID, randomInt, weightedRandom } from "./utils";
 import { NATIONS, SCOUTING_ZONE_COSTS, SCOUTING_ZONE_LABELS } from "../constants";
 import { TACTIC_PRESETS, NAMES_DB, REGEN_DB, STAFF_NAMES, POS_DEFINITIONS, ARG_PRIMERA, ARG_NACIONAL, ARG_PRIMERA_ZONA_B, CONT_CLUBS, CONT_CLUBS_TIER2, WORLD_BOSSES, BRA_SERIE_A, BRA_SERIE_B, ESP_LA_LIGA, ITA_SERIE_A, DEU_BUNDESLIGA, FRA_LIGUE_1, PRT_LIGA, NLD_EREDIVISIE, MEX_LIGA_MX, USA_MLS, JPN_J1, ENG_PREMIER, CHI_PRIMERA, COL_LIGA, URY_PRIMERA, ECU_LIGA_PRO, PRY_DIVISION, BOL_DIVISION, VEN_LIGA, PER_LIGA1, PRY_DIVISION_B, DEU_2_BUNDESLIGA, FRA_LIGUE_2, ITA_SERIE_B, ENG_CHAMPIONSHIP, JPN_J2, KOR_K_LEAGUE, CHN_SUPER_LEAGUE, AUS_A_LEAGUE, EGY_PREMIER, MAR_BOTOLA, RSA_PSL, RealClubDef } from "../data/static";
@@ -9,6 +9,7 @@ import { sendTransferNotification, sendInboxNotification, sendInjuryNotification
 import { generatePlayer, generateRandomPlayer, getPlayerTag } from "./playerGenerator";
 import { useGameStore } from "../stores/gameStore";
 import { loadConvertedClubs, loadConvertedLeagues, loadConvertedStaff, loadPlayersManifest, loadLeaguePlayerChunk, PlayersManifest, PlayerTuple } from "../data/convertedDataLoader";
+import { buildClubPoolIndex, ClubPoolIndex, populatePlayerPastHistory, populateStaffPastHistory } from "./careerHistoryGenerator";
 
 // ─── Perfil táctico de los entrenadores generados ───────────────────────────
 const COACH_STYLES = ['CONTROL', 'ATTACK', 'DEFENSE', 'COUNTER', 'BALANCED'] as const;
@@ -61,6 +62,7 @@ export class WorldManager {
   private staffIndexDirty = true;
   private indexedStaffCount = 0;
   private lastRetirementSweepTime = 0;
+  private clubPoolIndexCache: ClubPoolIndex | null = null;
 
   // Estado de inicialización progresiva y carga por chunks de liga
   clubsReady = false;
@@ -120,6 +122,7 @@ export class WorldManager {
       this.staffByIdIndex = null;
       this.staffIndexDirty = true;
       this.indexedStaffCount = 0;
+      this.clubPoolIndexCache = null;
       this.playersManifest = null;
       this.loadedPlayerLeagues.clear();
       this.loadingLeaguePromises.clear();
@@ -371,6 +374,15 @@ export class WorldManager {
          this.generateStaffForClub(sc.id);
       }
 
+      // Build O(1) club pool index once and populate deterministic past trajectories for all loaded staff
+      const poolIndex = this.getClubPoolIndex();
+      const baseYear = this.getBaseCareerYear();
+      for (let i = 0; i < this.staff.length; i++) {
+         const st = this.staff[i];
+         const stClub = st.clubId ? this.clubByIdCache.get(st.clubId) : undefined;
+         populateStaffPastHistory(st, stClub, poolIndex, baseYear);
+      }
+
       this.nationalTeamManager = new ntModule.NationalTeamManager();
       this.clubsReady = true;
       if (this.resolveClubsReady) { this.resolveClubsReady(); this.resolveClubsReady = null; }
@@ -383,7 +395,7 @@ export class WorldManager {
    }
 
    private decodePlayerTuple(tuple: PlayerTuple, manifest: PlayersManifest): Player | null {
-      const [id, firstName, lastName, birthDateStr, natIdx, clubIdRaw, squadIdx, posIndices, attrs13, ca, pa, value, salary, contractExpiry, height, weight, person4] = tuple;
+      const [id, firstName, lastName, birthDateStr, natIdx, clubIdRaw, squadIdx, posIndices, attrs13, ca, pa, value, salary, contractExpiry, height, weight, person4, historyEntries] = tuple;
       if (this.seenPlayerIds.has(id)) return null;
       const clubId = String(clubIdRaw);
       const club = this.clubByIdCache.get(clubId);
@@ -402,21 +414,80 @@ export class WorldManager {
       const primaryPos = mappedPositions[0];
 
       const [vel = 10, res = 10, fue = 10, ctrl = 10, pase = 10, reg = 10, disp = 10, ant = 10, dec = 10, pos = 10, vis = 10, agr = 10, pol = 10] = attrs13 || [];
-      const [loy = 12, amb = 11, pro = 11] = person4 || [];
+      const [rawLoy = 12, rawAmb = 11, rawPro = 11] = person4 || [];
+      const isDefaultPerson4 = !person4 || (rawLoy === 12 && rawAmb === 11 && rawPro === 11);
+      const idHash = this.hashSeed(id);
+      const loy = isDefaultPerson4 ? (5 + (idHash % 14)) : rawLoy;
+      const amb = isDefaultPerson4 ? (6 + ((idHash >>> 4) % 13)) : rawAmb;
+      const pro = isDefaultPerson4 ? (6 + ((idHash >>> 8) % 13)) : rawPro;
       const age = WorldManager.ageFromBirthDate(birthDateStr);
       const squad: SquadType = manifest.squads[squadIdx] || (age <= 19 ? 'U20' : age <= 22 && ca < 115 ? 'RESERVE' : 'SENIOR');
       const fullName = `${firstName} ${lastName}`.trim() || lastName || firstName || 'Jugador';
       const nationality = manifest.nats[natIdx] || club.country || 'Argentina';
       const leadership = Math.max(5, Math.min(20, Math.round((dec + vis) / 2)));
       const loyalty = Math.max(1, Math.min(20, loy));
-      const personality = this.assignPlayerPersonality(leadership, loyalty, agr, Math.max(dec, pro), Math.max(vis, amb));
+      const personality = this.assignPlayerPersonality(leadership, loyalty, agr, Math.max(dec, pro), Math.max(vis, amb), {
+        seedKey: id,
+        ambition: amb,
+        professionalism: pro,
+        resistencia: res,
+        anticipacion: ant,
+        polivalencia: pol,
+        age,
+        ca,
+        pa,
+      });
 
       const r = Math.random();
       const transferStatus = r < 0.08
          ? (age < 22 && ca < 120 && pa > 140 ? 'LOANABLE' : age > 28 ? 'TRANSFERABLE' : 'NONE')
          : 'NONE';
 
-      return {
+      const history: PlayerHistoryEntry[] = [];
+      const clubsPlayedForSet = new Set<string>([club.id]);
+
+      if (historyEntries && Array.isArray(historyEntries) && historyEntries.length > 0) {
+         for (let hi = 0; hi < historyEntries.length; hi++) {
+            const [year, clubRef, apps, goals, assists, cleanSheets] = historyEntries[hi];
+            let entryClubId = String(clubRef || club.id);
+            if (!this.clubByIdCache.has(entryClubId)) {
+               const found = Array.from(this.clubByIdCache.values()).find(c => c.name.toLowerCase() === entryClubId.toLowerCase());
+               if (found) entryClubId = found.id;
+            }
+            if (entryClubId && entryClubId !== 'FREE_AGENT') clubsPlayedForSet.add(entryClubId);
+
+            history.push({
+               year: Number(year) || 2023,
+               clubId: entryClubId,
+               stats: {
+                  appearances: Number(apps) || 0,
+                  goals: Number(goals) || 0,
+                  assists: Number(assists) || 0,
+                  cleanSheets: Number(cleanSheets) || 0,
+                  conceded: 0,
+                  totalRating: (Number(apps) || 0) > 0 ? Number((6.5 + Math.min(1.5, ((Number(goals) || 0) * 0.3 + (Number(assists) || 0) * 0.2) / Math.max(1, Number(apps) || 1))).toFixed(2)) : 0,
+               }
+            });
+         }
+      }
+
+      let totalApps = 0, totalGoals = 0, totalAssists = 0, totalCleanSheets = 0;
+      for (const h of history) {
+         totalApps += h.stats.appearances;
+         totalGoals += h.stats.goals;
+         totalAssists += h.stats.assists;
+         totalCleanSheets += h.stats.cleanSheets;
+      }
+
+      const careerStats = {
+         totalApps,
+         totalGoals,
+         totalAssists,
+         totalCleanSheets,
+         clubsPlayedFor: Array.from(clubsPlayedForSet),
+      };
+
+      const player: Player = {
          id,
          name: fullName,
          firstName,
@@ -460,7 +531,7 @@ export class WorldManager {
          morale: 60 + randomInt(0, 30),
          injury: null,
          developmentTrend: 'STABLE',
-         history: [],
+         history,
          relationships: {},
          secondaryPositions: [],
          isStarter: false,
@@ -483,10 +554,39 @@ export class WorldManager {
          consistency: Math.max(5, Math.min(20, pro)),
          bigMatchTemperament: Math.max(5, Math.min(20, amb)),
          seasonStats: { appearances: 0, goals: 0, assists: 0, cleanSheets: 0, conceded: 0, totalRating: 0 },
-         careerStats: { totalApps: 0, totalGoals: 0, totalAssists: 0, totalCleanSheets: 0, clubsPlayedFor: [club.id] },
+         careerStats,
          statsByCompetition: {},
          personality,
       };
+
+      if (history.length === 0) {
+         populatePlayerPastHistory(player, club, this.getClubPoolIndex(), this.getBaseCareerYear());
+      }
+      return player;
+   }
+
+   private getBaseCareerYear(): number {
+      const yr = useGameStore.getState().currentDate?.getFullYear?.();
+      return yr && yr > 1990 ? yr : 2008;
+   }
+
+   private getClubPoolIndex(): ClubPoolIndex {
+      if (!this.clubPoolIndexCache || this.clubPoolIndexCache.allByRep.length !== this.clubs.length) {
+         this.clubPoolIndexCache = buildClubPoolIndex(this.clubs);
+      }
+      return this.clubPoolIndexCache;
+   }
+
+   ensurePlayerPastHistory(player: Player): void {
+      if (!player) return;
+      const club = player.clubId && player.clubId !== 'FREE_AGENT' ? this.getClub(player.clubId) : undefined;
+      populatePlayerPastHistory(player, club, this.getClubPoolIndex(), this.getBaseCareerYear());
+   }
+
+   ensureStaffPastHistory(staff: Staff): void {
+      if (!staff) return;
+      const club = staff.clubId ? this.getClub(staff.clubId) : undefined;
+      populateStaffPastHistory(staff, club, this.getClubPoolIndex(), this.getBaseCareerYear());
    }
 
    private ensureMinimumSeniorSquad(clubId: string, minSenior = 18) {
@@ -1024,7 +1124,23 @@ getClub(id: string) {
      player.reputation = def.ca * 45;
      player.value = Math.round(def.ca * def.ca * 2500);
      player.salary = Math.round(def.ca * 2500 / 10) * 10;      player.developmentTrend = 'STABLE';
-      player.personality = this.assignPlayerPersonality(player.leadership, player.loyalty, player.stats.internal.agresividad, player.stats.internal.decision, player.stats.internal.vision);
+      player.personality = this.assignPlayerPersonality(
+        player.leadership,
+        player.loyalty,
+        player.stats.internal.agresividad,
+        player.stats.internal.decision,
+        player.stats.internal.vision,
+        {
+          seedKey: player.id || def.name,
+          resistencia: player.stats.internal.resistencia,
+          anticipacion: player.stats.internal.anticipacion,
+          polivalencia: player.stats.internal.polivalencia,
+          age: player.age,
+          ca: player.currentAbility,
+          pa: player.potentialAbility,
+        }
+      );
+      populatePlayerPastHistory(player, this.getClub(clubId), this.getClubPoolIndex(), this.getBaseCareerYear());
       return player;
    }
 
@@ -1110,6 +1226,7 @@ getClub(id: string) {
         pressIntensity: role === 'HEAD_COACH' ? (['LOW', 'MEDIUM', 'HIGH'] as const)[randomInt(0, 2)] : undefined,
         possessionVsCounter: role === 'HEAD_COACH' ? (['POSSESSION', 'COUNTER', 'BALANCED'] as const)[randomInt(0, 2)] : undefined,
       };
+      populateStaffPastHistory(s, club, this.getClubPoolIndex(), this.getBaseCareerYear());
       this.addStaffIndexed(s);
     });
   }
@@ -1148,6 +1265,7 @@ getClub(id: string) {
       boardRelationship: 78,
       biography: 'Encargado de las finanzas, presupuestos, control salarial y proyecciones económicas del club.',
     };
+    populateStaffPastHistory(s, club, this.getClubPoolIndex(), this.getBaseCareerYear());
     this.addStaffIndexed(s);
     this.invalidateClubCache(clubId);
     return s;
@@ -1185,7 +1303,23 @@ getClub(id: string) {
     player.salary = Math.round(ca * 2000 / 12);
     player.releaseClause = Math.round(player.value * 3);
     player.agent = age >= 22 && Math.random() < 0.15 ? { name: `Agente ${lastName}`, commission: Math.round(5 + Math.random() * 10) } : undefined;
-    player.personality = this.assignPlayerPersonality(player.leadership, player.loyalty, player.stats.internal.agresividad, player.stats.internal.decision, player.stats.internal.vision);
+    player.personality = this.assignPlayerPersonality(
+      player.leadership,
+      player.loyalty,
+      player.stats.internal.agresividad,
+      player.stats.internal.decision,
+      player.stats.internal.vision,
+      {
+        seedKey: player.id,
+        resistencia: player.stats.internal.resistencia,
+        anticipacion: player.stats.internal.anticipacion,
+        polivalencia: player.stats.internal.polivalencia,
+        age: player.age,
+        ca: player.currentAbility,
+        pa: player.potentialAbility,
+      }
+    );
+    populatePlayerPastHistory(player, club, this.getClubPoolIndex(), baseYear || this.getBaseCareerYear());
     return player;
   }
   /** Versión de fixtures: se incrementa cada vez que cambian resultados (invalida tablas cacheadas). */
@@ -1299,31 +1433,72 @@ getClub(id: string) {
 
   // ─── Pilar C: Personalidades y Drama ──────────────────────────────────────
 
-  /** Assign personality based on player's hidden mental attributes */
-  assignPlayerPersonality(leadership: number, loyalty: number, agresividad: number, decision: number, vision: number): PlayerPersonality {
-    // LEADER: high leadership + high decision
-    if (leadership >= 16 && decision >= 14) return 'LEADER';
-    // MERCENARY: low loyalty + high vision (ambitious for money/fame)
-    if (loyalty <= 7 && vision >= 14) return 'MERCENARY';
-    // LOYAL: high loyalty + moderate decision
-    if (loyalty >= 16) return 'LOYAL';
-    // VOLATILE: high aggression + low decision
-    if (agresividad >= 16 && decision <= 9) return 'VOLATILE';
-    // LAZY: low decision + low aggression (no drive)
-    if (decision <= 6 && agresividad <= 8) return 'LAZY';
-    // AMBITIOUS: high vision + moderate/low loyalty
-    if (vision >= 16 && loyalty <= 13) return 'AMBITIOUS';
-    // PROFESSIONAL: high decision, moderate everything else
-    if (decision >= 14) return 'PROFESSIONAL';
-    // Fallback based on strongest signal
+  private hashSeed(input: string): number {
+    let h = 2166136261;
+    for (let i = 0; i < input.length; i++) {
+      h ^= input.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+    return h >>> 0;
+  }
+
+  /** Assign personality based on player's hidden mental attributes with rich variety */
+  assignPlayerPersonality(
+    leadership: number,
+    loyalty: number,
+    agresividad: number,
+    decision: number,
+    vision: number,
+    extras?: {
+      seedKey?: string;
+      ambition?: number;
+      professionalism?: number;
+      resistencia?: number;
+      anticipacion?: number;
+      polivalencia?: number;
+      age?: number;
+      ca?: number;
+      pa?: number;
+    }
+  ): PlayerPersonality {
+    const amb = extras?.ambition ?? Math.round((vision * 0.65 + (20 - loyalty) * 0.35));
+    const pro = extras?.professionalism ?? decision;
+    const res = extras?.resistencia ?? 11;
+    const ant = extras?.anticipacion ?? 11;
+    const pol = extras?.polivalencia ?? 10;
+    const age = extras?.age ?? 24;
+    const paGap = (extras?.pa ?? 120) - (extras?.ca ?? 110);
+    const seed = this.hashSeed(
+      extras?.seedKey || `${leadership}-${loyalty}-${agresividad}-${decision}-${vision}-${res}-${pol}`
+    );
+
+    const jit = (salt: number) => (((seed ^ (salt * 2654435761)) >>> 0) % 1000) / 1000 * 5.0;
+
+    // Clear standout archetypes when attributes strongly point to one
+    if (leadership >= 17 && decision >= 15) return 'LEADER';
+    if (pro >= 18 && decision >= 16 && agresividad <= 13 && loyalty >= 11) return 'MODEL_PRO';
+    if (loyalty >= 18 && amb <= 12) return 'LOYAL';
+    if (loyalty <= 5 && amb >= 14) return 'MERCENARY';
+    if (agresividad >= 17 && decision <= 9) return 'VOLATILE';
+    if (pro <= 6 && decision <= 8 && res <= 9) return 'LAZY';
+    if (amb >= 18 && loyalty <= 12) return 'AMBITIOUS';
+
     const scores: [PlayerPersonality, number][] = [
-      ['LEADER', leadership],
-      ['LOYAL', loyalty],
-      ['MERCENARY', 20 - loyalty],
-      ['VOLATILE', agresividad],
-      ['AMBITIOUS', vision],
-      ['PROFESSIONAL', decision],
-      ['LAZY', 20 - decision],
+      ['LEADER', leadership * 0.55 + decision * 0.25 + vision * 0.20 + (age >= 26 ? 1.8 : 0.3) + jit(1)],
+      ['MODEL_PRO', pro * 0.55 + decision * 0.30 + res * 0.15 - (agresividad >= 16 ? 2.5 : 0) - 0.6 + jit(2)],
+      ['PROFESSIONAL', pro * 0.45 + decision * 0.35 + ant * 0.20 + jit(3)],
+      ['DRIVEN', decision * 0.35 + amb * 0.35 + res * 0.30 + jit(4)],
+      ['AMBITIOUS', amb * 0.55 + vision * 0.30 + (paGap >= 16 ? 1.5 : 0) + (20 - loyalty) * 0.15 - 0.8 + jit(5)],
+      ['COMPETITIVE', agresividad * 0.35 + res * 0.35 + decision * 0.30 + 0.5 + jit(6)],
+      ['RESILIENT', res * 0.40 + ant * 0.35 + decision * 0.25 + (age >= 25 ? 0.6 : 0) - 0.4 + jit(7)],
+      ['PERFECTIONIST', pro * 0.35 + decision * 0.35 + pol * 0.30 + 0.2 + jit(8)],
+      ['CHARISMATIC', leadership * 0.35 + pol * 0.35 + (20 - agresividad) * 0.30 + 1.4 + jit(9)],
+      ['LOYAL', loyalty * 0.70 + ant * 0.15 + (age >= 26 ? 1.0 : 0) + jit(10)],
+      ['RESERVED', (20 - agresividad) * 0.40 + (20 - leadership) * 0.30 + ant * 0.30 + 1.8 + jit(11)],
+      ['TEMPERAMENTAL', agresividad * 0.55 + vision * 0.25 + (20 - pro) * 0.20 + 0.8 + jit(12)],
+      ['VOLATILE', agresividad * 0.55 + (20 - decision) * 0.30 + (20 - pro) * 0.15 - (pro >= 15 ? 2.0 : 0) + 1.5 + jit(13)],
+      ['MERCENARY', (20 - loyalty) * 0.65 + amb * 0.35 - (loyalty >= 15 ? 2.5 : 0) + 0.4 + jit(14)],
+      ['LAZY', (20 - pro) * 0.45 + (20 - res) * 0.30 + (20 - agresividad) * 0.25 - (decision >= 15 ? 2.0 : 0) + 0.8 + jit(15)],
     ];
     scores.sort((a, b) => b[1] - a[1]);
     return scores[0][0];
@@ -1349,7 +1524,14 @@ getClub(id: string) {
     // Ensure all players have personality assigned (safety net for legacy saves)
     allSquad.forEach(p => {
       if (!p.personality) {
-        p.personality = this.assignPlayerPersonality(p.leadership, p.loyalty, p.stats.internal.agresividad, p.stats.internal.decision, p.stats.internal.vision);
+        p.personality = this.assignPlayerPersonality(
+          p.leadership,
+          p.loyalty,
+          p.stats.internal.agresividad,
+          p.stats.internal.decision,
+          p.stats.internal.vision,
+          { seedKey: p.id, resistencia: p.stats.internal.resistencia, anticipacion: p.stats.internal.anticipacion, polivalencia: p.stats.internal.polivalencia, age: p.age, ca: p.currentAbility, pa: p.potentialAbility }
+        );
       }
     });
 
@@ -1357,8 +1539,13 @@ getClub(id: string) {
     const clashPairs: [PlayerPersonality, PlayerPersonality][] = [
       ['LEADER', 'VOLATILE'],
       ['LEADER', 'LAZY'],
+      ['MODEL_PRO', 'LAZY'],
+      ['MODEL_PRO', 'VOLATILE'],
+      ['PERFECTIONIST', 'LAZY'],
       ['MERCENARY', 'LOYAL'],
       ['VOLATILE', 'PROFESSIONAL'],
+      ['TEMPERAMENTAL', 'RESERVED'],
+      ['COMPETITIVE', 'LAZY'],
       ['AMBITIOUS', 'LAZY'],
       ['MERCENARY', 'LEADER'],
     ];
@@ -1446,15 +1633,23 @@ getClub(id: string) {
     const leagueRep = league?.dynamicReputation || 50;
     const motives: Record<PlayerPersonality, string[]> = {
       LEADER: ['Quiere competir por títulos importantes y siente que el club no está a la altura.', 'Busca un proyecto donde su liderazgo sea valorado con fichajes de nivel.'],
+      MODEL_PRO: ['Siente que el nivel de exigencia diaria del plantel no acompaña sus metas deportivas.', 'Busca un proyecto estructurado donde competir por objetivos mayores.'],
       MERCENARY: ['Recibió una oferta salarial que este club no puede igualar.', 'Su agente le ha conseguido un contrato mucho más lucrativo en otra liga.'],
       LOYAL: ['Su familia quiere regresar a su país de origen.', 'Problemas personales requieren que esté más cerca de casa.'],
       VOLATILE: ['No soporta más al cuerpo técnico y quiere un cambio de aires.', 'Siente que el DT lo tiene de punto y prefiere irse antes que seguir así.'],
+      TEMPERAMENTAL: ['Las últimas decisiones tácticas lo frustraron y busca descomprimir cambiando de club.', 'Quiere un rol más protagónico tras varios choques internos.'],
       PROFESSIONAL: ['Considera que su ciclo en el club ha terminado y busca un nuevo desafío.', 'Quiere probarse en una liga más competitiva antes del final de su carrera.'],
+      DRIVEN: ['Siente que necesita un escenario con metas deportivas más exigentes para seguir evolucionando.', 'Quiere pelear por campeonatos y cree que afuera tendrá esa oportunidad.'],
+      COMPETITIVE: ['No acepta ser pieza secundaria y exige ir a un club donde juegue todos los partidos.', 'Quiere un reto directo por la titularidad en otra liga.'],
+      RESILIENT: ['Tras evaluar fríamente su situación, entiende que lo mejor para su carrera es cambiar de aire.', 'Busca empezar de cero en un club con otra dinámica deportiva.'],
+      PERFECTIONIST: ['No está conforme con su rendimiento actual acá y cree que otro contexto lo potenciará.', 'Busca un cuerpo técnico que trabaje con mayor detalle su rol específico.'],
+      CHARISMATIC: ['Siente que perdió sintonía con el proyecto actual y quiere renovar energías en otro vestuario.', 'Recibió el llamado de excompañeros para sumarse a otro club.'],
+      RESERVED: ['De manera silenciosa, le comunicó a su entorno que prefiere cambiar de destino.', 'Busca un club más tranquilo donde enfocarse solo en jugar.'],
       LAZY: ['No se siente motivado aquí. Cree que un cambio de entorno lo reactivaría.', 'Busca un club con menos exigencia donde pueda jugar sin presión.'],
-      AMBITIOUS: ['Quiere jugar Champions League y este club no se la puede garantizar.', 'Aspira a un club más grande donde pueda ganar títulos y Balones de Oro.'],
+      AMBITIOUS: ['Quiere jugar copas internacionales y este club no se las puede garantizar.', 'Aspira a un club más grande donde pueda ganar títulos y premios individuales.'],
     };
 
-    const personalityMotives = motives[candidate.personality];
+    const personalityMotives = motives[candidate.personality] || motives.PROFESSIONAL;
     const reason = personalityMotives[randomInt(0, personalityMotives.length - 1)];
 
     candidate.transferRequestReason = reason;
@@ -1658,8 +1853,8 @@ getClub(id: string) {
         date, clubId);
     } else {
       // Captain or senior leader addresses dressing room tension with a named teammate
-      const leader = squad.find(p => p.leadership >= 14 || p.personality === 'LEADER');
-      const target = squad.find(p => p.id !== leader?.id && (p.morale < 65 || p.personality === 'VOLATILE'));
+      const leader = squad.find(p => p.leadership >= 14 || p.personality === 'LEADER' || p.personality === 'MODEL_PRO');
+      const target = squad.find(p => p.id !== leader?.id && (p.morale < 65 || p.personality === 'VOLATILE' || p.personality === 'TEMPERAMENTAL'));
       if (leader && target) {
         target.morale = Math.min(100, target.morale + 4);
         club.teamCohesion = Math.min(100, (club.teamCohesion || 50) + 2);
@@ -2154,6 +2349,7 @@ Días desde la lesión: ${i.daysSinceInjury}`;
       careerHonours: managerData.careerHonours,
       previousClubs: managerData.previousClubs,
     };
+    populateStaffPastHistory(manager, this.getClub(clubId), this.getClubPoolIndex(), this.getBaseCareerYear());
     this.staff = this.staff.filter(s => s.clubId !== clubId || s.role !== 'HEAD_COACH');
     this.staff.unshift(manager);
     this.markStaffDirty();
@@ -3727,7 +3923,7 @@ generateYouthIntake(year: number) {
     const i = player.stats.internal;
     const mentalSum = i.decision + i.vision + i.posicionamiento + i.anticipacion;
     let chance = 0.34;
-    if (player.personality === 'LEADER' || player.personality === 'PROFESSIONAL' || player.personality === 'LOYAL') chance += 0.11;
+    if (player.personality === 'LEADER' || player.personality === 'PROFESSIONAL' || player.personality === 'MODEL_PRO' || player.personality === 'LOYAL' || player.personality === 'PERFECTIONIST') chance += 0.11;
     if (mentalSum >= 48) chance += 0.09;
     if (player.reputation >= 5500) chance += 0.08;
     if (player.leadership >= 14) chance += 0.06;
@@ -3813,7 +4009,7 @@ generateYouthIntake(year: number) {
       salary: Math.max(2200, Math.round((player.reputation * 0.9 + randomInt(1500, 4500)) / 100) * 100),
       contractExpiry: new Date(eventDate.getFullYear(), 5, 30),
       history: [],
-      personality: player.leadership >= 14 ? 'LEADER' : player.personality === 'VOLATILE' ? 'PASSIONATE' : player.personality === 'PROFESSIONAL' ? 'DISCIPLINARIAN' : player.personality === 'AMBITIOUS' ? 'VISIONARY' : 'CALM',
+      personality: player.leadership >= 14 || player.personality === 'LEADER' ? 'LEADER' : (player.personality === 'VOLATILE' || player.personality === 'TEMPERAMENTAL' || player.personality === 'COMPETITIVE') ? 'PASSIONATE' : (player.personality === 'PROFESSIONAL' || player.personality === 'MODEL_PRO' || player.personality === 'PERFECTIONIST' || player.personality === 'DRIVEN') ? 'DISCIPLINARIAN' : player.personality === 'AMBITIOUS' ? 'VISIONARY' : 'CALM',
       morale: 78,
       reputation: Math.max(35, Math.min(92, Math.round(player.reputation / 105))),
       relationships: {},
@@ -3825,6 +4021,11 @@ generateYouthIntake(year: number) {
       previousClubs,
       biography: `Exfutbolista profesional (${posLabel}) retirado a los ${player.age} años${lastClub ? ` tras cerrar su etapa en ${lastClub.name}` : ''}. Inició su carrera técnica como ${roleLabel}.`,
     };
+    if (player.history && player.history.length > 0) {
+      newStaff.history = player.history.slice(-6).map(h => ({ year: h.year, clubId: h.clubId, role: chosenRole }));
+    } else {
+      populateStaffPastHistory(newStaff, lastClub, this.getClubPoolIndex(), eventDate.getFullYear());
+    }
 
     this.addStaffIndexed(newStaff);
     this.markStaffDirty();

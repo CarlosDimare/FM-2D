@@ -78,6 +78,75 @@ interface PlayerChatRequestBody {
   managerMessage: string;
 }
 
+interface StaffChatRequestBody {
+  staff: {
+    id: string;
+    name: string;
+    age: number;
+    nationality?: string;
+    role: string;
+    roleLabel?: string;
+    personality?: string;
+    morale?: number;
+    reputation?: number;
+    salary?: number;
+    contractMonthsLeft?: number | null;
+    preferredFormation?: string;
+    tacticalStyle?: string;
+    pressIntensity?: string;
+    possessionVsCounter?: string;
+    playingStyle?: string;
+    biography?: string;
+    attributes?: Record<string, number>;
+    careerHonours?: string[];
+    previousClubs?: Array<{ clubName: string; years: string; titles?: string[] }>;
+    trust?: number;
+    respect?: number;
+    tension?: number;
+    delegations?: string[];
+  };
+  club: {
+    name: string;
+    shortName?: string;
+    country?: string;
+    leaguePosition?: number | null;
+    recentForm?: string;
+    managerName?: string;
+    isUserClubStaff?: boolean;
+    isFreeAgent?: boolean;
+    userClubName?: string;
+    userClubLeaguePos?: number | null;
+    activeTactic?: {
+      name?: string;
+      formation?: string;
+      style?: string;
+      passingStyle?: string;
+      pressingIntensity?: string;
+    } | null;
+    nextOpponentName?: string | null;
+    squadSnapshot?: Array<{
+      name: string;
+      pos: string;
+      age: number;
+      ca: number;
+      pa: number;
+      squad: string;
+      isStarter: boolean;
+      morale: number;
+      fitness: number;
+      injuredDays?: number | null;
+      seasonApps?: number;
+      seasonGoals?: number;
+      seasonAssists?: number;
+      transferStatus?: string;
+    }>;
+    staffColleagues?: Array<{ name: string; roleLabel: string }>;
+  };
+  currentDateIso?: string;
+  conversationHistory?: IncomingHistoryMessage[];
+  managerMessage: string;
+}
+
 const VALID_TONES = new Set(['POSITIVE', 'NEUTRAL', 'NEGATIVE']);
 const VALID_PROMISE_CATEGORIES = new Set([
   'PLAYING_TIME',
@@ -150,7 +219,46 @@ function parseJsonSafe(rawText: string): Record<string, unknown> | null {
   return null;
 }
 
-function normalizeModelPayload(parsed: Record<string, unknown> | null) {
+function isWrongPovSuggestion(text: string): boolean {
+  const lower = text.toLowerCase().trim();
+  if (!lower) return true;
+  if (/\b(señor|m[ií]ster|profe)\b/i.test(lower)) return true;
+  if (
+    /^(gracias por|muchas gracias|voy a dar|voy a dejar|quiero demostrar|estoy a disposici[oó]n|prometo |le agradezco|respeto su decisi[oó]n|cuente conmigo|har[eé] todo lo posible|seguir[eé] entrenando|espero tener|si me da |le tomo la palabra|entiendo su postura)/i.test(
+      lower
+    )
+  ) {
+    return true;
+  }
+  return false;
+}
+
+function filterSuggestedReplies(
+  raw: unknown,
+  fallbackPool: string[]
+): string[] {
+  const clean = Array.isArray(raw)
+    ? raw
+        .map((s) => sanitizeText(s, 120))
+        .filter((s) => s.length >= 6 && !isWrongPovSuggestion(s))
+    : [];
+
+  const result: string[] = [];
+  for (const item of clean) {
+    if (!result.includes(item)) result.push(item);
+    if (result.length >= 3) break;
+  }
+  for (const fb of fallbackPool) {
+    if (result.length >= 3) break;
+    if (!result.includes(fb)) result.push(fb);
+  }
+  return result.slice(0, 3);
+}
+
+function normalizeModelPayload(
+  parsed: Record<string, unknown> | null,
+  fallbackSuggestions: string[]
+) {
   if (!parsed || typeof parsed.reply !== 'string' || !parsed.reply.trim()) {
     return null;
   }
@@ -192,14 +300,8 @@ function normalizeModelPayload(parsed: Record<string, unknown> | null) {
     }
   }
 
-  const suggestedReplies = Array.isArray(parsed.suggestedReplies)
-    ? parsed.suggestedReplies
-        .map((s) => sanitizeText(s, 120))
-        .filter(Boolean)
-        .slice(0, 3)
-    : [];
-
-  const cleanReply = sanitizeText(parsed.reply, 900).replace(/\bm[ií]ster\b/gi, 'Señor');
+  const suggestedReplies = filterSuggestedReplies(parsed.suggestedReplies, fallbackSuggestions);
+  const cleanReply = sanitizeText(parsed.reply, 950).replace(/\bm[ií]ster\b/gi, 'Señor');
 
   return {
     reply: cleanReply,
@@ -214,10 +316,18 @@ function normalizeModelPayload(parsed: Record<string, unknown> | null) {
   };
 }
 
+interface ChatCallOptions {
+  speakerLabel: string;
+  includePlayerFields: boolean;
+  managerName: string;
+  targetName: string;
+}
+
 async function callNvidiaChat(
   apiKey: string,
   systemInstruction: string,
-  prompt: string
+  prompt: string,
+  opts: ChatCallOptions
 ): Promise<Record<string, unknown> | null> {
   const model = process.env.NVIDIA_MODEL?.trim() || 'nvidia/nemotron-3.5-bolt-e4b';
   const openai = new OpenAI({
@@ -225,21 +335,30 @@ async function callNvidiaChat(
     baseURL: 'https://integrate.api.nvidia.com/v1',
   });
 
+  const playerOnlySchemaLines = opts.includePlayerFields
+    ? `  "shouldResolvePending": boolean,
+  "transferRequestAction": "KEEP" | "WITHDRAW" | "REQUEST",
+  "promiseCreated": null o { "category": "PLAYING_TIME" | "POSITION_ROLE" | "CONTRACT_OFFER" | "TACTICAL_ROLE" | "COMPETITION_TARGET" | "TRANSFER_DECISION", "summary": "descripción corta en español", "matchesDuration": entero 2..10 opcional, "deadlineDays": entero 7..45 opcional },`
+    : '';
+
   const jsonGuidance = `${systemInstruction}
 
 FORMATO DE RESPUESTA OBLIGATORIO:
 Devuelve EXCLUSIVAMENTE un objeto JSON válido (sin texto antes ni después, sin bloques markdown) con exactamente estas propiedades:
 {
-  "reply": "Respuesta natural del jugador en español (2 a 4 oraciones)",
+  "reply": "Respuesta natural de ${opts.targetName} (${opts.speakerLabel}) en español (2 a 5 oraciones)",
   "tone": "POSITIVE" | "NEUTRAL" | "NEGATIVE",
   "moraleDelta": número entero dinámico entre -15 y 15 (calculado según impacto real),
   "tensionDelta": número entero dinámico entre -20 y 25 (calculado según fricción),
   "trustDelta": número entero dinámico entre -15 y 15 (calculado según afinidad),
-  "shouldResolvePending": boolean,
-  "transferRequestAction": "KEEP" | "WITHDRAW" | "REQUEST",
-  "promiseCreated": null o { "category": "PLAYING_TIME" | "POSITION_ROLE" | "CONTRACT_OFFER" | "TACTICAL_ROLE" | "COMPETITION_TARGET" | "TRANSFER_DECISION", "summary": "descripción corta en español", "matchesDuration": entero 2..10 opcional, "deadlineDays": entero 7..45 opcional },
-  "suggestedReplies": ["respuesta corta 1 para el DT", "respuesta corta 2", "respuesta corta 3"]
-}`;
+${playerOnlySchemaLines}
+  "suggestedReplies": [
+    "Opción 1 EN LA VOZ DE ${opts.managerName} (EL DT USUARIO) hablándole DE VOS a ${opts.targetName} (ej: 'Contame cómo ves al grupo esta semana')",
+    "Opción 2 EN LA VOZ DE ${opts.managerName} preguntando o dando una indicación a ${opts.targetName}",
+    "Opción 3 EN LA VOZ DE ${opts.managerName} reaccionando a lo que dijo ${opts.targetName}"
+  ]
+}
+IMPORTANTE SOBRE "suggestedReplies": Cada frase es lo que el USUARIO (${opts.managerName}) le va a decir a ${opts.targetName} en el próximo clic. NUNCA escribas frases en la voz de ${opts.targetName} ni uses "Señor" o "profe" en "suggestedReplies".`;
 
   const completion = await openai.chat.completions.create({
     model,
@@ -248,7 +367,7 @@ Devuelve EXCLUSIVAMENTE un objeto JSON válido (sin texto antes ni después, sin
       { role: 'user', content: prompt },
     ],
     temperature: 0.82,
-    max_tokens: 760,
+    max_tokens: 780,
   });
 
   const content = completion.choices[0]?.message?.content || '';
@@ -258,12 +377,81 @@ Devuelve EXCLUSIVAMENTE un objeto JSON válido (sin texto antes ni después, sin
 async function callGeminiChat(
   apiKey: string,
   systemInstruction: string,
-  prompt: string
+  prompt: string,
+  opts: ChatCallOptions
 ): Promise<Record<string, unknown> | null> {
   const ai = new GoogleGenAI({
     apiKey,
     httpOptions: { headers: { 'User-Agent': 'aistudio-build' } },
   });
+
+  const properties: Record<string, any> = {
+    reply: {
+      type: Type.STRING,
+      description: `Respuesta natural de ${opts.targetName} (${opts.speakerLabel}) en español (2 a 5 oraciones).`,
+    },
+    tone: {
+      type: Type.STRING,
+      description: 'Sentimiento resultante: POSITIVE, NEUTRAL o NEGATIVE.',
+    },
+    moraleDelta: {
+      type: Type.INTEGER,
+      description: 'Cambio dinámico de moral entre -15 y +15.',
+    },
+    tensionDelta: {
+      type: Type.INTEGER,
+      description: 'Cambio dinámico de tensión entre -20 y +25.',
+    },
+    trustDelta: {
+      type: Type.INTEGER,
+      description: 'Cambio dinámico de confianza entre -15 y +15.',
+    },
+    suggestedReplies: {
+      type: Type.ARRAY,
+      items: { type: Type.STRING },
+      description: `Exactamente 3 frases cortas que DIRÍA ${opts.managerName} (el entrenador usuario) hablándole de "vos" a ${opts.targetName} en el próximo turno. SIEMPRE desde la perspectiva del DT hacia ${opts.targetName}. PROHIBIDO hablar como ${opts.targetName} o usar "Señor".`,
+    },
+  };
+
+  const required = ['reply', 'tone', 'moraleDelta', 'tensionDelta', 'trustDelta', 'suggestedReplies'];
+
+  if (opts.includePlayerFields) {
+    properties.shouldResolvePending = {
+      type: Type.BOOLEAN,
+      description: 'True si el motivo pendiente quedó resuelto o zanjado en esta charla.',
+    };
+    properties.transferRequestAction = {
+      type: Type.STRING,
+      description: 'KEEP, WITHDRAW o REQUEST según corresponda al diálogo.',
+    };
+    properties.promiseCreated = {
+      type: Type.OBJECT,
+      nullable: true,
+      properties: {
+        category: {
+          type: Type.STRING,
+          description:
+            'PLAYING_TIME | POSITION_ROLE | CONTRACT_OFFER | TACTICAL_ROLE | COMPETITION_TARGET | TRANSFER_DECISION',
+        },
+        summary: {
+          type: Type.STRING,
+          description: 'Descripción corta en español de la promesa asumida.',
+        },
+        matchesDuration: {
+          type: Type.INTEGER,
+          nullable: true,
+          description: 'Cantidad de partidos de plazo (entre 2 y 8) si aplica a cancha.',
+        },
+        deadlineDays: {
+          type: Type.INTEGER,
+          nullable: true,
+          description: 'Días de plazo (entre 7 y 45) si aplica a contrato o mercado.',
+        },
+      },
+      required: ['category', 'summary'],
+    };
+    required.push('shouldResolvePending');
+  }
 
   const response = await ai.models.generateContent({
     model: 'gemini-4-hydrogen',
@@ -274,76 +462,8 @@ async function callGeminiChat(
       responseMimeType: 'application/json',
       responseSchema: {
         type: Type.OBJECT,
-        properties: {
-          reply: {
-            type: Type.STRING,
-            description: 'Respuesta natural del jugador en español (2 a 4 oraciones).',
-          },
-          tone: {
-            type: Type.STRING,
-            description: 'Sentimiento resultante: POSITIVE, NEUTRAL o NEGATIVE.',
-          },
-          moraleDelta: {
-            type: Type.INTEGER,
-            description: 'Cambio dinámico de moral entre -15 y +15.',
-          },
-          tensionDelta: {
-            type: Type.INTEGER,
-            description: 'Cambio dinámico de tensión entre -20 y +25.',
-          },
-          trustDelta: {
-            type: Type.INTEGER,
-            description: 'Cambio dinámico de confianza entre -15 y +15.',
-          },
-          shouldResolvePending: {
-            type: Type.BOOLEAN,
-            description: 'True si el motivo pendiente quedó resuelto o zanjado en esta charla.',
-          },
-          transferRequestAction: {
-            type: Type.STRING,
-            description: 'KEEP, WITHDRAW o REQUEST según corresponda al diálogo.',
-          },
-          promiseCreated: {
-            type: Type.OBJECT,
-            nullable: true,
-            properties: {
-              category: {
-                type: Type.STRING,
-                description:
-                  'PLAYING_TIME | POSITION_ROLE | CONTRACT_OFFER | TACTICAL_ROLE | COMPETITION_TARGET | TRANSFER_DECISION',
-              },
-              summary: {
-                type: Type.STRING,
-                description: 'Descripción corta en español de la promesa asumida.',
-              },
-              matchesDuration: {
-                type: Type.INTEGER,
-                nullable: true,
-                description: 'Cantidad de partidos de plazo (entre 2 y 8) si aplica a cancha.',
-              },
-              deadlineDays: {
-                type: Type.INTEGER,
-                nullable: true,
-                description: 'Días de plazo (entre 7 y 45) si aplica a contrato o mercado.',
-              },
-            },
-            required: ['category', 'summary'],
-          },
-          suggestedReplies: {
-            type: Type.ARRAY,
-            items: { type: Type.STRING },
-            description: 'Exactamente 3 respuestas rápidas sugeridas para el DT.',
-          },
-        },
-        required: [
-          'reply',
-          'tone',
-          'moraleDelta',
-          'tensionDelta',
-          'trustDelta',
-          'shouldResolvePending',
-          'suggestedReplies',
-        ],
+        properties,
+        required,
       },
     },
   });
@@ -456,7 +576,7 @@ TU FICHA COMPLETA Y REALIDAD ACTUAL:
 - Club real actual: ${clubName}${typeof c.leaguePosition === 'number' ? ` (puesto #${c.leaguePosition} en la liga)` : ''}${c.recentForm ? ` · Racha reciente de ${clubName}: ${sanitizeText(c.recentForm, 16)}` : ''}.
 - Tus compañeros actuales en ${clubName}: ${teammatesSummary}.
 - Trayectoria e historia: ${careerSummary}.
-- Personalidad y carácter: ${sanitizeText(p.personality, 32) || 'PROFESSIONAL'}${p.personalityDesc ? ` — ${sanitizeText(p.personalityDesc, 160)}` : ''}. (LEADER = referente, habla por el grupo y exige mentalidad; MERCENARY = calculador, prioriza dinero/contratos/escaparate; LOYAL = muy apegado a su club y compañeros; VOLATILE = temperamental, frontal y explosivo; PROFESSIONAL = serio, autocrítico y disciplinado; LAZY = talentoso pero relajado; AMBITIOUS = obsesionado con títulos y dar saltos de calidad).
+- Personalidad y carácter: ${sanitizeText(p.personality, 32) || 'PROFESSIONAL'}${p.personalityDesc ? ` — ${sanitizeText(p.personalityDesc, 160)}` : ''}. (LEADER = referente del grupo; MODEL_PRO = ética intachable; PROFESSIONAL = serio y disciplinado; DRIVEN = determinado y combativo; AMBITIOUS = obsesionado con títulos y dar saltos; COMPETITIVE = odia perder; RESILIENT = frío ante presión/lesiones; PERFECTIONIST = autocrítico y detallista; CHARISMATIC = cercano y une al grupo; LOYAL = muy apegado a su club; RESERVED = perfil bajo; TEMPERAMENTAL = pasional al límite; VOLATILE = explosivo; MERCENARY = prioriza salario/contrato; LAZY = talentoso pero relajado).
 - Posiciones: ${Array.isArray(p.positions) ? p.positions.slice(0, 4).join(', ') : 'Jugador de campo'} · Calidad actual: ${clampInt(p.currentAbility, 1, 200, 110)}/200 · Valor de mercado: £${clampInt(p.marketValue, 0, 500000000, 500000).toLocaleString('en-US')}.
 - Moral actual: ${clampInt(p.morale, 0, 100, 65)}/100 · Condición física: ${clampInt(p.fitness, 0, 100, 85)}%
 - Rol en ${clubName}: ${isFreeAgent ? 'Sin club actualmente' : p.isStarter ? `Titular habitual en ${clubName}` : `Suplente / rotación en ${clubName}`}
@@ -472,7 +592,7 @@ ${promisesSummary}
 REGLAS ESTRICTAS DE CÁLCULO NUMÉRICO:
 1. NUNCA devuelvas números fijos o repetitivos (como siempre +5 o -5). Calcula "moraleDelta" (-15..+15), "trustDelta" (-15..+15) y "tensionDelta" (-20..+25) de forma orgánica según el tono real de lo dicho y tu personalidad.${!isUserClubPlayer ? '\n2. Como NO eres jugador de su club, normalmente "moraleDelta" y "tensionDelta" de vestuario deben ser 0 o muy moderados (±2) y NO crees promesas de minutos en tu club ajeno ("promiseCreated": null).' : ''}
 3. Si el DT asume un compromiso claro con un jugador propio (minutos, renovación, salida), genera "promiseCreated".
-4. "suggestedReplies": exactamente 3 respuestas cortas, naturales y variadas que ${managerName} podría decir a continuación.
+4. "suggestedReplies": CRÍTICO — NO son frases tuyas como jugador. Son exactamente 3 respuestas cortas y variadas que EL ENTRENADOR (${managerName}) podría decirte a VOS en su próximo mensaje, escritas desde el punto de vista del DT hablándote de "vos" (ej: "Necesito más intensidad tuya en los entrenamientos", "Vas a tener minutos en el próximo partido", "¿Cómo te sentís físicamente para jugar?"). PROHIBIDO escribir frases como futbolista, prohibido usar "Señor"/"profe", y prohibido decir "voy a dar todo".
 5. "shouldResolvePending": ${isUserClubPlayer ? 'true si el tema pendiente quedó zanjado; false si sigue abierto.' : 'false'}`;
 
     const prompt = `Historial reciente de la charla:
@@ -483,13 +603,32 @@ Nuevo mensaje de ${managerName}:
 
 Responde estrictamente en personaje según toda tu ficha real (especialmente si eres de ${clubName} o de ${userClubName}) en JSON válido.`;
 
+    const fallbackPlayerSuggestions = isUserClubPlayer
+      ? [
+          'Seguí entrenando así que vas a tener tu oportunidad en cancha.',
+          '¿Cómo te sentís física y futbolísticamente para el próximo partido?',
+          'Necesito que estés al 100% enfocado en lo que viene con el plantel.',
+        ]
+      : [
+          `Me gusta tu nivel actual, ¿qué buscás para el próximo paso de tu carrera?`,
+          `¿Cómo evaluás la campaña actual de ${isFreeAgent ? 'tu búsqueda de club' : clubName}?`,
+          `Seguimos en contacto por si surge una posibilidad en ${userClubName}.`,
+        ];
+
+    const callOpts: ChatCallOptions = {
+      speakerLabel: 'futbolista profesional',
+      includePlayerFields: true,
+      managerName,
+      targetName: playerName,
+    };
+
     try {
       let parsed: Record<string, unknown> | null = null;
       let lastError: unknown = null;
 
       if (nvidiaKey) {
         try {
-          parsed = await callNvidiaChat(nvidiaKey, systemInstruction, prompt);
+          parsed = await callNvidiaChat(nvidiaKey, systemInstruction, prompt, callOpts);
         } catch (err) {
           lastError = err;
           console.warn('NVIDIA chat failed, attempting Gemini fallback...', err);
@@ -498,14 +637,14 @@ Responde estrictamente en personaje según toda tu ficha real (especialmente si 
 
       if (!parsed && geminiKey) {
         try {
-          parsed = await callGeminiChat(geminiKey, systemInstruction, prompt);
+          parsed = await callGeminiChat(geminiKey, systemInstruction, prompt, callOpts);
         } catch (err) {
           lastError = err;
           console.error('Gemini fallback chat also failed:', err);
         }
       }
 
-      const normalized = normalizeModelPayload(parsed);
+      const normalized = normalizeModelPayload(parsed, fallbackPlayerSuggestions);
       if (!normalized) {
         const detail = lastError instanceof Error ? lastError.message : 'Modelo agotado o sin respuesta válida';
         res.status(502).json({
@@ -519,6 +658,208 @@ Responde estrictamente en personaje según toda tu ficha real (especialmente si 
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Error inesperado al contactar con la IA.';
       console.error('Error en /api/player-chat:', err);
+      res.status(502).json({
+        error: `No se pudo obtener respuesta de la IA: ${msg}`,
+        unavailable: true,
+      });
+    }
+  });
+
+  app.post('/api/staff-chat', async (req: Request, res: Response) => {
+    const nvidiaKey = getNvidiaApiKey();
+    const geminiKey = getGeminiApiKey();
+
+    if (!nvidiaKey && !geminiKey) {
+      res.status(503).json({
+        error: 'No hay clave de IA configurada en Secrets.',
+        unavailable: true,
+      });
+      return;
+    }
+
+    const body = req.body as Partial<StaffChatRequestBody> | undefined;
+    const managerMessage = sanitizeText(body?.managerMessage, 600);
+    if (!body?.staff || !body?.club || !managerMessage) {
+      res.status(400).json({
+        error: 'Solicitud inválida: faltan datos del empleado, del club o el mensaje del entrenador.',
+      });
+      return;
+    }
+
+    const s = body.staff;
+    const c = body.club;
+    const staffName = sanitizeText(s.name, 80) || 'Empleado';
+    const roleLabel = sanitizeText(s.roleLabel, 50) || sanitizeText(s.role, 40) || 'Miembro del cuerpo técnico';
+    const clubName = sanitizeText(c.name, 80) || 'Agente Libre';
+    const userClubName = sanitizeText(c.userClubName, 80) || clubName;
+    const isUserClubStaff = c.isUserClubStaff !== false;
+    const isFreeAgent = Boolean(c.isFreeAgent);
+    const rawMgrName = sanitizeText(c.managerName, 60);
+    const managerName = rawMgrName && rawMgrName !== 'Director Técnico' ? rawMgrName : 'Señor';
+    const managerFirstName = managerName.split(/\s+/)[0] || 'Señor';
+    const history = Array.isArray(body.conversationHistory) ? body.conversationHistory.slice(-14) : [];
+
+    const attrsList = s.attributes
+      ? Object.entries(s.attributes)
+          .map(([k, v]) => `${sanitizeText(k, 24)}:${clampInt(v, 1, 20, 10)}`)
+          .join(', ')
+      : 'Perfil estándar';
+
+    const squadLines =
+      Array.isArray(c.squadSnapshot) && c.squadSnapshot.length > 0
+        ? c.squadSnapshot
+            .slice(0, 18)
+            .map((pl) => {
+              const tags: string[] = [pl.isStarter ? 'Titular' : pl.squad === 'SENIOR' ? 'Suplente' : pl.squad];
+              if (pl.injuredDays && pl.injuredDays > 0) tags.push(`LESIONADO(${pl.injuredDays}d)`);
+              if (pl.morale < 50) tags.push(`moral baja ${pl.morale}%`);
+              if (pl.fitness < 65) tags.push(`físico ${pl.fitness}%`);
+              if (pl.transferStatus && pl.transferStatus !== 'NONE') tags.push(pl.transferStatus);
+              return `- ${sanitizeText(pl.name, 45)} (${sanitizeText(pl.pos, 6)}, ${pl.age}a, CA ${pl.ca}/PA ${pl.pa}, ${tags.join(', ')}, ${pl.seasonApps ?? 0}PJ ${pl.seasonGoals ?? 0}G/${pl.seasonAssists ?? 0}A)`;
+            })
+            .join('\n')
+        : isFreeAgent
+        ? 'Actualmente sin club asignado (analiza el mercado general y ofrece su criterio profesional).'
+        : 'Plantel profesional completo.';
+
+    const colleaguesSummary =
+      Array.isArray(c.staffColleagues) && c.staffColleagues.length > 0
+        ? c.staffColleagues.map((col) => `${sanitizeText(col.name, 45)} (${sanitizeText(col.roleLabel, 30)})`).join(', ')
+        : 'Sin otros colegas listados.';
+
+    const tacticSummary = c.activeTactic
+      ? `${c.activeTactic.formation || '4-4-2'} · estilo ${c.activeTactic.style || 'BALANCED'} · pase ${c.activeTactic.passingStyle || 'MIXED'} · presión ${c.activeTactic.pressingIntensity || 'MEDIUM'}`
+      : s.preferredFormation
+      ? `Formación predilecta propia: ${s.preferredFormation} (${s.tacticalStyle || 'BALANCED'})`
+      : 'Esquema táctico estándar';
+
+    const prevClubsSummary =
+      Array.isArray(s.previousClubs) && s.previousClubs.length > 0
+        ? s.previousClubs
+            .slice(0, 5)
+            .map((pc) => `${sanitizeText(pc.clubName, 45)} (${sanitizeText(pc.years, 20)})`)
+            .join(' · ')
+        : 'Sin historial previo destacado';
+
+    const historyLines =
+      history.length > 0
+        ? history
+            .map((m) => `${m.sender === 'MANAGER' ? `DT (${managerName})` : m.sender === 'SYSTEM' ? 'Nota' : staffName}: ${sanitizeText(m.text, 320)}`)
+            .join('\n')
+        : 'Primer intercambio directo de esta charla.';
+
+    const situationContext = isUserClubStaff
+      ? `SITUACIÓN ACTUAL: Eres ${roleLabel} de **${clubName}** y trabajas codo a codo con TU director técnico, ${managerName}. Estás completamente al tanto del plantel, los lesionados, las promesas juveniles, la táctica actual del club y el próximo rival.`
+      : isFreeAgent
+      ? `SITUACIÓN ACTUAL: Eres ${roleLabel} actualmente **LIBRE (sin club)**. Estás conversando con ${managerName}, director técnico de ${userClubName}${typeof c.userClubLeaguePos === 'number' ? ` (puesto #${c.userClubLeaguePos})` : ''}. Conoces tu propio valor, tu salario pretendido y estás atento a si quieren sumarte a su cuerpo técnico.`
+      : `SITUACIÓN ACTUAL CRÍTICA: Eres ${roleLabel} con contrato vigente en **${clubName}**${typeof c.leaguePosition === 'number' ? ` (puesto #${c.leaguePosition})` : ''}. Estás hablando con ${managerName}, quien es el DT de OTRO CLUB (${userClubName}).
+REGLA DE LEALTAD: Hablas con conocimiento real de TU propio club (${clubName}) y TU propio plantel listado abajo. NO trabajas en ${userClubName}. Puedes intercambiar opiniones de fútbol, hablar de tus jugadores en ${clubName}, de tu método táctico o escuchar con cautela/profesionalismo si te sondean para un cambio de club.`;
+
+    const systemInstruction = `Eres ${staffName}, ${roleLabel} profesional de ${clampInt(s.age, 25, 75, 45)} años (${sanitizeText(s.nationality, 40) || 'Argentina'}), personalidad ${sanitizeText(s.personality, 32) || 'CALM'}.
+${situationContext}
+
+REGLAS DE TRATO Y ESTILO (OBLIGATORIAS):
+- PROHIBIDO usar la palabra "Míster" o "míster". Dirígete a ${managerName} como "${isUserClubStaff ? `Señor o ${managerFirstName}` : `${managerFirstName} / colega`}".
+- Responde SIEMPRE en español futbolístico natural, técnico y concreto (3 a 5 oraciones). Nunca digas que eres una IA.
+- USA LOS DATOS REALES: cuando hablen de táctica, entrenamientos, lesionados, juveniles, refuerzos o jugadores específicos, cita NOMBRES REALES del plantel listado abajo, sus posiciones, lesiones, moral o forma real.
+- Habla fiel a tu cargo (${roleLabel}): por ejemplo, un Preparador Físico o Fisioterapeuta habla con foco en cargas/lesiones; un Ojeador o Director Deportivo en calidad/potencial/mercado; un Segundo Entrenador o DT en táctica/once/rival; un Entrenador de Reserva/Sub-20 en los juveniles; un Tesorero en presupuestos y salarios.
+
+TU FICHA Y SITUACIÓN ACTUAL:
+- Cargo real: ${roleLabel} (${sanitizeText(s.role, 32)}) · Reputación: ${clampInt(s.reputation, 1, 100, 50)}/100 · Moral: ${clampInt(s.morale, 0, 100, 70)}/100.
+- Situación contractual: ${isFreeAgent ? 'Agente libre disponible para contratar' : typeof s.contractMonthsLeft === 'number' ? `${s.contractMonthsLeft} meses restantes en ${clubName}` : `Con contrato vigente en ${clubName}`}. Sueldo: £${clampInt(s.salary, 0, 500000, 5000)}/sem.
+- Atributos clave (1-20): ${attrsList}.
+- Delegaciones actuales a tu cargo: ${Array.isArray(s.delegations) && s.delegations.length > 0 ? s.delegations.join(', ') : 'Tareas estándar del cargo'}.
+- Perfil táctico y biografía: Formación preferida ${s.preferredFormation || '4-4-2'} · Estilo ${s.tacticalStyle || 'BALANCED'} · Presión ${s.pressIntensity || 'MEDIUM'} · ${sanitizeText(s.biography, 220) || 'Profesional de sólida trayectoria.'}
+- Trayectoria y palmarés: ${prevClubsSummary}${Array.isArray(s.careerHonours) && s.careerHonours.length > 0 ? ` | Títulos: ${s.careerHonours.slice(0, 4).join(', ')}` : ''}.
+- Relación con ${managerName}: Confianza ${clampInt(s.trust, 0, 100, 55)}/100, Respeto ${clampInt(s.respect, 0, 100, 55)}/100, Tensión ${clampInt(s.tension, 0, 100, 15)}/100.
+
+CONTEXTO DEL CLUB (${isFreeAgent ? 'Sin club actual' : clubName}):
+- Posición y racha: ${typeof c.leaguePosition === 'number' ? `Puesto #${c.leaguePosition}` : 'Sin tabla activa'}${c.recentForm ? ` · Últimos 5 partidos: ${sanitizeText(c.recentForm, 10)}` : ''}${c.nextOpponentName ? ` · Próximo rival: ${sanitizeText(c.nextOpponentName, 50)}` : ''}.
+- Táctica actual del equipo: ${tacticSummary}.
+- Colegas del cuerpo técnico: ${colleaguesSummary}.
+- Jugadores del plantel actual (${isFreeAgent ? 'ninguno propio' : clubName}):
+${squadLines}
+
+REGLAS DE RESPUESTA Y "suggestedReplies":
+1. Calcula "moraleDelta" (-15..+15), "trustDelta" (-15..+15) y "tensionDelta" (-20..+25) según el tono y sintonía de la charla.${!isUserClubStaff ? ' Como no trabajas en su club, mantén moraleDelta moderado (±3).' : ''}
+2. "suggestedReplies": CRÍTICO — NO son frases tuyas como empleado. Son exactamente 3 preguntas o comentarios cortos que EL USUARIO (${managerName}) podría decirte a VOS a continuación, hablando de "vos" o en primera persona del DT (ej: "¿Qué ajustes tácticos harías para el próximo partido?", "¿A qué juvenil ves listo para subir a Primera?", "¿Qué jugador del plantel te preocupa más hoy?"). PROHIBIDO escribir respuestas desde tu voz como empleado o usar "Señor"/"profe".`;
+
+    const prompt = `Historial reciente de la charla:
+${historyLines}
+
+Nuevo mensaje de ${managerName}:
+"${managerMessage}"
+
+Responde estrictamente en personaje como ${staffName} (${roleLabel}) usando los datos reales en JSON válido.`;
+
+    const fallbackStaffSuggestions = isUserClubStaff
+      ? [
+          '¿Cómo ves el nivel del plantel y qué posición reforzarías o ajustarías?',
+          '¿Qué opinás de nuestro esquema táctico actual para el próximo partido?',
+          '¿Hay algún jugador con baja moral o físico que deba seguir de cerca?',
+        ]
+      : isFreeAgent
+      ? [
+          `¿Qué te parecería sumarte a nuestro proyecto en ${userClubName}?`,
+          'Contame cuál es tu estilo táctico y cómo trabajás con los jugadores.',
+          '¿Qué condiciones buscás para aceptar un nuevo desafío?',
+        ]
+      : [
+          `¿Cómo evaluás la campaña actual de ${clubName} y a tus jugadores clave?`,
+          '¿Cuál es tu lectura táctica sobre el fútbol de esta liga?',
+          `Si surgiera una propuesta para sumarte a ${userClubName}, ¿la escucharías?`,
+        ];
+
+    const callOpts: ChatCallOptions = {
+      speakerLabel: roleLabel,
+      includePlayerFields: false,
+      managerName,
+      targetName: staffName,
+    };
+
+    try {
+      let parsed: Record<string, unknown> | null = null;
+      let lastError: unknown = null;
+
+      if (nvidiaKey) {
+        try {
+          parsed = await callNvidiaChat(nvidiaKey, systemInstruction, prompt, callOpts);
+        } catch (err) {
+          lastError = err;
+          console.warn('NVIDIA staff chat failed, attempting Gemini fallback...', err);
+        }
+      }
+
+      if (!parsed && geminiKey) {
+        try {
+          parsed = await callGeminiChat(geminiKey, systemInstruction, prompt, callOpts);
+        } catch (err) {
+          lastError = err;
+          console.error('Gemini fallback staff chat also failed:', err);
+        }
+      }
+
+      const normalized = normalizeModelPayload(parsed, fallbackStaffSuggestions);
+      if (!normalized) {
+        const detail = lastError instanceof Error ? lastError.message : 'Modelo agotado o sin respuesta válida';
+        res.status(502).json({
+          error: `No se pudo obtener respuesta de la IA: ${detail}`,
+          unavailable: true,
+        });
+        return;
+      }
+
+      res.json({
+        reply: normalized.reply,
+        tone: normalized.tone,
+        moraleDelta: normalized.moraleDelta,
+        tensionDelta: normalized.tensionDelta,
+        trustDelta: normalized.trustDelta,
+        suggestedReplies: normalized.suggestedReplies,
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Error inesperado al contactar con la IA.';
+      console.error('Error en /api/staff-chat:', err);
       res.status(502).json({
         error: `No se pudo obtener respuesta de la IA: ${msg}`,
         unavailable: true,

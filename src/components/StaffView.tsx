@@ -4,7 +4,7 @@ import { Staff, Club, SquadType, STAFF_ATTRIBUTE_LABELS } from '../types';
 import { world } from '../services/worldManager';
 import { notifyClubs, useWorldStore } from '../stores/worldStore';
 import { useGameStore } from '../stores/gameStore';
-import { useUIStore } from '../stores/uiStore';
+import { openClubSquad, useUIStore } from '../stores/uiStore';
 import { useDialogueStore } from '../stores/dialogueStore';
 import { getAttributeColor } from '../constants';
 import { getFlagUrl } from '../data/static';
@@ -386,10 +386,11 @@ export function generateStaffProfileText(staff: Staff): string {
 interface StaffViewProps {
   staff: Staff[];
   club?: Club;
+  isOwnClub?: boolean;
 }
 
-export const StaffView: React.FC<StaffViewProps> = ({ staff: staffProp, club }) => {
-  const { selectedStaff, setSelectedStaff } = useUIStore();
+export const StaffView: React.FC<StaffViewProps> = ({ staff: staffProp, club, isOwnClub }) => {
+  const { selectedStaff, setSelectedStaff, userClub } = useUIStore();
   const [activeTab, setActiveTab] = useState<'PERSONAL' | 'DELEGACION'>('PERSONAL');
   const [confirmFireId, setConfirmFireId] = useState<string | null>(null);
   const [actionNotice, setActionNotice] = useState<string | null>(null);
@@ -397,13 +398,14 @@ export const StaffView: React.FC<StaffViewProps> = ({ staff: staffProp, club }) 
   useWorldStore(s => s._tick);
   const currentDate = useGameStore(s => s.currentDate);
   const liveClub = clubs.find(c => c.id === club?.id) || club;
+  const resolvedIsOwnClub = isOwnClub ?? (!liveClub || !userClub || liveClub.id === userClub.id);
 
   // Ensure existing saves also get a Treasurer in the club staff
-  if (liveClub) {
+  if (liveClub && resolvedIsOwnClub) {
     world.ensureClubTreasurer(liveClub.id);
   }
   const staff = liveClub ? world.getStaffByClub(liveClub.id) : staffProp;
-  const staffBudget = liveClub ? world.getClubStaffBudgetStatus(liveClub.id) : null;
+  const staffBudget = liveClub && resolvedIsOwnClub ? world.getClubStaffBudgetStatus(liveClub.id) : null;
 
   const getRoleLabel = (role: string) => {
     switch(role) {
@@ -543,10 +545,18 @@ export const StaffView: React.FC<StaffViewProps> = ({ staff: staffProp, club }) 
 
   if (selectedStaff) {
     const liveSelected = staff.find(s => s.id === selectedStaff.id) || selectedStaff;
-    const badges = getDelegationBadges(liveSelected);
+    const badges = resolvedIsOwnClub ? getDelegationBadges(liveSelected) : [];
     const assignedSquads = world.getEffectiveStaffSquads(liveSelected);
-    const canCoach = world.isCoachingRole(liveSelected.role) && liveClub && liveSelected.clubId === liveClub.id;
-    const canFire = liveClub && liveSelected.clubId === liveClub.id && liveSelected.role !== 'HEAD_COACH';
+    const canCoach = resolvedIsOwnClub && world.isCoachingRole(liveSelected.role) && liveClub && liveSelected.clubId === liveClub.id;
+    const canFire = resolvedIsOwnClub && liveClub && liveSelected.clubId === liveClub.id && liveSelected.role !== 'HEAD_COACH';
+
+    const openStaffChat = (memberId: string) => {
+      useDialogueStore.getState().open('STAFF_DIALOG', {
+        clubId: userClub?.id || liveClub?.id || '',
+        staffId: memberId,
+        source: resolvedIsOwnClub ? 'STAFF' : 'EXTERNAL_CLUB',
+      });
+    };
 
     const handleToggleSquad = (sq: SquadType) => {
       if (!liveClub) return;
@@ -587,12 +597,19 @@ export const StaffView: React.FC<StaffViewProps> = ({ staff: staffProp, club }) 
               className="w-4 h-3 object-cover rounded-[1px] border border-slate-400 shrink-0"
             />
             <span className="text-[9.5px] font-black uppercase text-slate-700 truncate">
-              {getRoleLabel(liveSelected.role)} · {liveSelected.age} años
+              {liveSelected.name} · {getRoleLabel(liveSelected.role)} · {liveSelected.age} años
             </span>
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
-            {liveSelected.role === 'FITNESS_COACH' && liveClub && (
+            <FMButton
+              onClick={() => openStaffChat(liveSelected.id)}
+              className="shrink-0 px-2.5 py-1 text-[9px]"
+            >
+              <MessageCircle size={11} /> Charlar
+            </FMButton>
+            {resolvedIsOwnClub && liveSelected.role === 'FITNESS_COACH' && liveClub && (
               <FMButton
+                variant="secondary"
                 onClick={() => useDialogueStore.getState().open('FITNESS', { clubId: liveClub.id, source: 'STAFF' })}
                 className="shrink-0 px-2.5 py-1 text-[9px]"
               >
@@ -697,7 +714,7 @@ export const StaffView: React.FC<StaffViewProps> = ({ staff: staffProp, club }) 
                 <Activity size={12} /> Atributos Clave
               </h4>
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-1 gap-x-4">
-                {Object.entries(selectedStaff.attributes).map(([key, val]) => (
+                {Object.entries(liveSelected.attributes).map(([key, val]) => (
                   <div key={key} className="flex justify-between items-center py-1 border-b border-slate-100 last:border-0">
                     <span className="text-slate-600 font-bold text-[10px] uppercase tracking-tight">
                       {STAFF_ATTRIBUTE_LABELS[key] || key}
@@ -720,12 +737,12 @@ export const StaffView: React.FC<StaffViewProps> = ({ staff: staffProp, club }) 
                   </h4>
                   <div className="flex justify-between items-center">
                     <span className="text-[9px] text-slate-500 font-bold uppercase">Sueldo</span>
-                    <span className="text-slate-900 font-black text-[11px] font-mono">£{selectedStaff.salary.toLocaleString()}</span>
+                    <span className="text-slate-900 font-black text-[11px] font-mono">£{liveSelected.salary.toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-[9px] text-slate-500 font-bold uppercase">Expira</span>
                     <span className="text-slate-900 font-black text-[10px] font-mono">
-                      {selectedStaff.contractExpiry ? selectedStaff.contractExpiry.toLocaleDateString() : 'N/A'}
+                      {liveSelected.contractExpiry ? liveSelected.contractExpiry.toLocaleDateString() : 'N/A'}
                     </span>
                   </div>
                 </div>
@@ -736,46 +753,46 @@ export const StaffView: React.FC<StaffViewProps> = ({ staff: staffProp, club }) 
                   </h4>
                   <div className="flex justify-between items-center">
                     <span className="text-[9px] text-slate-500 font-bold uppercase">Nacional</span>
-                    <span className="text-slate-900 font-black text-[11px] font-mono">{selectedStaff.reputation ?? 50}/100</span>
+                    <span className="text-slate-900 font-black text-[11px] font-mono">{liveSelected.reputation ?? 50}/100</span>
                   </div>
-                  {selectedStaff.boardRelationship != null && (
+                  {liveSelected.boardRelationship != null && (
                     <div className="flex justify-between items-center">
                       <span className="text-[9px] text-slate-500 font-bold uppercase">Directiva</span>
-                      <span className="text-slate-900 font-black text-[11px] font-mono">{selectedStaff.boardRelationship}/100</span>
+                      <span className="text-slate-900 font-black text-[11px] font-mono">{liveSelected.boardRelationship}/100</span>
                     </div>
                   )}
                 </div>
               </div>
 
               {/* Perfil Táctico */}
-              {(selectedStaff.preferredFormation || selectedStaff.tacticalStyle || selectedStaff.pressIntensity || selectedStaff.possessionVsCounter) && (
+              {(liveSelected.preferredFormation || liveSelected.tacticalStyle || liveSelected.pressIntensity || liveSelected.possessionVsCounter) && (
                 <div className="bg-white border border-[#a0b0a0] rounded-sm p-2.5 shadow-xs">
                   <h4 className="text-[9.5px] font-black text-slate-600 uppercase tracking-wider mb-1.5 flex items-center gap-1.5 border-b border-slate-200 pb-1">
                     <Shield size={12} /> Perfil Táctico
                   </h4>
                   <div className="grid grid-cols-2 gap-x-3 gap-y-1">
-                    {selectedStaff.preferredFormation && (
+                    {liveSelected.preferredFormation && (
                       <div className="flex justify-between items-center py-0.5">
                         <span className="text-[9px] text-slate-500 font-bold uppercase">Formación</span>
-                        <span className="text-[11px] text-slate-900 font-black">{selectedStaff.preferredFormation}</span>
+                        <span className="text-[11px] text-slate-900 font-black">{liveSelected.preferredFormation}</span>
                       </div>
                     )}
-                    {selectedStaff.tacticalStyle && (
+                    {liveSelected.tacticalStyle && (
                       <div className="flex justify-between items-center py-0.5">
                         <span className="text-[9px] text-slate-500 font-bold uppercase flex items-center gap-0.5"><Swords size={10} /> Estilo</span>
-                        <span className="text-[11px] text-slate-900 font-black">{TACTICAL_STYLE_LABELS[selectedStaff.tacticalStyle] || selectedStaff.tacticalStyle}</span>
+                        <span className="text-[11px] text-slate-900 font-black">{TACTICAL_STYLE_LABELS[liveSelected.tacticalStyle] || liveSelected.tacticalStyle}</span>
                       </div>
                     )}
-                    {selectedStaff.pressIntensity && (
+                    {liveSelected.pressIntensity && (
                       <div className="flex justify-between items-center py-0.5">
                         <span className="text-[9px] text-slate-500 font-bold uppercase flex items-center gap-0.5"><Zap size={10} /> Presión</span>
-                        <span className="text-[11px] text-slate-900 font-black">{PRESS_LABELS[selectedStaff.pressIntensity] || selectedStaff.pressIntensity}</span>
+                        <span className="text-[11px] text-slate-900 font-black">{PRESS_LABELS[liveSelected.pressIntensity] || liveSelected.pressIntensity}</span>
                       </div>
                     )}
-                    {selectedStaff.possessionVsCounter && (
+                    {liveSelected.possessionVsCounter && (
                       <div className="flex justify-between items-center py-0.5">
                         <span className="text-[9px] text-slate-500 font-bold uppercase">Enfoque</span>
-                        <span className="text-[11px] text-slate-900 font-black">{POSSESSION_LABELS[selectedStaff.possessionVsCounter] || selectedStaff.possessionVsCounter}</span>
+                        <span className="text-[11px] text-slate-900 font-black">{POSSESSION_LABELS[liveSelected.possessionVsCounter] || liveSelected.possessionVsCounter}</span>
                       </div>
                     )}
                   </div>
@@ -783,37 +800,58 @@ export const StaffView: React.FC<StaffViewProps> = ({ staff: staffProp, club }) 
               )}
 
               {/* Historial */}
+              {(() => {
+                world.ensureStaffPastHistory(liveSelected);
+                const sortedStaffHistory = [...(liveSelected.history || [])].sort((a, b) => b.year - a.year);
+                return (
               <div className="bg-white border border-[#a0b0a0] rounded-sm overflow-hidden shadow-xs">
                 <div className="px-2.5 py-1.5 bg-[#f2f7f2] border-b border-slate-200">
                   <h4 className="text-[9.5px] font-black text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
-                    <History size={12} /> Historial
+                    <History size={12} /> Historial ({sortedStaffHistory.length})
                   </h4>
                 </div>
                 <FMTable headers={['Año', 'Club', 'Rol']} colWidths={['50px', 'auto', 'auto']}>
-                  {selectedStaff.history && selectedStaff.history.length > 0 ? (
-                    selectedStaff.history.map((h, i) => (
-                      <tr key={i} className="border-b border-slate-100 last:border-0">
+                  {sortedStaffHistory.length > 0 ? (
+                    sortedStaffHistory.map((h, i) => {
+                      const histClub = world.getClub(h.clubId);
+                      return (
+                      <tr key={`${h.year}_${h.clubId}_${i}`} className="border-b border-slate-100 last:border-0">
                         <FMTableCell className="text-slate-500 font-mono">{h.year}</FMTableCell>
-                        <FMTableCell className="text-slate-900 font-bold">{world.getClub(h.clubId)?.name || 'Desconocido'}</FMTableCell>
+                        <FMTableCell className="text-slate-900 font-bold">
+                          {histClub ? (
+                            <button
+                              type="button"
+                              onClick={() => openClubSquad(histClub.id, world.clubs)}
+                              className="text-slate-900 hover:text-[#1f5922] hover:underline cursor-pointer text-left"
+                            >
+                              {histClub.name}
+                            </button>
+                          ) : (
+                            <span>{h.clubId || 'Desconocido'}</span>
+                          )}
+                        </FMTableCell>
                         <FMTableCell className="text-slate-500 text-[9px] uppercase">{getRoleLabel(h.role)}</FMTableCell>
                       </tr>
-                    ))
+                      );
+                    })
                   ) : (
                     <tr><td colSpan={3} className="p-3 text-center text-slate-400 italic text-[10px]">Sin historial previo</td></tr>
                   )}
                 </FMTable>
               </div>
+                );
+              })()}
             </div>
           </div>
 
           {/* Palmarés */}
-          {selectedStaff.careerHonours && selectedStaff.careerHonours.length > 0 && (
+          {liveSelected.careerHonours && liveSelected.careerHonours.length > 0 && (
             <div className="bg-white border border-[#a0b0a0] rounded-sm p-2.5 shadow-xs">
               <h4 className="text-[9.5px] font-black text-slate-600 uppercase tracking-wider mb-2 flex items-center gap-1.5 border-b border-slate-200 pb-1">
                 <Trophy size={12} /> Palmarés
               </h4>
               <div className="flex flex-wrap gap-1.5">
-                {selectedStaff.careerHonours.map((honour, i) => (
+                {liveSelected.careerHonours.map((honour, i) => (
                   <span key={i} className="px-2 py-1 bg-amber-50 border border-amber-300 rounded-sm text-amber-900 font-bold text-[10px] uppercase">
                     {honour}
                   </span>
@@ -823,17 +861,29 @@ export const StaffView: React.FC<StaffViewProps> = ({ staff: staffProp, club }) 
           )}
 
           {/* Clubes Anteriores */}
-          {selectedStaff.previousClubs && selectedStaff.previousClubs.length > 0 && (
+          {liveSelected.previousClubs && liveSelected.previousClubs.length > 0 && (
             <div className="bg-white border border-[#a0b0a0] rounded-sm overflow-hidden shadow-xs">
               <div className="px-2.5 py-1.5 bg-[#f2f7f2] border-b border-slate-200">
                 <h4 className="text-[9.5px] font-black text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
                   <MapPin size={12} /> Clubes Anteriores
                 </h4>
               </div>
-              {selectedStaff.previousClubs.map((prev, i) => (
+              {liveSelected.previousClubs.map((prev, i) => {
+                const prevClubObj = prev.clubId ? world.getClub(prev.clubId) : undefined;
+                return (
                 <div key={i} className="px-2.5 py-2 border-b border-slate-100 last:border-0">
                   <div className="flex justify-between items-center">
-                    <span className="text-slate-900 font-black text-xs">{prev.clubName}</span>
+                    {prevClubObj ? (
+                      <button
+                        type="button"
+                        onClick={() => openClubSquad(prevClubObj.id, world.clubs)}
+                        className="text-[#1f5922] hover:underline font-black text-xs cursor-pointer text-left"
+                      >
+                        {prev.clubName}
+                      </button>
+                    ) : (
+                      <span className="text-slate-900 font-black text-xs">{prev.clubName}</span>
+                    )}
                     <span className="text-slate-500 text-[10px] font-mono">{prev.years}</span>
                   </div>
                   {prev.titles.length > 0 && (
@@ -846,7 +896,8 @@ export const StaffView: React.FC<StaffViewProps> = ({ staff: staffProp, club }) 
                     </div>
                   )}
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
@@ -855,40 +906,51 @@ export const StaffView: React.FC<StaffViewProps> = ({ staff: staffProp, club }) 
   }
 
   const squadTagLabel: Record<SquadType, string> = { SENIOR: '1ª', RESERVE: 'RES', U20: 'S20' };
+  const openStaffChat = (memberId: string) => {
+    useDialogueStore.getState().open('STAFF_DIALOG', {
+      clubId: userClub?.id || liveClub?.id || '',
+      staffId: memberId,
+      source: resolvedIsOwnClub ? 'STAFF' : 'EXTERNAL_CLUB',
+    });
+  };
 
   return (
     <div className="p-2 md:p-3 h-full flex flex-col gap-2 bg-[#d4dcd4] overflow-hidden" style={{ fontFamily: 'Verdana, sans-serif' }}>
       <header className="shrink-0 flex flex-wrap items-center justify-between gap-2 bg-[#e8ece8] border border-[#8e9b90] rounded-sm px-2.5 py-1.5 shadow-xs">
         <div className="min-w-0 flex items-center gap-2.5 flex-wrap">
-          <h2 className="text-xs sm:text-base font-black text-slate-900 uppercase italic tracking-tight truncate">Cuerpo Técnico ({sortedStaff.length})</h2>
+          <h2 className="text-xs sm:text-base font-black text-slate-900 uppercase italic tracking-tight truncate">
+            Cuerpo Técnico{!resolvedIsOwnClub && liveClub ? ` · ${liveClub.name}` : ''} ({sortedStaff.length})
+          </h2>
           {staffBudget && (
             <span className="px-2 py-0.5 bg-white border border-[#a0b0a0] rounded-sm text-[8.5px] font-bold text-slate-700">
               Cupo <strong className={staffBudget.currentCount >= staffBudget.maxCount ? 'text-red-700' : 'text-[#2b5d2c]'}>{staffBudget.currentCount}/{staffBudget.maxCount}</strong> · Masa <strong className="font-mono">£{staffBudget.currentWeeklyWage.toLocaleString()}/£{staffBudget.maxWeeklyWage.toLocaleString()}</strong> sem
             </span>
           )}
         </div>
-        <div className="flex bg-[#bcc8bc] p-0.5 rounded-sm border border-[#a0b0a0] shrink-0 shadow-xs">
-          <button type="button" onClick={() => setActiveTab('PERSONAL')} className={`px-3 py-1 text-[9px] font-black uppercase rounded-[1px] transition-all flex items-center gap-1 cursor-pointer ${activeTab === 'PERSONAL' ? 'bg-[#2b5d2c] text-white shadow-sm' : 'text-slate-700 hover:bg-black/5'}`}>
-            <Users size={11} /> Personal
-          </button>
-          <button type="button" onClick={() => setActiveTab('DELEGACION')} className={`px-3 py-1 text-[9px] font-black uppercase rounded-[1px] transition-all flex items-center gap-1 cursor-pointer ${activeTab === 'DELEGACION' ? 'bg-[#2b5d2c] text-white shadow-sm' : 'text-slate-700 hover:bg-black/5'}`}>
-            <ClipboardList size={11} /> Delegación
-          </button>
-        </div>
+        {resolvedIsOwnClub && (
+          <div className="flex bg-[#bcc8bc] p-0.5 rounded-sm border border-[#a0b0a0] shrink-0 shadow-xs">
+            <button type="button" onClick={() => setActiveTab('PERSONAL')} className={`px-3 py-1 text-[9px] font-black uppercase rounded-[1px] transition-all flex items-center gap-1 cursor-pointer ${activeTab === 'PERSONAL' ? 'bg-[#2b5d2c] text-white shadow-sm' : 'text-slate-700 hover:bg-black/5'}`}>
+              <Users size={11} /> Personal
+            </button>
+            <button type="button" onClick={() => setActiveTab('DELEGACION')} className={`px-3 py-1 text-[9px] font-black uppercase rounded-[1px] transition-all flex items-center gap-1 cursor-pointer ${activeTab === 'DELEGACION' ? 'bg-[#2b5d2c] text-white shadow-sm' : 'text-slate-700 hover:bg-black/5'}`}>
+              <ClipboardList size={11} /> Delegación
+            </button>
+          </div>
+        )}
       </header>
 
-      {activeTab === 'PERSONAL' ? (
+      {(activeTab === 'PERSONAL' || !resolvedIsOwnClub) ? (
       <div className="flex-1 min-h-0 overflow-hidden">
         <FMBox title={`Plantel de Empleados (${sortedStaff.length})`} className="h-full" noPadding>
           {/* Desktop Table View */}
           <div className="hidden md:block h-full overflow-y-auto">
             <FMTable
-              headers={['Rol', 'Nombre', 'Edad', 'Nacionalidad', 'Rep', 'Sueldo', 'Áreas / Delegaciones']}
-              colWidths={['70px', 'auto', '40px', '90px', '40px', '70px', '185px']}
+              headers={['Rol', 'Nombre', 'Edad', 'Nacionalidad', 'Rep', 'Sueldo', 'Áreas / Delegaciones', 'Charla']}
+              colWidths={['70px', 'auto', '40px', '90px', '40px', '70px', '165px', '82px']}
             >
               {sortedStaff.map((s, idx) => {
-                const badges = getDelegationBadges(s);
-                const squads = world.getEffectiveStaffSquads(s);
+                const badges = resolvedIsOwnClub ? getDelegationBadges(s) : [];
+                const squads = resolvedIsOwnClub ? world.getEffectiveStaffSquads(s) : [];
                 return (
                   <tr
                     key={s.id}
@@ -919,8 +981,21 @@ export const StaffView: React.FC<StaffViewProps> = ({ staff: staffProp, club }) 
                         {badges.map(b => (
                           <span key={b} className="px-1.5 py-0.5 bg-green-100 border border-green-400 rounded-sm text-green-800 text-[8px] font-black uppercase whitespace-nowrap">{b}</span>
                         ))}
-                        {squads.length === 0 && badges.length === 0 && <span className="text-slate-300 text-[9px]">—</span>}
+                        {!resolvedIsOwnClub && s.preferredFormation && (
+                          <span className="px-1.5 py-0.5 bg-slate-100 border border-slate-300 rounded-sm text-slate-700 text-[8px] font-mono font-bold whitespace-nowrap">{s.preferredFormation}</span>
+                        )}
+                        {squads.length === 0 && badges.length === 0 && (!resolvedIsOwnClub ? !s.preferredFormation : true) && <span className="text-slate-300 text-[9px]">—</span>}
                       </div>
+                    </FMTableCell>
+                    <FMTableCell className="text-center">
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); openStaffChat(s.id); }}
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-[2px] bg-[#2b5d2c] hover:bg-[#1f4920] text-white border border-[#133014] text-[8.5px] font-black uppercase cursor-pointer whitespace-nowrap"
+                        title={`Charlar con ${s.name}`}
+                      >
+                        <MessageCircle size={10} /> Charlar
+                      </button>
                     </FMTableCell>
                   </tr>
                 );
@@ -931,12 +1006,10 @@ export const StaffView: React.FC<StaffViewProps> = ({ staff: staffProp, club }) 
           {/* Mobile Compact Table View */}
           <div className="md:hidden h-full overflow-y-auto">
             <FMTable
-              headers={['Rol', 'Nombre', 'Edad', 'Áreas']}
-              colWidths={['50px', 'auto', '32px', '96px']}
+              headers={['Rol', 'Nombre', 'Edad', 'Charla']}
+              colWidths={['48px', 'auto', '32px', '66px']}
             >
               {sortedStaff.map((s, idx) => {
-                const badges = getDelegationBadges(s);
-                const squads = world.getEffectiveStaffSquads(s);
                 return (
                   <tr
                     key={s.id}
@@ -947,20 +1020,18 @@ export const StaffView: React.FC<StaffViewProps> = ({ staff: staffProp, club }) 
                     <FMTableCell className="text-slate-900 px-1.5 py-1">
                       <div className="flex items-center min-w-0">
                         <img src={getFlagUrl(s.nationality)} alt={s.nationality} className="w-3 h-2 object-cover rounded-[1px] mr-1 shrink-0 border border-slate-300" />
-                        <span className="truncate max-w-[120px] text-[9.5px] font-bold">{s.name}</span>
+                        <span className="truncate max-w-[130px] text-[9.5px] font-bold">{s.name}</span>
                       </div>
                     </FMTableCell>
                     <FMTableCell className="text-center font-bold text-[9.5px] px-1 py-1" isNumber>{s.age}</FMTableCell>
-                    <FMTableCell className="px-1 py-1">
-                      <div className="flex flex-wrap gap-0.5">
-                        {squads.map(sq => (
-                          <span key={sq} className="px-1 py-0.5 bg-slate-100 border border-slate-300 rounded-[1px] text-slate-700 text-[6.5px] font-black uppercase whitespace-nowrap">{squadTagLabel[sq]}</span>
-                        ))}
-                        {badges.map(b => (
-                          <span key={b} className="px-1 py-0.5 bg-green-100 border border-green-400 rounded-[1px] text-green-800 text-[6.5px] font-black uppercase whitespace-nowrap">{b}</span>
-                        ))}
-                        {squads.length === 0 && badges.length === 0 && <span className="text-slate-300 text-[8px]">—</span>}
-                      </div>
+                    <FMTableCell className="px-1 py-1 text-center">
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); openStaffChat(s.id); }}
+                        className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-[2px] bg-[#2b5d2c] text-white border border-[#133014] text-[7.5px] font-black uppercase cursor-pointer whitespace-nowrap"
+                      >
+                        <MessageCircle size={9} /> Charlar
+                      </button>
                     </FMTableCell>
                   </tr>
                 );

@@ -3,6 +3,7 @@ import {
   MatchEvent,
   NationalTeamMatchOptions,
   Player,
+  PLAYER_PERSONALITY_LABELS,
   PlayerMatchStats,
   Position,
   Tactic,
@@ -129,6 +130,9 @@ export function buildNationalTeamClub(teamId: string, fallbackPrimary = 'bg-sky-
 
 export class ProfileNarrativeEngine {
   static getPersonalityLabel(player: Player): string {
+    if (player.personality && PLAYER_PERSONALITY_LABELS[player.personality]) {
+      return PLAYER_PERSONALITY_LABELS[player.personality];
+    }
     const i = player.stats.internal;
     if (i.decision >= 16 && i.polivalencia >= 14) return 'Modelo de Profesionalidad';
     if (i.agresividad >= 17) return 'Volátil';

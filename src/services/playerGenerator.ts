@@ -222,7 +222,7 @@ export function generatePlayer(
     salary,
     transferStatus: 'NONE',
     contractExpiry: new Date(2010, 5, 30),
-    loyalty: randomInt(10, 20),
+    loyalty: randomInt(4, 20),
     negotiationAttempts: 0,
     isUnhappyWithContract: false,
     leadership: randomInt(5, 20),

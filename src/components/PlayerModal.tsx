@@ -477,9 +477,13 @@ export const PlayerModal: React.FC<PlayerModalProps> = ({ player, onClose, userC
                 </div>
              )}
 
-             {activeTab === 'HISTORY' && (
+             {activeTab === 'HISTORY' && (() => {
+                world.ensurePlayerPastHistory(player);
+                const sortedHistory = [...(player.history || [])].sort((a, b) => b.year - a.year);
+                const clubsPlayed = player.careerStats?.clubsPlayedFor || [];
+                return (
                 <div className="h-full overflow-hidden p-1.5 flex flex-col gap-1.5">
-                   {player.careerStats && player.careerStats.totalApps > 0 && (
+                   {player.careerStats && (player.careerStats.totalApps > 0 || clubsPlayed.length > 0) && (
                      <FMBox title="Resumen de Carrera" className="shrink-0" noPadding>
                        <div className="p-2 bg-white">
                          <div className="grid grid-cols-4 gap-1.5 text-center text-[9.5px]">
@@ -488,21 +492,21 @@ export const PlayerModal: React.FC<PlayerModalProps> = ({ player, onClose, userC
                            <div className="bg-[#f2f7f2] border border-[#c5d1c5] rounded-sm py-1"><span className="font-black text-blue-700 block font-mono">{player.careerStats.totalAssists}</span><span className="text-[7.5px] font-bold uppercase text-slate-500">Asist.</span></div>
                            <div className="bg-[#f2f7f2] border border-[#c5d1c5] rounded-sm py-1"><span className="font-black text-slate-900 block font-mono">{player.careerStats.totalCleanSheets}</span><span className="text-[7.5px] font-bold uppercase text-slate-500">Vallas</span></div>
                          </div>
-                         {player.careerStats.clubsPlayedFor && player.careerStats.clubsPlayedFor.length > 1 && (
-                           <div className="mt-1 text-[8.5px] font-bold text-slate-500 truncate flex items-center gap-1 flex-wrap">
-                             <span>Clubes:</span>
-                             {player.careerStats.clubsPlayedFor.slice(0, 5).map((id, idx) => {
+                         {clubsPlayed.length > 0 && (
+                           <div className="mt-1.5 text-[8.5px] font-bold text-slate-500 flex items-center gap-1 flex-wrap leading-relaxed">
+                             <span>Clubes ({clubsPlayed.length}):</span>
+                             {clubsPlayed.map((id, idx) => {
                                const c = world.getClub(id);
                                return (
-                                 <React.Fragment key={id}>
-                                   {idx > 0 && <span>,</span>}
+                                 <React.Fragment key={`${id}_${idx}`}>
+                                   {idx > 0 && <span>·</span>}
                                    {c ? (
                                      <button
                                        type="button"
                                        onClick={() => openClubSquad(c.id, world.clubs)}
                                        className="text-[#1f5922] hover:underline cursor-pointer"
                                      >
-                                       {c.shortName || c.name}
+                                       {c.name}
                                      </button>
                                    ) : (
                                      <span>{id}</span>
@@ -515,24 +519,24 @@ export const PlayerModal: React.FC<PlayerModalProps> = ({ player, onClose, userC
                        </div>
                      </FMBox>
                    )}
-                   <FMBox title="Historial del Jugador" className="flex-1 min-h-0 overflow-hidden" noPadding>
-                       <FMTable headers={['Año', 'Club', 'PJ', 'G', 'A', 'Cal']} colWidths={["42px", "auto", "28px", "26px", "26px", "36px"]}>
-                          {player.history && player.history.length > 0 ? [...player.history].sort((a,b) => b.year - a.year).map((h, i) => {
+                   <FMBox title={`Historial por Temporada (${sortedHistory.length})`} className="flex-1 min-h-0 overflow-hidden" noPadding>
+                       <FMTable headers={['Año', 'Club', 'PJ', 'G', 'A', 'Cal']} colWidths={["46px", "auto", "30px", "26px", "26px", "36px"]}>
+                          {sortedHistory.length > 0 ? sortedHistory.map((h, i) => {
                             const histClub = world.getClub(h.clubId);
                             return (
-                              <tr key={i} className={i % 2 === 0 ? "bg-white" : "bg-[#f2f7f2]"}>
+                              <tr key={`${h.year}_${h.clubId}_${i}`} className={i % 2 === 0 ? "bg-white" : "bg-[#f2f7f2]"}>
                                 <FMTableCell className="font-mono text-slate-500 text-[10px] px-1.5">{h.year}</FMTableCell>
-                                <FMTableCell className="font-bold text-[10px] truncate max-w-[115px] px-1.5">
+                                <FMTableCell className="font-bold text-[10px] px-1.5">
                                   {histClub ? (
                                     <button
                                       type="button"
                                       onClick={() => openClubSquad(histClub.id, world.clubs)}
-                                      className="text-slate-900 hover:text-[#1f5922] hover:underline cursor-pointer truncate max-w-full text-left"
+                                      className="text-slate-900 hover:text-[#1f5922] hover:underline cursor-pointer text-left leading-tight"
                                     >
-                                      {histClub.shortName || histClub.name}
+                                      {histClub.name}
                                     </button>
                                   ) : (
-                                    "Club"
+                                    <span>{h.clubId || 'Club'}</span>
                                   )}
                                 </FMTableCell>
                                 <FMTableCell className="text-center text-[10px] px-1" isNumber>{h.stats.appearances}</FMTableCell>
@@ -542,12 +546,13 @@ export const PlayerModal: React.FC<PlayerModalProps> = ({ player, onClose, userC
                               </tr>
                             );
                           }) : (
-                            <tr><td colSpan={6} className="p-6 text-center text-slate-400 italic text-[10px] uppercase font-black">No hay historial previo registrado</td></tr>
+                            <tr><td colSpan={6} className="p-6 text-center text-slate-400 italic text-[10px] uppercase font-black">Canterano sin historial senior previo</td></tr>
                           )}
                        </FMTable>
                    </FMBox>
                 </div>
-             )}
+                );
+             })()}
 
              {activeTab === 'CONTRACT' && (
                 <div className="max-w-2xl mx-auto space-y-4 md:space-y-6 pt-4 w-full overflow-y-auto px-2">

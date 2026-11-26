@@ -105,7 +105,11 @@ export function getDialogueUrgency(player: Player): DialogueUrgencyInfo {
     score += 0.16;
   }
   if (
-    (player.personality === 'VOLATILE' || player.personality === 'AMBITIOUS') &&
+    (player.personality === 'VOLATILE' ||
+      player.personality === 'TEMPERAMENTAL' ||
+      player.personality === 'AMBITIOUS' ||
+      player.personality === 'COMPETITIVE' ||
+      player.personality === 'DRIVEN') &&
     (motive === 'MINUTES_DISCONTENT' || motive === 'TRANSFER_RUMOR' || motive === 'DRESSING_ROOM_CONFLICT')
   ) {
     score += 0.08;

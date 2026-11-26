@@ -61,6 +61,7 @@ import { world, getBenchSizeForCompetition } from './services/worldManager';
 import { LifecycleManager } from './services/lifecycleManager';
 import { buildFixtureMatchReport, generateMatchChronicle, generateMonthlyChronicle, generateNationalTeamChronicle } from './services/chronicleService';
 import { getNationalChronicleContext, simulateDayFixtures } from './services/simulationService';
+import { isTabHidden, restoreTabTitle, setSimulationTabTitle, yieldToMain } from './services/backgroundYield';
 import {
   applyWorldState,
   buildSaveData,
@@ -168,8 +169,11 @@ const App: React.FC = () => {
   } = useUIStore();
 
   const [externalSquadType, setExternalSquadType] = React.useState<SquadType>('SENIOR');
+  const [externalClubTab, setExternalClubTab] = React.useState<'SQUAD' | 'STAFF'>('SQUAD');
   React.useEffect(() => {
     setExternalSquadType('SENIOR');
+    setExternalClubTab('SQUAD');
+    setSelectedStaff(null);
   }, [viewExternalClub?.id]);
 
   const { fixtures, nextFixture, setFixtures, setNextFixture, initSeasonFixtures, updateNextFixture } = useGameStore();
@@ -830,195 +834,221 @@ const App: React.FC = () => {
   advanceTimeRef.current = advanceTime;
 
 const startVacation = async (targetOverride?: Date) => {
+    const uiSnap = useUIStore.getState();
+    if (uiSnap.isInVacation || uiSnap.isSimulating) return;
+
     let target = targetOverride;
     if (!target) {
       if (!vacationTargetDate) return;
-      target = new Date(vacationTargetDate);
+      const parts = vacationTargetDate.split('-').map(Number);
+      if (parts.length === 3 && !parts.some(Number.isNaN)) {
+        target = new Date(parts[0], parts[1] - 1, parts[2], 23, 59, 0);
+      } else {
+        target = new Date(vacationTargetDate);
+      }
     }
 
-    if (target <= currentDate) return;
-    
-    // Reset vacation state
+    if (Number.isNaN(target.getTime()) || target <= currentDate) {
+      showToast('Elegí una fecha de regreso posterior a la actual.', 'warning');
+      return;
+    }
+
+    // Cerrar el modal de planificación de inmediato para evitar que tape o quede debajo del progreso
+    setIsVacationModalOpen(false);
     resetVacationState();
     setIsSimulating(true);
     setIsInVacation(true);
-    setVacationProgress(0);
+    setVacationProgress(1);
     setVacationDetail('Iniciando simulación...');
+    setSimulationTabTitle(1, 'Simulando Vacaciones');
+
+    // Ceder un frame antes de arrancar el bucle pesado para que 1% aparezca al instante
+    await yieldToMain('paint');
 
     let tempDate = new Date(currentDate);
     let localFixtures = [...fixtures];
-    let batchCount = 0;
-    const BATCH_SIZE = 7;
 
     // Calculate total days for progress
-    const totalDays = Math.ceil((target.getTime() - tempDate.getTime()) / (1000 * 60 * 60 * 24));
+    const totalDays = Math.max(1, Math.ceil((target.getTime() - tempDate.getTime()) / (1000 * 60 * 60 * 24)));
     let daysProcessed = 0;
+    let lastYieldAt = performance.now();
 
-    while (tempDate < target) {
-      // Check if cancelled (read live store instead of stale closure)
-      if (useUIStore.getState().vacationCancelled) {
-        setFixtures(localFixtures);
-        setCurrentDate(new Date(tempDate));
-        if (activeManagedTeamId) updateNextFixture(localFixtures, tempDate, activeManagedTeamId);
-        setIsSimulating(false);
-        setIsInVacation(false);
-        setVacationDetail('Vacaciones canceladas por el usuario');
-        setVacationProgress(0);
-        notify();
-        return;
-      }
+    try {
+      while (tempDate < target) {
+        // Check if cancelled (read live store instead of stale closure)
+        if (useUIStore.getState().vacationCancelled) {
+          setFixtures(localFixtures);
+          setCurrentDate(new Date(tempDate));
+          if (activeManagedTeamId) updateNextFixture(localFixtures, tempDate, activeManagedTeamId);
+          setIsSimulating(false);
+          setIsInVacation(false);
+          resetVacationState();
+          notify();
+          return;
+        }
 
-      tempDate.setDate(tempDate.getDate() + 1);
-      batchCount++;
-      daysProcessed++;
+        tempDate.setDate(tempDate.getDate() + 1);
+        daysProcessed++;
 
-      // Update progress every day
-      const progress = Math.min(100, Math.round((daysProcessed / totalDays) * 100));
-      setVacationProgress(progress);
-      setVacationDetail(`Procesando ${tempDate.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })} (${daysProcessed}/${totalDays})`);
+        // Update progress every day
+        const progress = Math.min(99, Math.max(1, Math.round((daysProcessed / totalDays) * 100)));
+        const dateLabel = tempDate.toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' });
+        setVacationProgress(progress);
+        setVacationDetail(`Procesando ${dateLabel} (${daysProcessed}/${totalDays} días)`);
+        setSimulationTabTitle(progress, 'Simulando Vacaciones');
 
-      LifecycleManager.checkBirthdays(tempDate);
-      LifecycleManager.recoverDailyFitness();
-      LifecycleManager.processMonthlyFinances(tempDate);
-      world.checkRenewalTriggers(tempDate, userClub?.id);
-      world.processTransferDecisions(tempDate);
-      world.processAIActivity(tempDate);
-      world.processDailyContracts(tempDate, userClub?.id);
-      world.processDailyScouting(tempDate, userClub?.id);
+        LifecycleManager.checkBirthdays(tempDate);
+        LifecycleManager.recoverDailyFitness();
+        LifecycleManager.processMonthlyFinances(tempDate);
+        world.checkRenewalTriggers(tempDate, userClub?.id);
+        world.processTransferDecisions(tempDate);
+        world.processAIActivity(tempDate);
+        world.processDailyContracts(tempDate, userClub?.id);
+        world.processDailyScouting(tempDate, userClub?.id);
 
-      world.generateGeneralNews(tempDate);
-      world.processLightMarketActivity(tempDate);
-      world.processQuarterlyYouthIntake(tempDate);
+        world.generateGeneralNews(tempDate);
+        world.processLightMarketActivity(tempDate);
+        world.processQuarterlyYouthIntake(tempDate);
 
-      // Semanal (lunes): plantillas mínimas, resumen de clasificación + despidos de entrenadores AI
-      if (tempDate.getDay() === 1) {
-        world.ensureMinimumSquadSizes();
-        world.generateStandingsNews(tempDate, localFixtures);
-        world.simulateCoachChanges(tempDate, localFixtures);
-      }
+        // Semanal (lunes): plantillas mínimas, resumen de clasificación + despidos de entrenadores AI
+        if (tempDate.getDay() === 1) {
+          world.ensureMinimumSquadSizes();
+          world.generateStandingsNews(tempDate, localFixtures);
+          world.simulateCoachChanges(tempDate, localFixtures);
+        }
 
-      // Cosecha de cantera + retiros + purga (1 de agosto) — mismo gate que advanceTime
-      if (tempDate.getMonth() === 7 && tempDate.getDate() === 1) {
-        world.generateYouthIntake(tempDate.getFullYear());
-      }
+        // Cosecha de cantera + retiros + purga (1 de agosto) — mismo gate que advanceTime
+        if (tempDate.getMonth() === 7 && tempDate.getDate() === 1) {
+          world.generateYouthIntake(tempDate.getFullYear());
+        }
 
-      // Mensual (día 1): recalcular valores, cohesión y crónica mensual
-      if (tempDate.getDate() === 1) {
-        world.recalculateAllPlayerValues();
-        if (userClub) world.computeTeamCohesion(userClub.id);
-        if (userClub && lastChronicleMonth.current !== tempDate.getMonth()) {
-          const prevMonth = tempDate.getMonth() === 0 ? 11 : tempDate.getMonth() - 1;
-          const prevYear = tempDate.getMonth() === 0 ? tempDate.getFullYear() - 1 : tempDate.getFullYear();
-          const monthFixtures = localFixtures.filter(f => {
-            const fd = new Date(f.date);
-            return f.played && fd.getMonth() === prevMonth && fd.getFullYear() === prevYear &&
-              (f.homeTeamId === userClub.id || f.awayTeamId === userClub.id) && f.squadType === 'SENIOR';
-          });
-          let won = 0, drawn = 0, lost = 0;
-          monthFixtures.forEach(f => {
-            const isHome = f.homeTeamId === userClub.id;
-            const us = isHome ? f.homeScore! : f.awayScore!;
-            const them = isHome ? f.awayScore! : f.homeScore!;
-            if (us > them) won++; else if (us < them) lost++; else drawn++;
-          });
-          if (monthFixtures.length > 0) {
-            const monthDate = new Date(prevYear, prevMonth, 15);
-            generateMonthlyChronicle(userClub.id, monthDate, { won, drawn, lost });
-            const monthNames = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-            const balanceText = won >= 4 ? 'excelente' : won >= 3 && lost <= 1 ? 'positivo' : won >= 2 && lost >= 2 ? 'de altibajos' : won >= 1 && lost >= 3 ? 'negativo' : 'para olvidar';
-            world.addSeasonPage('MONTHLY_REPORT', `Informe mensual · ${monthNames[prevMonth]}`, `El mes fue ${balanceText}: ${won} victorias, ${drawn} empates y ${lost} derrotas.`, monthDate, won >= 3 ? 'MEDIUM' : 'LOW');
+        // Mensual (día 1): recalcular valores, cohesión y crónica mensual
+        if (tempDate.getDate() === 1) {
+          world.recalculateAllPlayerValues();
+          if (userClub) world.computeTeamCohesion(userClub.id);
+          if (userClub && lastChronicleMonth.current !== tempDate.getMonth()) {
+            const prevMonth = tempDate.getMonth() === 0 ? 11 : tempDate.getMonth() - 1;
+            const prevYear = tempDate.getMonth() === 0 ? tempDate.getFullYear() - 1 : tempDate.getFullYear();
+            const monthFixtures = localFixtures.filter(f => {
+              const fd = new Date(f.date);
+              return f.played && fd.getMonth() === prevMonth && fd.getFullYear() === prevYear &&
+                (f.homeTeamId === userClub.id || f.awayTeamId === userClub.id) && f.squadType === 'SENIOR';
+            });
+            let won = 0, drawn = 0, lost = 0;
+            monthFixtures.forEach(f => {
+              const isHome = f.homeTeamId === userClub.id;
+              const us = isHome ? f.homeScore! : f.awayScore!;
+              const them = isHome ? f.awayScore! : f.homeScore!;
+              if (us > them) won++; else if (us < them) lost++; else drawn++;
+            });
+            if (monthFixtures.length > 0) {
+              const monthDate = new Date(prevYear, prevMonth, 15);
+              generateMonthlyChronicle(userClub.id, monthDate, { won, drawn, lost });
+              const monthNames = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+              const balanceText = won >= 4 ? 'excelente' : won >= 3 && lost <= 1 ? 'positivo' : won >= 2 && lost >= 2 ? 'de altibajos' : won >= 1 && lost >= 3 ? 'negativo' : 'para olvidar';
+              world.addSeasonPage('MONTHLY_REPORT', `Informe mensual · ${monthNames[prevMonth]}`, `El mes fue ${balanceText}: ${won} victorias, ${drawn} empates y ${lost} derrotas.`, monthDate, won >= 3 ? 'MEDIUM' : 'LOW');
+            }
+            lastChronicleMonth.current = tempDate.getMonth();
           }
-          lastChronicleMonth.current = tempDate.getMonth();
+        }
+
+        // Transfer deadline day mechanics
+        world.processDeadlineWeekActivity(tempDate);
+        world.processDeadlineDay(tempDate);
+
+        // Youth development pipeline
+        world.developYouthPlayers(tempDate);
+        world.autoPromoteYouthPlayers(tempDate);
+
+        // ── Pilar C: Personality & Drama + diálogos de jugadores ──
+        if (userClub) {
+          world.checkDressingRoomConflicts(userClub.id, tempDate);
+          world.checkTransferRequestMotives(userClub.id, tempDate);
+          world.generateNarrativeEvents(userClub.id, tempDate);
+          detectPlayerDialogueTriggers(userClub.id, tempDate);
+          evaluatePlayerPromisesDaily(userClub.id, tempDate);
+        }
+
+        await simulateDayFixtures({
+          date: tempDate,
+          fixtures: localFixtures,
+          userClub,
+          selectedNationalTeamId,
+          suppressProgress: true,
+        });
+
+        const newCupFixtures = LifecycleManager.processCompetitionProgress(localFixtures, tempDate);
+        if (newCupFixtures.length > 0) {
+          localFixtures = [...localFixtures, ...newCupFixtures];
+        }
+
+        if (tempDate >= seasonEndDate) {
+          world.processLoanReturns(tempDate);
+          const result = useGameStore.getState().finishSeason(localFixtures, activeManagedTeamId, tempDate);
+          setSeasonSummary(result.summaries);
+          setUserWonLeague(result.userWonLeague);
+          const gs = useGameStore.getState();
+          gs.setManagerHistory({ ...gs.managerHistory, seasonsCompleted: gs.managerHistory.seasonsCompleted + 1 });
+          if (result.userWonLeague) gs.trackTitle('Liga');
+           const wonCups = result.summaries.filter((s: any) => s.championId === userClub?.id && s.compType !== 'LEAGUE');
+           wonCups.forEach((s: any) => gs.trackTitle(s.compName));
+           if (userClub) {
+             const leagueTable = world.getLeagueTable(userClub.leagueId, localFixtures, 'SENIOR');
+             const leaguePos = leagueTable.findIndex(e => e.clubId === userClub.id) + 1;
+             const leagueTotal = leagueTable.length;
+             const cupWinnerId = result.summaries.find((s: any) => s.compType !== 'LEAGUE' && s.championId)?.championId;
+             const wonCup = cupWinnerId === userClub.id;
+             const titleNames: string[] = [];
+             if (result.userWonLeague) titleNames.push('Liga');
+             wonCups.forEach((s: any) => titleNames.push(s.compName));
+             world.updateManagerProfileSeasonEnd(result.userWonLeague || wonCups.length > 0, titleNames, leaguePos || 10, leagueTotal || 20);
+             world.evaluateBoardConfidence(userClub.id, leaguePos || 10, leagueTotal || 20, wonCup, false);
+             world.checkManagerJobOffers(tempDate, userClub.id, useGameStore.getState().managerReputation);
+           }
+          setIsSimulating(false);
+          setIsInVacation(false);
+          setIsVacationModalOpen(false);
+          resetVacationState();
+          setCurrentDate(result.nextSeasonStart);
+          setSeasonEndDate(result.nextSeasonEnd);
+          if (activeManagedTeamId) updateNextFixture(result.newFixtures, result.nextSeasonStart, activeManagedTeamId);
+          notify();
+          return;
+        }
+
+        // Primer plano: ceder cada día para pintar % en vivo.
+        // Segundo plano: bloques de ~120ms vía Web Worker para no frenar si el usuario cambia de pestaña.
+        const hidden = isTabHidden();
+        const now = performance.now();
+        if (!hidden || now - lastYieldAt >= 120) {
+          setCurrentDate(new Date(tempDate));
+          lastYieldAt = now;
+          await yieldToMain(hidden ? 'background' : 'paint');
         }
       }
 
-      // Transfer deadline day mechanics
-      world.processDeadlineWeekActivity(tempDate);
-      world.processDeadlineDay(tempDate);
-
-      // Youth development pipeline
-      world.developYouthPlayers(tempDate);
-      world.autoPromoteYouthPlayers(tempDate);
-
-      // ── Pilar C: Personality & Drama + diálogos de jugadores ──
-      if (userClub) {
-        world.checkDressingRoomConflicts(userClub.id, tempDate);
-        world.checkTransferRequestMotives(userClub.id, tempDate);
-        world.generateNarrativeEvents(userClub.id, tempDate);
-        detectPlayerDialogueTriggers(userClub.id, tempDate);
-        evaluatePlayerPromisesDaily(userClub.id, tempDate);
-      }
-
-      await simulateDayFixtures({
-        date: tempDate,
-        fixtures: localFixtures,
-        userClub,
-        selectedNationalTeamId,
-        suppressProgress: true,
-      });
-
-      const newCupFixtures = LifecycleManager.processCompetitionProgress(localFixtures, tempDate);
-      if (newCupFixtures.length > 0) {
-        localFixtures = [...localFixtures, ...newCupFixtures];
-      }
-
-      if (tempDate >= seasonEndDate) {
-        world.processLoanReturns(tempDate);
-        const result = useGameStore.getState().finishSeason(localFixtures, activeManagedTeamId, tempDate);
-        setSeasonSummary(result.summaries);
-        setUserWonLeague(result.userWonLeague);
-        const gs = useGameStore.getState();
-        gs.setManagerHistory({ ...gs.managerHistory, seasonsCompleted: gs.managerHistory.seasonsCompleted + 1 });
-        if (result.userWonLeague) gs.trackTitle('Liga');
-         const wonCups = result.summaries.filter((s: any) => s.championId === userClub?.id && s.compType !== 'LEAGUE');
-         wonCups.forEach((s: any) => gs.trackTitle(s.compName));
-         if (userClub) {
-           const leagueTable = world.getLeagueTable(userClub.leagueId, localFixtures, 'SENIOR');
-           const leaguePos = leagueTable.findIndex(e => e.clubId === userClub.id) + 1;
-           const leagueTotal = leagueTable.length;
-           const cupWinnerId = result.summaries.find((s: any) => s.compType !== 'LEAGUE' && s.championId)?.championId;
-           const wonCup = cupWinnerId === userClub.id;
-           const titleNames: string[] = [];
-           if (result.userWonLeague) titleNames.push('Liga');
-           wonCups.forEach((s: any) => titleNames.push(s.compName));
-           world.updateManagerProfileSeasonEnd(result.userWonLeague || wonCups.length > 0, titleNames, leaguePos || 10, leagueTotal || 20);
-           world.evaluateBoardConfidence(userClub.id, leaguePos || 10, leagueTotal || 20, wonCup, false);
-           world.checkManagerJobOffers(tempDate, userClub.id, useGameStore.getState().managerReputation);
-         }
-        setIsSimulating(false);
-        setIsInVacation(false);
-        setIsVacationModalOpen(false);
-        setCurrentDate(result.nextSeasonStart);
-        setSeasonEndDate(result.nextSeasonEnd);
-        if (activeManagedTeamId) updateNextFixture(result.newFixtures, result.nextSeasonStart, activeManagedTeamId);
-        notify();
-        return;
-      }
-
-      if (batchCount >= BATCH_SIZE) {
-        setCurrentDate(new Date(tempDate));
-        batchCount = 0;
-        // Yield to main thread to allow UI updates and cancellation check
-        await new Promise(r => setTimeout(r, 0));
-      }
+      setFixtures(localFixtures);
+      setCurrentDate(new Date(tempDate));
+      if (activeManagedTeamId) updateNextFixture(localFixtures, tempDate, activeManagedTeamId);
+      setIsSimulating(false);
+      setIsInVacation(false);
+      setIsVacationModalOpen(false);
+      resetVacationState();
+      setView('HOME');
+      notify();
+    } finally {
+      restoreTabTitle();
     }
-
-    setFixtures(localFixtures);
-    setCurrentDate(new Date(tempDate));
-    if (userClub) updateNextFixture(localFixtures, tempDate, userClub.id);
-    setIsSimulating(false);
-    setIsInVacation(false);
-    setIsVacationModalOpen(false);
-    setView('HOME');
-    notify();
   };
 
   const simulateToNextMatch = async () => {
     if (!activeManagedTeamId) return;
+    if (useUIStore.getState().isSimulating || useUIStore.getState().isInVacation) return;
     setIsSimulating(true);
     setSimProgress(5);
     setSimProgressDetail('Preparando simulación…');
-    await new Promise<void>(resolve => requestAnimationFrame(() => setTimeout(resolve, 0)));
+    setSimulationTabTitle(5, 'Avanzando al próximo partido');
+    await yieldToMain('paint');
 
     let tempDate = new Date(currentDate);
     let localFixtures = [...fixtures];
@@ -1037,148 +1067,158 @@ const startVacation = async (targetOverride?: Date) => {
     const estimatedDaysToNextMatch = upcomingUserFix
       ? Math.max(1, Math.min(maxDays, Math.ceil((upcomingUserFix.date.getTime() - currentDate.getTime()) / (1000 * 60 * 60 * 24))))
       : 14;
+    let lastYieldAt = performance.now();
 
-    while (daysSimmed < maxDays) {
-      tempDate.setDate(tempDate.getDate() + 1);
-      daysSimmed++;
+    try {
+      while (daysSimmed < maxDays) {
+        tempDate.setDate(tempDate.getDate() + 1);
+        daysSimmed++;
 
-      if (tempDate >= seasonEndDate) {
-        world.processLoanReturns(tempDate);
-        const result = useGameStore.getState().finishSeason(localFixtures, activeManagedTeamId, tempDate);
-        setSeasonSummary(result.summaries);
-        setUserWonLeague(result.userWonLeague);
-        const gs = useGameStore.getState();
-        gs.setManagerHistory({ ...gs.managerHistory, seasonsCompleted: gs.managerHistory.seasonsCompleted + 1 });
-        if (result.userWonLeague) gs.trackTitle('Liga');
-         const wonCups = result.summaries.filter((s: any) => s.championId === activeManagedTeamId && s.compType !== 'LEAGUE');
-         wonCups.forEach((s: any) => gs.trackTitle(s.compName));
-         if (userClub) {
-           const leagueTable = world.getLeagueTable(userClub.leagueId, localFixtures, 'SENIOR');
-           const leaguePos = leagueTable.findIndex(e => e.clubId === userClub.id) + 1;
-           const leagueTotal = leagueTable.length;
-           const cupWinnerId = result.summaries.find((s: any) => s.compType !== 'LEAGUE' && s.championId)?.championId;
-           const wonCup = cupWinnerId === userClub.id;
-           const titleNames: string[] = [];
-           if (result.userWonLeague) titleNames.push('Liga');
-           wonCups.forEach((s: any) => titleNames.push(s.compName));
-           world.updateManagerProfileSeasonEnd(result.userWonLeague || wonCups.length > 0, titleNames, leaguePos || 10, leagueTotal || 20);
-           world.evaluateBoardConfidence(userClub.id, leaguePos || 10, leagueTotal || 20, wonCup, false);
-           world.checkManagerJobOffers(tempDate, userClub.id, useGameStore.getState().managerReputation);
-         }
-        setIsSimulating(false);
-        setSimProgress(0);
-        setCurrentDate(result.nextSeasonStart);
-        setSeasonEndDate(result.nextSeasonEnd);
-        if (activeManagedTeamId) updateNextFixture(result.newFixtures, result.nextSeasonStart, activeManagedTeamId);
-        notify();
-        return;
-      }
-
-      const hasUserMatch = localFixtures.some(f =>
-        !f.played && f.date.toDateString() === tempDate.toDateString() &&
-        ((userClub && (f.homeTeamId === userClub.id || f.awayTeamId === userClub.id)) ||
-          (selectedNationalTeamId && (f.homeTeamId === selectedNationalTeamId || f.awayTeamId === selectedNationalTeamId))) &&
-        f.squadType === 'SENIOR'
-      );
-      const hasClubMatch = Boolean(userClub && localFixtures.some(f =>
-        !f.played && f.date.toDateString() === tempDate.toDateString() &&
-        (f.homeTeamId === userClub.id || f.awayTeamId === userClub.id) &&
-        f.squadType === 'SENIOR'
-      ));
-      const hasNationalMatch = Boolean(selectedNationalTeamId && localFixtures.some(f =>
-        !f.played && f.date.toDateString() === tempDate.toDateString() &&
-        (f.homeTeamId === selectedNationalTeamId || f.awayTeamId === selectedNationalTeamId) && f.squadType === 'SENIOR'
-      ));
-
-      await simulateDayFixtures({
-        date: tempDate,
-        fixtures: localFixtures,
-        userClub,
-        selectedNationalTeamId,
-        skipUserMatches: true,
-        suppressProgress: true,
-      });
-
-      LifecycleManager.checkBirthdays(tempDate);
-      LifecycleManager.recoverDailyFitness();
-      LifecycleManager.processMonthlyFinances(tempDate);
-      world.checkRenewalTriggers(tempDate, userClub?.id);
-      world.processTransferDecisions(tempDate);
-      world.processAIActivity(tempDate);
-      world.processDailyContracts(tempDate, userClub?.id);
-      world.processDailyScouting(tempDate, userClub?.id);
-      world.generateGeneralNews(tempDate);
-      world.processLightMarketActivity(tempDate);
-      world.processQuarterlyYouthIntake(tempDate);
-      if (tempDate.getDay() === 1) {
-        world.ensureMinimumSquadSizes();
-      }
-
-      if (userClub) {
-        detectPlayerDialogueTriggers(userClub.id, tempDate);
-        evaluatePlayerPromisesDaily(userClub.id, tempDate);
-      }
-
-      // Cosecha de cantera + retiros + purga (1 de agosto) — mismo gate que advanceTime
-      if (tempDate.getMonth() === 7 && tempDate.getDate() === 1) {
-        world.generateYouthIntake(tempDate.getFullYear());
-      }
-
-      // Transfer deadline day mechanics
-      world.processDeadlineWeekActivity(tempDate);
-      world.processDeadlineDay(tempDate);
-
-      // Youth development pipeline
-      world.developYouthPlayers(tempDate);
-      world.autoPromoteYouthPlayers(tempDate);
-
-      const newCupFixtures = LifecycleManager.processCompetitionProgress(localFixtures, tempDate);
-      if (newCupFixtures.length > 0) {
-        localFixtures = [...localFixtures, ...newCupFixtures];
-      }
-
-      const progress = Math.min(99, Math.max(5, Math.round((daysSimmed / estimatedDaysToNextMatch) * 100)));
-      setSimProgress(progress);
-      setSimProgressDetail(`Día ${daysSimmed} · ${tempDate.toLocaleDateString('es-ES')}`);
-      if (daysSimmed % 2 === 0) {
-        setCurrentDate(new Date(tempDate));
-        await new Promise(r => setTimeout(r, 0));
-      }
-
-      if (hasUserMatch) {
-        setFixtures(localFixtures);
-        setCurrentDate(new Date(tempDate));
-        setIsSimulating(false);
-        setSimProgress(0);
-        if (hasClubMatch && userClub) {
-          updateNextFixture(localFixtures, tempDate, userClub.id);
-          const starters = world.getPlayersByClub(userClub.id).filter(p => p.isStarter && p.squad === 'SENIOR');
-          setView(starters.length >= 11 ? 'PRE_MATCH' : 'SENIOR_TACTICS');
-        } else if (hasNationalMatch && selectedNationalTeamId) {
-          const ntMatch = localFixtures.find(
-            (f) =>
-              !f.played &&
-              f.date.toDateString() === tempDate.toDateString() &&
-              (f.homeTeamId === selectedNationalTeamId || f.awayTeamId === selectedNationalTeamId) &&
-              f.squadType === 'SENIOR'
-          );
-          if (ntMatch) setNextFixture(ntMatch);
-          setView('PRE_MATCH');
-        } else {
-          setView('PRE_MATCH');
+        if (tempDate >= seasonEndDate) {
+          world.processLoanReturns(tempDate);
+          const result = useGameStore.getState().finishSeason(localFixtures, activeManagedTeamId, tempDate);
+          setSeasonSummary(result.summaries);
+          setUserWonLeague(result.userWonLeague);
+          const gs = useGameStore.getState();
+          gs.setManagerHistory({ ...gs.managerHistory, seasonsCompleted: gs.managerHistory.seasonsCompleted + 1 });
+          if (result.userWonLeague) gs.trackTitle('Liga');
+           const wonCups = result.summaries.filter((s: any) => s.championId === activeManagedTeamId && s.compType !== 'LEAGUE');
+           wonCups.forEach((s: any) => gs.trackTitle(s.compName));
+           if (userClub) {
+             const leagueTable = world.getLeagueTable(userClub.leagueId, localFixtures, 'SENIOR');
+             const leaguePos = leagueTable.findIndex(e => e.clubId === userClub.id) + 1;
+             const leagueTotal = leagueTable.length;
+             const cupWinnerId = result.summaries.find((s: any) => s.compType !== 'LEAGUE' && s.championId)?.championId;
+             const wonCup = cupWinnerId === userClub.id;
+             const titleNames: string[] = [];
+             if (result.userWonLeague) titleNames.push('Liga');
+             wonCups.forEach((s: any) => titleNames.push(s.compName));
+             world.updateManagerProfileSeasonEnd(result.userWonLeague || wonCups.length > 0, titleNames, leaguePos || 10, leagueTotal || 20);
+             world.evaluateBoardConfidence(userClub.id, leaguePos || 10, leagueTotal || 20, wonCup, false);
+             world.checkManagerJobOffers(tempDate, userClub.id, useGameStore.getState().managerReputation);
+           }
+          setIsSimulating(false);
+          setSimProgress(0);
+          setCurrentDate(result.nextSeasonStart);
+          setSeasonEndDate(result.nextSeasonEnd);
+          if (activeManagedTeamId) updateNextFixture(result.newFixtures, result.nextSeasonStart, activeManagedTeamId);
+          notify();
+          return;
         }
-        notify();
-        return;
-      }
-    }
 
-    setFixtures(localFixtures);
-    setCurrentDate(new Date(tempDate));
-    updateNextFixture(localFixtures, tempDate, activeManagedTeamId);
-    setIsSimulating(false);
-    setSimProgress(0);
-    setView('HOME');
-    notify();
+        const hasUserMatch = localFixtures.some(f =>
+          !f.played && f.date.toDateString() === tempDate.toDateString() &&
+          ((userClub && (f.homeTeamId === userClub.id || f.awayTeamId === userClub.id)) ||
+            (selectedNationalTeamId && (f.homeTeamId === selectedNationalTeamId || f.awayTeamId === selectedNationalTeamId))) &&
+          f.squadType === 'SENIOR'
+        );
+        const hasClubMatch = Boolean(userClub && localFixtures.some(f =>
+          !f.played && f.date.toDateString() === tempDate.toDateString() &&
+          (f.homeTeamId === userClub.id || f.awayTeamId === userClub.id) &&
+          f.squadType === 'SENIOR'
+        ));
+        const hasNationalMatch = Boolean(selectedNationalTeamId && localFixtures.some(f =>
+          !f.played && f.date.toDateString() === tempDate.toDateString() &&
+          (f.homeTeamId === selectedNationalTeamId || f.awayTeamId === selectedNationalTeamId) && f.squadType === 'SENIOR'
+        ));
+
+        await simulateDayFixtures({
+          date: tempDate,
+          fixtures: localFixtures,
+          userClub,
+          selectedNationalTeamId,
+          skipUserMatches: true,
+          suppressProgress: true,
+        });
+
+        LifecycleManager.checkBirthdays(tempDate);
+        LifecycleManager.recoverDailyFitness();
+        LifecycleManager.processMonthlyFinances(tempDate);
+        world.checkRenewalTriggers(tempDate, userClub?.id);
+        world.processTransferDecisions(tempDate);
+        world.processAIActivity(tempDate);
+        world.processDailyContracts(tempDate, userClub?.id);
+        world.processDailyScouting(tempDate, userClub?.id);
+        world.generateGeneralNews(tempDate);
+        world.processLightMarketActivity(tempDate);
+        world.processQuarterlyYouthIntake(tempDate);
+        if (tempDate.getDay() === 1) {
+          world.ensureMinimumSquadSizes();
+        }
+
+        if (userClub) {
+          detectPlayerDialogueTriggers(userClub.id, tempDate);
+          evaluatePlayerPromisesDaily(userClub.id, tempDate);
+        }
+
+        // Cosecha de cantera + retiros + purga (1 de agosto) — mismo gate que advanceTime
+        if (tempDate.getMonth() === 7 && tempDate.getDate() === 1) {
+          world.generateYouthIntake(tempDate.getFullYear());
+        }
+
+        // Transfer deadline day mechanics
+        world.processDeadlineWeekActivity(tempDate);
+        world.processDeadlineDay(tempDate);
+
+        // Youth development pipeline
+        world.developYouthPlayers(tempDate);
+        world.autoPromoteYouthPlayers(tempDate);
+
+        const newCupFixtures = LifecycleManager.processCompetitionProgress(localFixtures, tempDate);
+        if (newCupFixtures.length > 0) {
+          localFixtures = [...localFixtures, ...newCupFixtures];
+        }
+
+        const progress = Math.min(99, Math.max(5, Math.round((daysSimmed / estimatedDaysToNextMatch) * 100)));
+        setSimProgress(progress);
+        setSimProgressDetail(`Día ${daysSimmed} · ${tempDate.toLocaleDateString('es-ES')}`);
+        setSimulationTabTitle(progress, 'Avanzando al próximo partido');
+
+        const hidden = isTabHidden();
+        const now = performance.now();
+        if (!hidden || now - lastYieldAt >= 120) {
+          setCurrentDate(new Date(tempDate));
+          lastYieldAt = now;
+          await yieldToMain(hidden ? 'background' : 'paint');
+        }
+
+        if (hasUserMatch) {
+          setFixtures(localFixtures);
+          setCurrentDate(new Date(tempDate));
+          setIsSimulating(false);
+          setSimProgress(0);
+          if (hasClubMatch && userClub) {
+            updateNextFixture(localFixtures, tempDate, userClub.id);
+            const starters = world.getPlayersByClub(userClub.id).filter(p => p.isStarter && p.squad === 'SENIOR');
+            setView(starters.length >= 11 ? 'PRE_MATCH' : 'SENIOR_TACTICS');
+          } else if (hasNationalMatch && selectedNationalTeamId) {
+            const ntMatch = localFixtures.find(
+              (f) =>
+                !f.played &&
+                f.date.toDateString() === tempDate.toDateString() &&
+                (f.homeTeamId === selectedNationalTeamId || f.awayTeamId === selectedNationalTeamId) &&
+                f.squadType === 'SENIOR'
+            );
+            if (ntMatch) setNextFixture(ntMatch);
+            setView('PRE_MATCH');
+          } else {
+            setView('PRE_MATCH');
+          }
+          notify();
+          return;
+        }
+      }
+
+      setFixtures(localFixtures);
+      setCurrentDate(new Date(tempDate));
+      updateNextFixture(localFixtures, tempDate, activeManagedTeamId);
+      setIsSimulating(false);
+      setSimProgress(0);
+      setView('HOME');
+      notify();
+    } finally {
+      restoreTabTitle();
+    }
   };
 
   const handleOpenSaveModal = async () => {
@@ -1787,10 +1827,10 @@ const startVacation = async (targetOverride?: Date) => {
                         >
                           <td className="py-1.5 px-1.5 text-center font-mono font-black text-slate-500 text-[9.5px]">{i + 1}</td>
                           <td className="py-1.5 px-1.5 min-w-0">
-                            <div className="font-black text-slate-900 truncate text-[10px] leading-tight">
+                            <div className="font-black text-slate-900 text-[10px] leading-snug break-words">
                               {league.name}
                             </div>
-                            <div className="sm:hidden text-[8px] font-bold text-slate-500 uppercase truncate leading-tight">
+                            <div className="sm:hidden text-[8px] font-bold text-slate-500 uppercase leading-tight">
                               {league.country || league.confederation}
                             </div>
                           </td>
@@ -1826,18 +1866,53 @@ const startVacation = async (targetOverride?: Date) => {
         return <ClubsListView onSelectClub={(c) => { setViewExternalClub(c, 'CLUBS_LIST'); setView('EXTERNAL_CLUB'); }} />;
       case 'EXTERNAL_CLUB':
         if (viewExternalClub) {
+          const extStaff = world.getStaffByClub(viewExternalClub.id);
+          const isUserClubExternal = Boolean(userClub && viewExternalClub.id === userClub.id);
           return (
             <div className="flex flex-col h-full bg-[#cfd7cf]">
-              <div className="flex-1 overflow-y-auto">
-                <SquadView
-                  players={world.getPlayersByClub(viewExternalClub.id).filter(p => p.squad === externalSquadType)}
-                  onSelectPlayer={setSelectedPlayer}
-                  customTitle={`PLANTILLA - ${viewExternalClub.name}`}
-                  currentDate={currentDate}
-                  club={viewExternalClub}
-                  squadType={externalSquadType}
-                  onSquadChange={setExternalSquadType}
-                />
+              <div className="shrink-0 px-2.5 py-1.5 bg-[#e8ece8] border-b border-[#8e9b90] flex items-center justify-between gap-2">
+                <div className="flex bg-[#bcc8bc] p-0.5 rounded-sm border border-[#a0b0a0] shadow-xs">
+                  <button
+                    type="button"
+                    onClick={() => { setExternalClubTab('SQUAD'); setSelectedStaff(null); }}
+                    className={`px-3 py-1 text-[9.5px] font-black uppercase rounded-[1px] transition-all cursor-pointer ${
+                      externalClubTab === 'SQUAD' ? 'bg-[#2b5d2c] text-white shadow-sm' : 'text-slate-700 hover:bg-black/5'
+                    }`}
+                  >
+                    Plantel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setExternalClubTab('STAFF'); setSelectedStaff(null); }}
+                    className={`px-3 py-1 text-[9.5px] font-black uppercase rounded-[1px] transition-all cursor-pointer ${
+                      externalClubTab === 'STAFF' ? 'bg-[#2b5d2c] text-white shadow-sm' : 'text-slate-700 hover:bg-black/5'
+                    }`}
+                  >
+                    Cuerpo Técnico ({extStaff.length})
+                  </button>
+                </div>
+                <span className="hidden sm:inline text-[9.5px] font-bold text-slate-600 uppercase">
+                  {viewExternalClub.name}
+                </span>
+              </div>
+              <div className="flex-1 min-h-0 overflow-y-auto">
+                {externalClubTab === 'SQUAD' ? (
+                  <SquadView
+                    players={world.getPlayersByClub(viewExternalClub.id).filter(p => p.squad === externalSquadType)}
+                    onSelectPlayer={setSelectedPlayer}
+                    customTitle={`PLANTILLA - ${viewExternalClub.name}`}
+                    currentDate={currentDate}
+                    club={viewExternalClub}
+                    squadType={externalSquadType}
+                    onSquadChange={setExternalSquadType}
+                  />
+                ) : (
+                  <StaffView
+                    staff={extStaff}
+                    club={viewExternalClub}
+                    isOwnClub={isUserClubExternal}
+                  />
+                )}
               </div>
             </div>
           );
@@ -2385,7 +2460,9 @@ const startVacation = async (targetOverride?: Date) => {
 
   if (gameState === 'SETUP_LEAGUE') {
     const country = selectedCountry;
-    const leagues = world.competitions.filter(c => c.type === 'LEAGUE' && c.country === country);
+    const leagues = world.competitions
+      .filter(c => c.type === 'LEAGUE' && c.country === country)
+      .sort((a, b) => (a.tier - b.tier) || ((b.dynamicReputation ?? 0) - (a.dynamicReputation ?? 0)));
     const nationalTeam = world.nationalTeamManager?.nationalTeams?.find((t: any) => t.country === country);
 
     if (previewNationalTeamId && nationalTeam && previewNationalTeamId === nationalTeam.id) {
@@ -2415,21 +2492,31 @@ const startVacation = async (targetOverride?: Date) => {
     return (
       <div className="h-[100dvh] w-screen bg-[#d4dcd4] flex items-center justify-center p-4" style={{ fontFamily: 'Verdana, sans-serif' }}>
         {isPreparingCareer && <FMLoadingOverlay message="Preparando planteles..." detail="Completando base de jugadores" />}
-        <div className="max-w-4xl w-full bg-white rounded-sm p-4 sm:p-10 border border-[#a0b0a0] shadow-2xl max-h-[90vh] overflow-y-auto">
+        <div className="max-w-5xl w-full bg-white rounded-sm p-4 sm:p-8 border border-[#a0b0a0] shadow-2xl max-h-[90vh] overflow-y-auto">
           <button onClick={() => { setPreviewNationalTeamId(null); setGameState('SETUP_COUNTRY'); }} className="text-[10px] text-slate-500 hover:text-slate-900 font-bold mb-4 flex items-center gap-1 cursor-pointer">
             <ChevronLeft size={12} /> Volver a países
           </button>
-          <div className="flex items-center gap-3 mb-5">
-            {country && <img src={getFlagUrl(country)} alt={country} className="w-8 h-6 rounded-sm border border-[#a0b0a0]" />}
-            <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tight italic">{country}</h2>
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-5 pb-3 border-b border-[#d4dcd4]">
+            <div className="flex items-center gap-3">
+              {country && <img src={getFlagUrl(country)} alt={country} className="w-9 h-6 rounded-sm border border-[#a0b0a0] shadow-xs" />}
+              <div>
+                <h2 className="text-xl sm:text-2xl font-black text-slate-900 uppercase tracking-tight italic leading-none">{country}</h2>
+                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mt-1">
+                  {leagues.length} liga{leagues.length !== 1 ? 's' : ''} disponible{leagues.length !== 1 ? 's' : ''}
+                  {nationalTeam ? ' · Selección nacional disponible' : ''}
+                </p>
+              </div>
+            </div>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
             {nationalTeam && (
-              <button onClick={() => setPreviewNationalTeamId(nationalTeam.id)} className="p-4 sm:p-5 bg-[#3a4a3a] hover:bg-[#2a3a2a] border border-[#2a3a2a] rounded-sm text-left transition-all shadow-sm flex items-center gap-3.5 cursor-pointer">
-                <NationalJerseyIcon country={nationalTeam.country || country || ''} name={nationalTeam.name} className="w-12 h-12 shrink-0" />
+              <button onClick={() => setPreviewNationalTeamId(nationalTeam.id)} className="p-4 sm:p-5 bg-[#3a4a3a] hover:bg-[#2a3a2a] border border-[#2a3a2a] rounded-sm text-left transition-all shadow-sm flex items-start gap-3.5 cursor-pointer">
+                <NationalJerseyIcon country={nationalTeam.country || country || ''} name={nationalTeam.name} className="w-12 h-12 shrink-0 mt-0.5" />
                 <div className="flex-1 min-w-0">
-                  <h3 className="text-base font-black text-white mb-0.5 italic uppercase truncate">Selección Nacional</h3>
-                  <p className="text-[10px] text-slate-200 font-bold truncate">{nationalTeam.name}{nationalEligibleCount !== undefined ? ` · ${nationalEligibleCount} elegibles` : ' · Ver plantel e info'}</p>
+                  <h3 className="text-sm sm:text-base font-black text-white mb-1 italic uppercase leading-snug break-words">Selección Nacional</h3>
+                  <p className="text-[10.5px] text-slate-200 font-bold leading-snug break-words">
+                    {nationalTeam.name}{nationalEligibleCount !== undefined ? ` · ${nationalEligibleCount} elegibles` : ' · Ver plantel e info'}
+                  </p>
                 </div>
               </button>
             )}
@@ -2441,15 +2528,21 @@ const startVacation = async (targetOverride?: Date) => {
               const tierLabel = league.tier === 1 ? '1ª División' : league.tier === 2 ? '2ª División' : `${league.tier}ª División`;
               return (
                 <button key={league.id} onClick={() => { setSelectedLeague(league); setPreviewClub(null); useGameStore.getState().setDeepSimLeagues([league.id]); setGameState('SETUP_TEAM'); }}
-                  className="p-4 sm:p-5 bg-[#f2f7f2] hover:bg-[#e2eae2] hover:border-[#3a4a3a] border border-[#a0b0a0] rounded-sm text-left transition-all shadow-sm flex items-center gap-3.5 group cursor-pointer">
-                  <LeagueLogoBadge league={league} className="w-12 h-12 shrink-0" />
+                  className="p-4 sm:p-5 bg-[#f2f7f2] hover:bg-[#e2eae2] hover:border-[#3a4a3a] border border-[#a0b0a0] rounded-sm text-left transition-all shadow-sm flex items-start gap-3.5 group cursor-pointer">
+                  <LeagueLogoBadge league={league} className="w-12 h-12 shrink-0 mt-0.5" />
                   <div className="flex-1 min-w-0 flex flex-col">
-                    <div className="flex items-start justify-between gap-2 mb-0.5">
-                      <h3 className="text-sm sm:text-base font-black text-slate-900 italic uppercase truncate group-hover:text-[#3a4a3a]">{league.name}</h3>
-                      <span className="shrink-0 text-[10px] tracking-tight">{'★'.repeat(repStars)}<span className="text-slate-300">{'★'.repeat(5 - repStars)}</span></span>
+                    <h3 className="text-sm sm:text-[15px] font-black text-slate-900 italic uppercase leading-snug break-words group-hover:text-[#2b5d2c]">
+                      {league.name}
+                    </h3>
+                    <div className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 mt-1">
+                      <span className="text-[10px] text-amber-600 tracking-tight leading-none">
+                        {'★'.repeat(repStars)}<span className="text-slate-300">{'★'.repeat(5 - repStars)}</span>
+                      </span>
+                      <span className="text-[9.5px] text-slate-600 font-bold uppercase tracking-wide">
+                        {tierLabel} · {clubCount} equipo{clubCount !== 1 ? 's' : ''}
+                      </span>
                     </div>
-                    <p className="text-[9px] text-slate-500 font-bold uppercase tracking-wide">{tierLabel} · {clubCount} equipo{clubCount !== 1 ? 's' : ''}</p>
-                    <div className="mt-2 pt-1.5 border-t border-[#c8d4c8] flex items-center gap-3 text-[9px] text-slate-600">
+                    <div className="mt-2.5 pt-1.5 border-t border-[#c8d4c8] flex items-center gap-2 text-[9.5px] text-slate-600">
                       <span className="font-black text-emerald-800">£{prize.toFixed(1)}M</span>
                       <span className="font-bold uppercase tracking-wider">Premio total</span>
                       <span className="ml-auto font-bold text-slate-500 uppercase">{league.confederation || '—'}</span>
@@ -2836,12 +2929,16 @@ const startVacation = async (targetOverride?: Date) => {
         </div>
       )}
 
-      {isInVacation && !vacationCancelled && (
+      {isInVacation && currentView !== 'VACATION' && (
         <FMLoadingOverlay
-          message="Simulando Vacaciones"
-          progress={{ current: vacationProgress, total: 100, detail: vacationDetail }}
+          message={vacationCancelled ? 'Deteniendo Simulación...' : 'Simulando Vacaciones'}
+          progress={{
+            current: vacationProgress,
+            total: 100,
+            detail: vacationCancelled ? 'Guardando avance de la jornada actual...' : vacationDetail,
+          }}
           onCancel={() => setVacationCancelled(true)}
-          showCancel
+          showCancel={!vacationCancelled}
         />
       )}
 
@@ -3084,7 +3181,25 @@ const startVacation = async (targetOverride?: Date) => {
 
       <div className="flex flex-1 overflow-hidden relative">
         {(userClub || selectedNationalTeamId) && !isMatchView && (
-          <Sidebar currentView={currentView} setView={setView} club={userClub} nationalTeamId={selectedNationalTeamId} onVacation={() => setIsVacationModalOpen(true)} onSave={handleOpenSaveModal} />
+          <Sidebar
+            currentView={currentView}
+            setView={setView}
+            club={userClub}
+            nationalTeamId={selectedNationalTeamId}
+            onVacation={() => {
+              const existing = vacationTargetDate ? new Date(vacationTargetDate) : null;
+              if (!existing || Number.isNaN(existing.getTime()) || existing <= currentDate) {
+                const def = new Date(currentDate);
+                def.setDate(def.getDate() + 30);
+                const yyyy = def.getFullYear();
+                const mm = String(def.getMonth() + 1).padStart(2, '0');
+                const dd = String(def.getDate()).padStart(2, '0');
+                setVacationTargetDate(`${yyyy}-${mm}-${dd}`);
+              }
+              setIsVacationModalOpen(true);
+            }}
+            onSave={handleOpenSaveModal}
+          />
         )}
         <main className={`flex-1 flex flex-col min-w-0 bg-[#b8c4b8] relative min-h-0 overflow-hidden ${isMatchView ? 'pb-0' : 'pb-[104px] lg:pb-0'}`}>
           <ScreenBackground view={currentView}>{renderCurrentView()}</ScreenBackground>
@@ -3092,59 +3207,45 @@ const startVacation = async (targetOverride?: Date) => {
         {onboardingActive && <OnboardingTour active={onboardingActive} currentView={currentView} onComplete={() => setShowOnboarding(false)} />}
       </div>
 
-      {isVacationModalOpen && (
+      {isVacationModalOpen && !isInVacation && (
         <div className="fixed inset-0 bg-slate-900/80 z-[500] flex items-center justify-center p-6 backdrop-blur-md">
-          <div className="bg-slate-200 w-full max-sm rounded-sm border border-slate-600 p-8 text-center shadow-2xl">
-            {isSimulating ? (
-              <div className="space-y-4">
-                <div className="flex items-center justify-center gap-3 mb-4">
-                  <RefreshCw size={20} className="text-slate-950 animate-spin" />
-                  <h2 className="text-xl font-black text-slate-950 uppercase italic">Simulando...</h2>
-                </div>
-                <div className="text-center">
-                  <p className="text-slate-600 font-mono font-bold text-sm">{currentDate.toLocaleDateString()}</p>
-                </div>
-                <div className="animate-pulse space-y-2 mt-4">
-                  <div className="h-3 bg-slate-300 rounded-sm w-3/4 mx-auto"></div>
-                  <div className="h-3 bg-slate-300 rounded-sm w-1/2 mx-auto"></div>
-                  <div className="h-3 bg-slate-300 rounded-sm w-2/3 mx-auto"></div>
-                  <div className="h-8 bg-slate-300 rounded-sm w-full mt-3"></div>
-                  <div className="h-8 bg-slate-300 rounded-sm w-full"></div>
-                </div>
-                <p className="text-[9px] text-slate-400 uppercase tracking-wider font-bold mt-2">Procesando jornadas...</p>
+          <div className="bg-slate-200 w-full max-w-sm rounded-sm border border-slate-600 p-8 text-center shadow-2xl">
+            <Sun size={48} className="text-orange-600 mx-auto mb-4" />
+            <h2 className="text-lg font-black text-slate-950 mb-5 uppercase italic tracking-widest border-b-2 border-slate-400 pb-2">Planificar Vacaciones</h2>
+            <div className="space-y-3.5">
+              <div className="text-left">
+                <label className="text-[10px] font-black text-slate-600 uppercase block mb-1 tracking-widest">Fecha de Regreso:</label>
+                <input
+                  type="date"
+                  className="w-full bg-slate-100 border border-slate-500 rounded-sm px-3 py-2 text-slate-950 font-bold text-sm"
+                  value={vacationTargetDate}
+                  onChange={(e) => setVacationTargetDate(e.target.value)}
+                />
               </div>
-            ) : (
-              <>
-                <Sun size={48} className="text-orange-600 mx-auto mb-4" />
-                <h2 className="text-lg font-black text-slate-950 mb-5 uppercase italic tracking-widest border-b-2 border-slate-400 pb-2">Planificar Vacaciones</h2>
-                <div className="space-y-3.5">
-                  <div className="text-left"><label className="text-[10px] font-black text-slate-600 uppercase block mb-1 tracking-widest">Fecha de Regreso:</label><input type="date" className="w-full bg-slate-100 border border-slate-500 rounded-sm px-3 py-2 text-slate-950 font-bold text-sm" value={vacationTargetDate} onChange={(e) => setVacationTargetDate(e.target.value)} /></div>
-                  <div className="bg-slate-100 border border-slate-400 rounded-sm p-2.5 space-y-2 text-left">
-                    <label className="flex items-center gap-2 cursor-pointer select-none">
-                      <input
-                        type="checkbox"
-                        checked={vacationKeepTactic}
-                        onChange={(e) => setVacationKeepTactic(e.target.checked)}
-                        className="w-3.5 h-3.5 accent-[#2b5d2c] cursor-pointer"
-                      />
-                      <span className="text-[10.5px] font-bold text-slate-800">Mantener táctica actual</span>
-                    </label>
-                    <label className="flex items-center gap-2 cursor-pointer select-none">
-                      <input
-                        type="checkbox"
-                        checked={vacationKeepXI}
-                        onChange={(e) => setVacationKeepXI(e.target.checked)}
-                        className="w-3.5 h-3.5 accent-[#2b5d2c] cursor-pointer"
-                      />
-                      <span className="text-[10.5px] font-bold text-slate-800">Mantener el 11 titular mientras se pueda</span>
-                    </label>
-                  </div>
-                  <FMButton variant="vacation" onClick={() => startVacation()} className="w-full py-3.5 text-xs">Iniciar Simulación</FMButton>
-                  <FMButton variant="primary" onClick={() => startVacation(seasonEndDate)} className="w-full py-3.5 text-xs">Simular Temporada</FMButton>
-                  <FMButton variant="secondary" onClick={() => setIsVacationModalOpen(false)} className="w-full">Cancelar</FMButton>
-                </div>
-              </>
-            )}
+              <div className="bg-slate-100 border border-slate-400 rounded-sm p-2.5 space-y-2 text-left">
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={vacationKeepTactic}
+                    onChange={(e) => setVacationKeepTactic(e.target.checked)}
+                    className="w-3.5 h-3.5 accent-[#2b5d2c] cursor-pointer"
+                  />
+                  <span className="text-[10.5px] font-bold text-slate-800">Mantener táctica actual</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={vacationKeepXI}
+                    onChange={(e) => setVacationKeepXI(e.target.checked)}
+                    className="w-3.5 h-3.5 accent-[#2b5d2c] cursor-pointer"
+                  />
+                  <span className="text-[10.5px] font-bold text-slate-800">Mantener el 11 titular mientras se pueda</span>
+                </label>
+              </div>
+              <FMButton variant="vacation" disabled={isSimulating || !vacationTargetDate} onClick={() => startVacation()} className="w-full py-3.5 text-xs">Iniciar Simulación</FMButton>
+              <FMButton variant="primary" disabled={isSimulating} onClick={() => startVacation(seasonEndDate)} className="w-full py-3.5 text-xs">Simular Temporada</FMButton>
+              <FMButton variant="secondary" onClick={() => setIsVacationModalOpen(false)} className="w-full">Cancelar</FMButton>
+            </div>
           </div>
         </div>
       )}

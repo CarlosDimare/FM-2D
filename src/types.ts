@@ -666,6 +666,7 @@ export interface Staff {
   siguioConsejoUltimaVez?: boolean;
   /** Planteles asignados para entrenadores/preparadores que colaboran en Primera, Reserva y/o Sub-20 */
   assignedSquads?: SquadType[];
+  chatHistory?: StaffChatMessage[];
 }
 
 export interface RealManager {
@@ -830,26 +831,57 @@ export const POSITION_ORDER: Record<string, number> = {
   'P': 0, 'LIB': 1, 'DFC': 2, 'LD': 3, 'LI': 4, 'CD': 6, 'CI': 7, 'MCD': 5, 'MC': 8, 'MD': 9, 'MI': 10, 'MPC': 11, 'ED': 12, 'EI': 13, 'DC': 14, 'WD': 15, 'WI': 16
 };
 
-export type PlayerPersonality = 'LEADER' | 'MERCENARY' | 'LOYAL' | 'VOLATILE' | 'PROFESSIONAL' | 'LAZY' | 'AMBITIOUS';
+export type PlayerPersonality =
+  | 'LEADER'
+  | 'MODEL_PRO'
+  | 'PROFESSIONAL'
+  | 'DRIVEN'
+  | 'AMBITIOUS'
+  | 'COMPETITIVE'
+  | 'RESILIENT'
+  | 'PERFECTIONIST'
+  | 'CHARISMATIC'
+  | 'LOYAL'
+  | 'RESERVED'
+  | 'TEMPERAMENTAL'
+  | 'VOLATILE'
+  | 'MERCENARY'
+  | 'LAZY';
 
 export const PLAYER_PERSONALITY_LABELS: Record<PlayerPersonality, string> = {
   LEADER: 'Líder',
-  MERCENARY: 'Mercenario',
-  LOYAL: 'Leal',
-  VOLATILE: 'Volátil',
+  MODEL_PRO: 'Profesional Modélico',
   PROFESSIONAL: 'Profesional',
-  LAZY: 'Perezoso',
+  DRIVEN: 'Determinado',
   AMBITIOUS: 'Ambicioso',
+  COMPETITIVE: 'Competitivo',
+  RESILIENT: 'Resiliente',
+  PERFECTIONIST: 'Perfeccionista',
+  CHARISMATIC: 'Carismático',
+  LOYAL: 'Leal',
+  RESERVED: 'Reservado',
+  TEMPERAMENTAL: 'Temperamental',
+  VOLATILE: 'Volátil',
+  MERCENARY: 'Mercenario',
+  LAZY: 'Perezoso',
 };
 
 export const PLAYER_PERSONALITY_DESC: Record<PlayerPersonality, string> = {
   LEADER: 'Inspira a sus compañeros. Asume responsabilidad en los momentos difíciles. Ideal para capitán.',
-  MERCENARY: 'Juega por dinero y gloria personal. Leal mientras el sueldo sea competitivo.',
-  LOYAL: 'Fiel al club y a la camiseta. Difícil de tentar con ofertas externas.',
-  VOLATILE: 'Emocionalmente inestable. Puede explotar ante críticas o decisiones que no comparte.',
+  MODEL_PRO: 'Referente absoluto de ética de trabajo, constancia diaria y profesionalismo dentro y fuera del campo.',
   PROFESSIONAL: 'Enfoque ejemplar. Respeta la jerarquía y mantiene la disciplina.',
+  DRIVEN: 'Mentalidad fuerte y orientada a objetivos. No se rinde ante la adversidad ni en los cierres ajustados.',
+  AMBITIOUS: 'Quiere títulos, gloria internacional y reconocimiento. Si el club no crece, buscará otro.',
+  COMPETITIVE: 'Detesta perder hasta en los entrenamientos. Responde con carácter cuando se le exige más.',
+  RESILIENT: 'Mantiene la calma bajo presión y se repone rápido de lesiones, críticas o malas rachas.',
+  PERFECTIONIST: 'Autocrítico y exigente consigo mismo y con el grupo. Busca pulir cada detalle técnico y táctico.',
+  CHARISMATIC: 'Alegre y cercano, une al vestuario con facilidad y amortigua roces entre compañeros.',
+  LOYAL: 'Fiel al club y a la camiseta. Difícil de tentar con ofertas externas.',
+  RESERVED: 'Silencioso y perfil bajo. Prefiere hablar dentro de la cancha antes que en los micrófonos.',
+  TEMPERAMENTAL: 'Juega con las pulsaciones al límite. Su carácter pasional puede encender o tensionar al equipo.',
+  VOLATILE: 'Emocionalmente inestable. Puede explotar ante críticas o decisiones que no comparte.',
+  MERCENARY: 'Juega por dinero y gloria personal. Leal mientras el sueldo sea competitivo.',
   LAZY: 'Talento sin compromiso. Rinde por debajo de su potencial si no se le exige.',
-  AMBITIOUS: 'Quiere títulos, Champions y reconocimiento. Si el club no crece, buscará otro.',
 };
 
 export type DialogueType = 'PRAISE_FORM' | 'CRITICIZE_FORM' | 'PRAISE_TRAINING' | 'DEMAND_MORE' | 'WARN_CONDUCT' | 'SET_CAPTAIN' | 'CHANGE_POSITION' | 'INDIVIDUAL_TRAINING_FOCUS' | 'THREATEN_TRANSFER' | 'GRANT_CAPTANCY' | 'ASSIGN_TRAINING' | 'DELEGATE_MATCH' | 'REPRIMAND' | 'PROMISE_RESOURCES' | 'SCOUTING_FOCUS' | 'PRESS_STATEMENT' | 'CONTACT_MANAGER' | 'CONVINCE_TO_STAY' | 'TACTICAL_ADVICE' | 'FITNESS_PLAN' | 'TRANSFER_FOLDER';
@@ -1010,4 +1042,15 @@ export interface PlayerChatMessage {
   tensionDelta?: number;
   trustDelta?: number;
   promiseSummary?: string;
+}
+
+export interface StaffChatMessage {
+  id: string;
+  sender: 'MANAGER' | 'STAFF' | 'SYSTEM';
+  text: string;
+  dateIso: string;
+  tone?: string;
+  moraleDelta?: number;
+  tensionDelta?: number;
+  trustDelta?: number;
 }

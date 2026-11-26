@@ -5,6 +5,7 @@ import { MatchSimulator } from './engine';
 import { buildFixtureMatchReport, generateMatchChronicle, generateNationalTeamChronicle } from './chronicleService';
 import { useGameStore } from '../stores/gameStore';
 import { useUIStore } from '../stores/uiStore';
+import { isTabHidden, yieldToMain } from './backgroundYield';
 
 // ─── National team helpers (extracted from App.tsx) ─────────────────────────
 
@@ -84,12 +85,10 @@ export interface DaySimParams {
 const FIXTURE_BATCH = 25;
 
 /**
- * Cooperative scheduling: cede el hilo principal para que la UI pinte y responda a input.
+ * Cooperative scheduling: cede el hilo principal sin detenerse en pestañas en segundo plano.
  */
 function yieldToMainThread(): Promise<void> {
-  const sched = (globalThis as any)?.scheduler;
-  if (sched && typeof sched.yield === 'function') return sched.yield() as Promise<void>;
-  return new Promise(r => setTimeout(r, 0));
+  return yieldToMain(isTabHidden() ? 'background' : 'paint');
 }
 
 /**

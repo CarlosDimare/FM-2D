@@ -227,12 +227,14 @@ export function openClubSquad(clubId: string | undefined, clubsSource?: Club[]) 
   const ui = useUIStore.getState();
   if (ui.userClub?.id === clubId) {
     ui.setSelectedPlayer(null);
+    ui.setSelectedStaff(null);
     ui.setView('SENIOR_SQUAD');
     return;
   }
   const target = clubsSource?.find((c) => c.id === clubId);
   if (target) {
     ui.setSelectedPlayer(null);
+    ui.setSelectedStaff(null);
     ui.setViewExternalClub(target, ui.currentView);
     ui.setView('EXTERNAL_CLUB');
   }
