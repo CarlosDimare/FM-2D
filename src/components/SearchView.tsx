@@ -1,7 +1,8 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { Player } from '../types';
 import { world } from '../services/worldManager';
+import { useWorldStore } from '../stores/worldStore';
 import { Search, SlidersHorizontal, User } from 'lucide-react';
 import { FMBox, FMTable, FMTableCell, FMButton } from './FMUI';
 import { openClubSquad } from '../stores/uiStore';
@@ -16,6 +17,11 @@ export const SearchView: React.FC<SearchViewProps> = ({ onSelectPlayer }) => {
   const [minAge, setMinAge] = useState<number>(15);
   const [maxAge, setMaxAge] = useState<number>(45);
   const [minAbility, setMinAbility] = useState<number>(0);
+  const worldTick = useWorldStore(s => s._tick);
+
+  useEffect(() => {
+    world.ensureAllPlayersLoaded();
+  }, []);
 
   const results = useMemo(() => {
     if (search.length < 3 && posFilter === 'ALL') return [];
@@ -26,7 +32,7 @@ export const SearchView: React.FC<SearchViewProps> = ({ onSelectPlayer }) => {
       const matchesAbility = p.currentAbility >= minAbility;
       return matchesSearch && matchesPos && matchesAge && matchesAbility;
     }).sort((a,b) => b.currentAbility - a.currentAbility).slice(0, 200);
-  }, [search, posFilter, minAge, maxAge, minAbility]);
+  }, [search, posFilter, minAge, maxAge, minAbility, worldTick]);
 
   const avgForm = (p: Player): number => {
     if (!p.formRatings || p.formRatings.length === 0) return 0;

@@ -3,7 +3,7 @@ import React from 'react';
 import { Club } from '../types';
 import { Trophy, Star, Building2, Wallet, Zap, Users, Shield } from 'lucide-react';
 import { FMBox, FMTable, FMTableCell } from './FMUI';
-import { FmBroadcastHeader, FmClubShield, FmLedDisplay } from './ClubBannerChrome';
+import { FmBroadcastHeader, FmClubShield, FmLedDisplay, getClubHexPalette } from './ClubBannerChrome';
 import { world } from '../services/worldManager';
 import { useUIStore } from '../stores/uiStore';
 
@@ -12,9 +12,7 @@ interface ClubReportProps {
 }
 
 const KitVisual: React.FC<{ primary: string, secondary: string, label: string }> = ({ primary, secondary, label }) => {
-  // Convertimos las clases bg- de Tailwind a colores de texto para que el SVG pueda usar fill="currentColor"
-  const fillPrimary = primary.replace('bg-', 'text-');
-  const fillSecondary = secondary.replace('text-', 'text-').replace('bg-', 'text-');
+  const pal = getClubHexPalette({ primary, secondary }, '#2b5d2c', '#f8fafc');
 
   return (
     <div className="flex flex-col items-center group cursor-help">
@@ -23,17 +21,19 @@ const KitVisual: React.FC<{ primary: string, secondary: string, label: string }>
           {/* Capa 1: El Torso (Base) */}
           <path 
             d="M 30 10 L 15 10 L 0 30 L 15 45 L 25 35 L 25 90 L 75 90 L 75 35 L 85 45 L 100 30 L 85 10 L 70 10 L 50 22 Z" 
-            className={`${fillPrimary} fill-current`}
+            fill={pal.primary}
+            stroke={pal.isLightPrimary ? '#cbd5e1' : 'rgba(0,0,0,0.22)'}
+            strokeWidth="1.5"
           />
           
           {/* Capa 2: Cuello y Puños (Detalles) */}
-          <g className={`${fillSecondary} fill-current`}>
+          <g fill={pal.secondary}>
             {/* Cuello en V */}
             <path d="M 35 10 L 50 25 L 65 10 L 60 10 L 50 20 L 40 10 Z" />
             {/* Puño Izquierdo */}
-            <path d="M 0 30 L 5 35 L 18 22 L 13 17 Z" opacity="0.8" />
+            <path d="M 0 30 L 5 35 L 18 22 L 13 17 Z" opacity="0.85" />
             {/* Puño Derecho */}
-            <path d="M 100 30 L 95 35 L 82 22 L 87 17 Z" opacity="0.8" />
+            <path d="M 100 30 L 95 35 L 82 22 L 87 17 Z" opacity="0.85" />
           </g>
 
           {/* Capa 3: Sombreado y Textura (Relieve) */}

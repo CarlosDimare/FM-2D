@@ -1,0 +1,6225 @@
+{
+  "fetchedAt": "2026-11-26T15:59:38.615Z",
+  "coachesByTm": {
+    "3": {
+      "name": "René Wagner",
+      "birth": "1988-07-17",
+      "nat": "Alemania",
+      "start": "2026-03-23",
+      "isPref": 1
+    },
+    "5": {
+      "name": "Ruben Amorim",
+      "birth": "1985-01-27",
+      "nat": "Portugal",
+      "start": "2026-06-16",
+      "isPref": 1
+    },
+    "7": {
+      "name": "Marcel Koller",
+      "birth": "1960-11-11",
+      "nat": "Suiza",
+      "start": "",
+      "isPref": 0
+    },
+    "11": {
+      "name": "Mikel Arteta",
+      "birth": "1982-03-26",
+      "nat": "España",
+      "start": "2019-12-20",
+      "isPref": 1
+    },
+    "12": {
+      "name": "Gian Piero Gasperini",
+      "birth": "1958-01-26",
+      "nat": "Italia",
+      "start": "2025-06-06",
+      "isPref": 1
+    },
+    "13": {
+      "name": "Diego Simeone",
+      "birth": "1970-04-28",
+      "nat": "Argentina",
+      "start": "2011-12-23",
+      "isPref": 1
+    },
+    "14": {
+      "name": "Stephan Helm",
+      "birth": "1983-04-10",
+      "nat": "Austria",
+      "start": "2024-07-01",
+      "isPref": 1
+    },
+    "15": {
+      "name": "Carles Martinez Novell",
+      "birth": "1984-01-01",
+      "nat": "España",
+      "start": "2026-06-04",
+      "isPref": 1
+    },
+    "16": {
+      "name": "Niko Kovač",
+      "birth": "1971-10-15",
+      "nat": "Croacia",
+      "start": "2025-01-30",
+      "isPref": 1
+    },
+    "18": {
+      "name": "Alexander Blessin",
+      "birth": "1973-05-28",
+      "nat": "Alemania",
+      "start": "2026-09-23",
+      "isPref": 1
+    },
+    "24": {
+      "name": "Adolf Hütter",
+      "birth": "1970-02-11",
+      "nat": "Austria",
+      "start": "2026-05-31",
+      "isPref": 1
+    },
+    "26": {
+      "name": "posición no ocupada",
+      "birth": "",
+      "nat": "",
+      "start": "",
+      "isPref": 1
+    },
+    "27": {
+      "name": "Vincent Kompany",
+      "birth": "1986-04-10",
+      "nat": "Bélgica",
+      "start": "2024-07-01",
+      "isPref": 1
+    },
+    "29": {
+      "name": "David Moyes",
+      "birth": "1963-04-25",
+      "nat": "Reino Unido",
+      "start": "2025-01-11",
+      "isPref": 1
+    },
+    "31": {
+      "name": "Andoni Iraola",
+      "birth": "1982-06-22",
+      "nat": "España",
+      "start": "2026-06-04",
+      "isPref": 1
+    },
+    "35": {
+      "name": "Marcel Rapp",
+      "birth": "1979-04-16",
+      "nat": "Alemania",
+      "start": "2026-06-05",
+      "isPref": 0
+    },
+    "36": {
+      "name": "Emre Belözoğlu",
+      "birth": "1980-09-07",
+      "nat": "Turquía",
+      "start": "2026-11-05",
+      "isPref": 1
+    },
+    "39": {
+      "name": "Urs Fischer",
+      "birth": "1966-02-20",
+      "nat": "Suiza",
+      "start": "2025-12-07",
+      "isPref": 1
+    },
+    "41": {
+      "name": "Merlin Polzin",
+      "birth": "1990-11-07",
+      "nat": "Alemania",
+      "start": "2024-11-25",
+      "isPref": 1
+    },
+    "46": {
+      "name": "Cristian Chivu",
+      "birth": "1980-10-26",
+      "nat": "Rumania",
+      "start": "2025-06-09",
+      "isPref": 1
+    },
+    "53": {
+      "name": "Jovan Damjanović",
+      "birth": "1982-10-04",
+      "nat": "Serbia",
+      "start": "2026-01-02",
+      "isPref": 1
+    },
+    "58": {
+      "name": "Vítor Bruno",
+      "birth": "1982-01-01",
+      "nat": "Portugal",
+      "start": "2026-06-24",
+      "isPref": 1
+    },
+    "60": {
+      "name": "Julian Schuster",
+      "birth": "1985-04-15",
+      "nat": "Alemania",
+      "start": "2024-07-01",
+      "isPref": 1
+    },
+    "62": {
+      "name": "Jindřich Trpišovský",
+      "birth": "1976-02-27",
+      "nat": "República Checa",
+      "start": "2018-01-01",
+      "isPref": 1
+    },
+    "76": {
+      "name": "Geir Bakke",
+      "birth": "1969-10-23",
+      "nat": "Noruega",
+      "start": "2023-07-13",
+      "isPref": 1
+    },
+    "79": {
+      "name": "Sebastian Hoeneß",
+      "birth": "1982-05-12",
+      "nat": "Alemania",
+      "start": "2023-04-03",
+      "isPref": 1
+    },
+    "82": {
+      "name": "Dieter Hecking",
+      "birth": "1964-09-12",
+      "nat": "Alemania",
+      "start": "2026-03-08",
+      "isPref": 1
+    },
+    "84": {
+      "name": "Sergio Navarro Barquero",
+      "birth": "1979-10-17",
+      "nat": "España",
+      "start": "2025-07-01",
+      "isPref": 1
+    },
+    "86": {
+      "name": "Daniel Thioune",
+      "birth": "1974-07-21",
+      "nat": "Alemania",
+      "start": "2026-02-04",
+      "isPref": 1
+    },
+    "89": {
+      "name": "Mauro Lustrinelli",
+      "birth": "1976-02-26",
+      "nat": "Suiza",
+      "start": "2026-07-01",
+      "isPref": 1
+    },
+    "114": {
+      "name": "Vincenzo Italiano",
+      "birth": "1977-12-10",
+      "nat": "Italia",
+      "start": "2026-06-06",
+      "isPref": 1
+    },
+    "119": {
+      "name": "Ronny Deila",
+      "birth": "1975-09-21",
+      "nat": "Noruega",
+      "start": "2026-01-31",
+      "isPref": 1
+    },
+    "121": {
+      "name": "Rolan Gusev",
+      "birth": "1977-09-17",
+      "nat": "Rusia",
+      "start": "2025-11-17",
+      "isPref": 1
+    },
+    "122": {
+      "name": "Fabio Ingolitsch",
+      "birth": "1992-04-10",
+      "nat": "Austria",
+      "start": "2026-01-01",
+      "isPref": 1
+    },
+    "130": {
+      "name": "Alberto Gilardino",
+      "birth": "1982-07-05",
+      "nat": "Italia",
+      "start": "2026-09-29",
+      "isPref": 1
+    },
+    "131": {
+      "name": "Hansi Flick",
+      "birth": "1965-02-24",
+      "nat": "Alemania",
+      "start": "2024-07-01",
+      "isPref": 1
+    },
+    "133": {
+      "name": "Johan Plat",
+      "birth": "1987-02-26",
+      "nat": "Reino de los Países Bajos",
+      "start": "2026-07-01",
+      "isPref": 1
+    },
+    "141": {
+      "name": "Okan Buruk",
+      "birth": "1973-10-19",
+      "nat": "Turquía",
+      "start": "2022-07-01",
+      "isPref": 1
+    },
+    "142": {
+      "name": "Emilio Larraz",
+      "birth": "1968-02-16",
+      "nat": "España",
+      "start": "2025-10-12",
+      "isPref": 1
+    },
+    "144": {
+      "name": "Víctor Sánchez del Amo",
+      "birth": "1976-02-23",
+      "nat": "España",
+      "start": "2025-09-03",
+      "isPref": 1
+    },
+    "148": {
+      "name": "Roberto De Zerbi",
+      "birth": "1979-06-06",
+      "nat": "Italia",
+      "start": "2026-03-31",
+      "isPref": 1
+    },
+    "150": {
+      "name": "Manuel Pellegrini",
+      "birth": "1953-09-16",
+      "nat": "Chile",
+      "start": "2020-08-01",
+      "isPref": 1
+    },
+    "156": {
+      "name": "Julio Velázquez",
+      "birth": "1981-10-05",
+      "nat": "España",
+      "start": "2025-01-05",
+      "isPref": 1
+    },
+    "157": {
+      "name": "Rik De Mil",
+      "birth": "1981-09-15",
+      "nat": "Bélgica",
+      "start": "2025-12-10",
+      "isPref": 1
+    },
+    "159": {
+      "name": "Dejan Stanković",
+      "birth": "1978-09-11",
+      "nat": "Serbia",
+      "start": "2025-12-22",
+      "isPref": 1
+    },
+    "162": {
+      "name": "Filipe Luís Kasmirski",
+      "birth": "1985-08-09",
+      "nat": "Brasil",
+      "start": "2026-07-06",
+      "isPref": 1
+    },
+    "163": {
+      "name": "Alessandro Mangiarratti",
+      "birth": "1978-09-15",
+      "nat": "Suiza",
+      "start": "2022-01-01",
+      "isPref": 1
+    },
+    "167": {
+      "name": "Manuel Baum",
+      "birth": "1979-08-30",
+      "nat": "Alemania",
+      "start": "2025-12-01",
+      "isPref": 1
+    },
+    "168": {
+      "name": "Leszek Ojrzyński",
+      "birth": "1972-05-31",
+      "nat": "Polonia",
+      "start": "2025-03-13",
+      "isPref": 1
+    },
+    "170": {
+      "name": "Johannes Hoff Thorup",
+      "birth": "1989-02-19",
+      "nat": "Reino de Dinamarca",
+      "start": "2026-01-01",
+      "isPref": 1
+    },
+    "173": {
+      "name": "Alexander Zorniger",
+      "birth": "1967-10-08",
+      "nat": "Alemania",
+      "start": "2025-07-01",
+      "isPref": 1
+    },
+    "184": {
+      "name": "Guillermo Salas",
+      "birth": "1974-10-21",
+      "nat": "Perú",
+      "start": "2022-09-11",
+      "isPref": 0
+    },
+    "189": {
+      "name": "Rodolfo Arruabarrena",
+      "birth": "1975-07-20",
+      "nat": "Argentina",
+      "start": "2026-07-01",
+      "isPref": 1
+    },
+    "190": {
+      "name": "Jacob Neestrup",
+      "birth": "1988-03-08",
+      "nat": "Reino de Dinamarca",
+      "start": "2022-09-20",
+      "isPref": 1
+    },
+    "192": {
+      "name": "Ruud Brood",
+      "birth": "1962-10-19",
+      "nat": "Reino de los Países Bajos",
+      "start": "",
+      "isPref": 0
+    },
+    "195": {
+      "name": "Alfred Johansson",
+      "birth": "1990-09-13",
+      "nat": "Suecia",
+      "start": "2024-01-01",
+      "isPref": 1
+    },
+    "199": {
+      "name": "Clarence Seedorf",
+      "birth": "1976-04-01",
+      "nat": "Reino de los Países Bajos",
+      "start": "2026-10-11",
+      "isPref": 1
+    },
+    "202": {
+      "name": "Dick Lukkien",
+      "birth": "1972-03-28",
+      "nat": "Reino de los Países Bajos",
+      "start": "2023-07-01",
+      "isPref": 1
+    },
+    "206": {
+      "name": "Steve Cooper",
+      "birth": "1979-12-10",
+      "nat": "Reino Unido",
+      "start": "2025-09-09",
+      "isPref": 1
+    },
+    "208": {
+      "name": "Hristo Yanev",
+      "birth": "1979-05-04",
+      "nat": "Bulgaria",
+      "start": "2025-09-24",
+      "isPref": 1
+    },
+    "209": {
+      "name": "Leonardo Ponzio",
+      "birth": "1982-01-29",
+      "nat": "Argentina",
+      "start": "2026-08-27",
+      "isPref": 1
+    },
+    "210": {
+      "name": "Luís Castro",
+      "birth": "1961-09-03",
+      "nat": "Portugal",
+      "start": "2025-12-12",
+      "isPref": 1
+    },
+    "218": {
+      "name": "Bruce Arena",
+      "birth": "1951-09-21",
+      "nat": "Estados Unidos",
+      "start": "2024-11-08",
+      "isPref": 1
+    },
+    "221": {
+      "name": "Alexi Stival",
+      "birth": "1963-06-07",
+      "nat": "Brasil",
+      "start": "2026-03-19",
+      "isPref": 1
+    },
+    "232": {
+      "name": "Juan Carlos Carcedo Mardones",
+      "birth": "1973-08-19",
+      "nat": "España",
+      "start": "2026-01-05",
+      "isPref": 1
+    },
+    "234": {
+      "name": "Giovanni van Bronckhorst",
+      "birth": "1975-02-05",
+      "nat": "Reino de los Países Bajos",
+      "start": "2026-06-17",
+      "isPref": 1
+    },
+    "237": {
+      "name": "Luis García Fernández",
+      "birth": "1981-02-06",
+      "nat": "España",
+      "start": "2026-06-01",
+      "isPref": 1
+    },
+    "238": {
+      "name": "Niels Frederiksen",
+      "birth": "1970-11-05",
+      "nat": "Reino de Dinamarca",
+      "start": "2024-07-01",
+      "isPref": 1
+    },
+    "239": {
+      "name": "Bjarte Lunde Aarsheim",
+      "birth": "1975-01-14",
+      "nat": "Noruega",
+      "start": "2021-01-01",
+      "isPref": 1
+    },
+    "244": {
+      "name": "Bruno Génésio",
+      "birth": "1966-09-01",
+      "nat": "Francia",
+      "start": "2026-07-01",
+      "isPref": 1
+    },
+    "252": {
+      "name": "Daniele De Rossi",
+      "birth": "1983-07-24",
+      "nat": "Italia",
+      "start": "2025-11-06",
+      "isPref": 1
+    },
+    "253": {
+      "name": "Dirk Schuster",
+      "birth": "1967-12-29",
+      "nat": "Alemania",
+      "start": "2025-02-10",
+      "isPref": 1
+    },
+    "255": {
+      "name": "Marek Papszun",
+      "birth": "1974-08-08",
+      "nat": "",
+      "start": "2025-12-19",
+      "isPref": 1
+    },
+    "257": {
+      "name": "Enrico Maaßen",
+      "birth": "1984-03-10",
+      "nat": "Alemania Oriental",
+      "start": "2024-07-01",
+      "isPref": 1
+    },
+    "260": {
+      "name": "Dennis Hediger",
+      "birth": "1986-09-22",
+      "nat": "Suiza",
+      "start": "2025-10-23",
+      "isPref": 1
+    },
+    "265": {
+      "name": "Jacob Neestrup",
+      "birth": "1988-03-08",
+      "nat": "Reino de Dinamarca",
+      "start": "2026-07-01",
+      "isPref": 1
+    },
+    "266": {
+      "name": "Mario Despotović",
+      "birth": "1985-01-24",
+      "nat": "",
+      "start": "2026-06-15",
+      "isPref": 1
+    },
+    "267": {
+      "name": "Azar Karadas",
+      "birth": "1981-08-09",
+      "nat": "Noruega",
+      "start": "2024-02-08",
+      "isPref": 1
+    },
+    "272": {
+      "name": "Mikkjal Thomassen",
+      "birth": "1976-01-12",
+      "nat": "Reino de Dinamarca",
+      "start": "2024-07-17",
+      "isPref": 1
+    },
+    "273": {
+      "name": "Franck Haise",
+      "birth": "1971-04-15",
+      "nat": "Francia",
+      "start": "2026-02-18",
+      "isPref": 1
+    },
+    "276": {
+      "name": "Paolo Sammarco",
+      "birth": "1983-03-17",
+      "nat": "Italia",
+      "start": "2026-02-03",
+      "isPref": 1
+    },
+    "279": {
+      "name": "Robbie Keane",
+      "birth": "1980-07-08",
+      "nat": "Irlanda",
+      "start": "2025-01-06",
+      "isPref": 1
+    },
+    "281": {
+      "name": "Enzo Maresca",
+      "birth": "1980-02-10",
+      "nat": "Italia",
+      "start": "2026-06-29",
+      "isPref": 1
+    },
+    "288": {
+      "name": "Eduardo Domínguez",
+      "birth": "1978-09-01",
+      "nat": "Argentina",
+      "start": "2023-03-07",
+      "isPref": 1
+    },
+    "289": {
+      "name": "Régis Le Bris",
+      "birth": "1975-12-06",
+      "nat": "Francia",
+      "start": "2024-07-01",
+      "isPref": 1
+    },
+    "290": {
+      "name": "William Still",
+      "birth": "1992-10-14",
+      "nat": "Bélgica",
+      "start": "2026-06-12",
+      "isPref": 1
+    },
+    "294": {
+      "name": "Marco Silva",
+      "birth": "1977-07-12",
+      "nat": "Portugal",
+      "start": "2026-06-10",
+      "isPref": 1
+    },
+    "301": {
+      "name": "Laurențiu Reghecampf",
+      "birth": "1975-09-19",
+      "nat": "Rumania",
+      "start": "2026-09-24",
+      "isPref": 1
+    },
+    "306": {
+      "name": "Robin Veldman",
+      "birth": "1985-12-24",
+      "nat": "Reino de los Países Bajos",
+      "start": "2025-03-21",
+      "isPref": 1
+    },
+    "312": {
+      "name": "Nuno Campos",
+      "birth": "1975-04-20",
+      "nat": "Portugal",
+      "start": "2026-06-06",
+      "isPref": 1
+    },
+    "317": {
+      "name": "John van den Brom",
+      "birth": "1966-10-04",
+      "nat": "Reino de los Países Bajos",
+      "start": "2025-09-15",
+      "isPref": 1
+    },
+    "318": {
+      "name": "Janusz Niedźwiedź",
+      "birth": "1982-01-23",
+      "nat": "Polonia",
+      "start": "2023-12-29",
+      "isPref": 1
+    },
+    "321": {
+      "name": "Didier Tholot",
+      "birth": "1964-04-02",
+      "nat": "Francia",
+      "start": "2023-07-01",
+      "isPref": 1
+    },
+    "324": {
+      "name": "Óscar García Junyent",
+      "birth": "1973-04-26",
+      "nat": "España",
+      "start": "2026-06-23",
+      "isPref": 1
+    },
+    "327": {
+      "name": "Tomislav Radotić",
+      "birth": "1981-12-13",
+      "nat": "Croacia",
+      "start": "2026-02-24",
+      "isPref": 0
+    },
+    "329": {
+      "name": "Pablo Doffo",
+      "birth": "1983-03-06",
+      "nat": "Argentina",
+      "start": "2026-01-07",
+      "isPref": 1
+    },
+    "330": {
+      "name": "Jorge Sampaoli",
+      "birth": "1960-03-13",
+      "nat": "Argentina",
+      "start": "2025-09-02",
+      "isPref": 1
+    },
+    "331": {
+      "name": "Jagoba Arrasate",
+      "birth": "1978-04-22",
+      "nat": "España",
+      "start": "2026-10-12",
+      "isPref": 1
+    },
+    "332": {
+      "name": "Fabio Caserta",
+      "birth": "1978-09-24",
+      "nat": "Italia",
+      "start": "2025-06-18",
+      "isPref": 1
+    },
+    "333": {
+      "name": "Mauricio Pellegrino",
+      "birth": "1971-10-05",
+      "nat": "Argentina",
+      "start": "",
+      "isPref": 0
+    },
+    "336": {
+      "name": "Paulo Fonseca",
+      "birth": "1973-03-05",
+      "nat": "Portugal",
+      "start": "2026-11-04",
+      "isPref": 1
+    },
+    "338": {
+      "name": "Ihor Kostyuk",
+      "birth": "1975-09-14",
+      "nat": "Ucrania",
+      "start": "2025-11-27",
+      "isPref": 1
+    },
+    "347": {
+      "name": "Luc Holtz",
+      "birth": "1969-06-14",
+      "nat": "Luxemburgo",
+      "start": "2026-06-05",
+      "isPref": 1
+    },
+    "353": {
+      "name": "Hans Erik Ødegaard",
+      "birth": "1974-01-20",
+      "nat": "Noruega",
+      "start": "2025-01-01",
+      "isPref": 1
+    },
+    "354": {
+      "name": "Frederik Vanderbiest",
+      "birth": "1977-10-10",
+      "nat": "Bélgica",
+      "start": "2025-03-04",
+      "isPref": 1
+    },
+    "365": {
+      "name": "Antonio Muñoz",
+      "birth": "1989-09-23",
+      "nat": "España",
+      "start": "2026-01-05",
+      "isPref": 1
+    },
+    "366": {
+      "name": "Fran Escribá",
+      "birth": "1965-05-03",
+      "nat": "España",
+      "start": "2026-02-16",
+      "isPref": 1
+    },
+    "367": {
+      "name": "Beñat San José",
+      "birth": "1979-09-24",
+      "nat": "España",
+      "start": "2026-06-18",
+      "isPref": 1
+    },
+    "368": {
+      "name": "Luis García Plaza",
+      "birth": "1972-12-01",
+      "nat": "España",
+      "start": "2026-03-25",
+      "isPref": 1
+    },
+    "377": {
+      "name": "Roman Skuhravý",
+      "birth": "1975-01-06",
+      "nat": "República Checa",
+      "start": "2026-06-10",
+      "isPref": 1
+    },
+    "379": {
+      "name": "Scott Parker",
+      "birth": "1980-10-13",
+      "nat": "Reino Unido",
+      "start": "2026-11-04",
+      "isPref": 1
+    },
+    "383": {
+      "name": "Peter Bosz",
+      "birth": "1963-11-21",
+      "nat": "Reino de los Países Bajos",
+      "start": "2023-07-01",
+      "isPref": 1
+    },
+    "398": {
+      "name": "Gennaro Gattuso",
+      "birth": "1978-01-09",
+      "nat": "Italia",
+      "start": "2026-06-23",
+      "isPref": 1
+    },
+    "403": {
+      "name": "Jurgen Streppel",
+      "birth": "1969-06-25",
+      "nat": "Reino de los Países Bajos",
+      "start": "2026-10-28",
+      "isPref": 1
+    },
+    "405": {
+      "name": "Unai Emery",
+      "birth": "1971-11-03",
+      "nat": "España",
+      "start": "2022-11-01",
+      "isPref": 1
+    },
+    "409": {
+      "name": "Danny Röhl",
+      "birth": "1989-04-28",
+      "nat": "Alemania",
+      "start": "2026-06-17",
+      "isPref": 1
+    },
+    "410": {
+      "name": "Paolo Zanetti",
+      "birth": "1982-12-16",
+      "nat": "Italia",
+      "start": "2026-11-02",
+      "isPref": 1
+    },
+    "415": {
+      "name": "Jens Berthel Askou",
+      "birth": "1982-08-19",
+      "nat": "Reino de Dinamarca",
+      "start": "2026-05-21",
+      "isPref": 1
+    },
+    "416": {
+      "name": "Ignazio Abate",
+      "birth": "1986-11-12",
+      "nat": "Italia",
+      "start": "2026-06-12",
+      "isPref": 1
+    },
+    "417": {
+      "name": "Olivier Pantaloni",
+      "birth": "1966-12-13",
+      "nat": "Francia",
+      "start": "2026-06-17",
+      "isPref": 1
+    },
+    "418": {
+      "name": "José Mourinho",
+      "birth": "1963-01-26",
+      "nat": "Portugal",
+      "start": "2026-01-01",
+      "isPref": 1
+    },
+    "419": {
+      "name": "Mario Kovačević",
+      "birth": "1975-05-17",
+      "nat": "Croacia",
+      "start": "2025-06-04",
+      "isPref": 1
+    },
+    "422": {
+      "name": "Mariusz Jop",
+      "birth": "1978-08-03",
+      "nat": "Polonia",
+      "start": "2024-09-24",
+      "isPref": 1
+    },
+    "428": {
+      "name": "Michal Gašparík",
+      "birth": "1981-12-19",
+      "nat": "Eslovaquia",
+      "start": "2025-07-01",
+      "isPref": 1
+    },
+    "429": {
+      "name": "Hernán Losada",
+      "birth": "1982-05-09",
+      "nat": "Argentina",
+      "start": "2025-12-18",
+      "isPref": 1
+    },
+    "430": {
+      "name": "Paolo Vanoli",
+      "birth": "1972-08-12",
+      "nat": "Italia",
+      "start": "2026-09-07",
+      "isPref": 1
+    },
+    "432": {
+      "name": "Gregg Berhalter",
+      "birth": "1973-08-01",
+      "nat": "Estados Unidos",
+      "start": "2024-10-08",
+      "isPref": 1
+    },
+    "433": {
+      "name": "Zoran Zeljkovič",
+      "birth": "1980-05-09",
+      "nat": "Eslovenia",
+      "start": "2025-10-09",
+      "isPref": 1
+    },
+    "434": {
+      "name": "Mario Frick",
+      "birth": "1974-09-07",
+      "nat": "Liechtenstein",
+      "start": "2021-12-21",
+      "isPref": 1
+    },
+    "447": {
+      "name": "Gonzalo García García",
+      "birth": "1983-10-13",
+      "nat": "Uruguay",
+      "start": "2025-07-01",
+      "isPref": 1
+    },
+    "448": {
+      "name": "Marko Savić",
+      "birth": "1984-07-19",
+      "nat": "Serbia",
+      "start": "2026-07-28",
+      "isPref": 1
+    },
+    "449": {
+      "name": "Thomas Reis",
+      "birth": "1973-10-04",
+      "nat": "Alemania",
+      "start": "2026-09-17",
+      "isPref": 1
+    },
+    "450": {
+      "name": "Pavel Šustr",
+      "birth": "1974-10-13",
+      "nat": "República Checa",
+      "start": "2026-02-12",
+      "isPref": 1
+    },
+    "452": {
+      "name": "Gerardo Seoane",
+      "birth": "1978-10-30",
+      "nat": "Suiza",
+      "start": "2025-10-31",
+      "isPref": 1
+    },
+    "456": {
+      "name": "Silvijo Čabraja",
+      "birth": "1968-01-01",
+      "nat": "",
+      "start": "2025-09-22",
+      "isPref": 1
+    },
+    "458": {
+      "name": "Filippo Inzaghi",
+      "birth": "1973-08-09",
+      "nat": "Italia",
+      "start": "2025-06-17",
+      "isPref": 1
+    },
+    "467": {
+      "name": "Dick Schreuder",
+      "birth": "1971-08-12",
+      "nat": "Reino de los Países Bajos",
+      "start": "2025-07-01",
+      "isPref": 1
+    },
+    "472": {
+      "name": "Luis García Fernández",
+      "birth": "1981-02-06",
+      "nat": "España",
+      "start": "2025-07-01",
+      "isPref": 1
+    },
+    "475": {
+      "name": "Frédéric de Meyer",
+      "birth": "1982-04-13",
+      "nat": "",
+      "start": "2026-07-01",
+      "isPref": 1
+    },
+    "496": {
+      "name": "Gaute Helstrup",
+      "birth": "1976-05-15",
+      "nat": "Noruega",
+      "start": "2026-06-30",
+      "isPref": 1
+    },
+    "499": {
+      "name": "John van den Brom",
+      "birth": "1966-10-04",
+      "nat": "Reino de los Países Bajos",
+      "start": "2024-07-01",
+      "isPref": 1
+    },
+    "501": {
+      "name": "Kjetil Knutsen",
+      "birth": "1968-10-02",
+      "nat": "Noruega",
+      "start": "2018-01-01",
+      "isPref": 1
+    },
+    "502": {
+      "name": "Maxwell Konadu",
+      "birth": "1972-12-04",
+      "nat": "Ghana",
+      "start": "",
+      "isPref": 0
+    },
+    "504": {
+      "name": "Gerald Scheiblehner",
+      "birth": "1977-02-25",
+      "nat": "Austria",
+      "start": "2025-07-01",
+      "isPref": 1
+    },
+    "506": {
+      "name": "Luciano Spalletti",
+      "birth": "1959-03-07",
+      "nat": "Italia",
+      "start": "2025-10-30",
+      "isPref": 1
+    },
+    "531": {
+      "name": "Leonardo Alberto González",
+      "birth": "1972-07-14",
+      "nat": "Venezuela",
+      "start": "",
+      "isPref": 0
+    },
+    "533": {
+      "name": "Christian Ilzer",
+      "birth": "1977-10-21",
+      "nat": "Austria",
+      "start": "2024-11-15",
+      "isPref": 1
+    },
+    "537": {
+      "name": "Rodrigo Bellão",
+      "birth": "1987-02-20",
+      "nat": "Brasil",
+      "start": "2026-08-19",
+      "isPref": 1
+    },
+    "540": {
+      "name": "Yaya Touré",
+      "birth": "1983-05-13",
+      "nat": "Costa de Marfil",
+      "start": "2026-06-13",
+      "isPref": 1
+    },
+    "543": {
+      "name": "César Peixoto",
+      "birth": "1980-05-12",
+      "nat": "Portugal",
+      "start": "2026-06-15",
+      "isPref": 1
+    },
+    "568": {
+      "name": "Steve Komphela",
+      "birth": "1967-05-24",
+      "nat": "Sudáfrica",
+      "start": "",
+      "isPref": 0
+    },
+    "583": {
+      "name": "Luis Enrique Martínez García",
+      "birth": "1970-05-08",
+      "nat": "España",
+      "start": "2023-07-05",
+      "isPref": 1
+    },
+    "585": {
+      "name": "Dorival Júnior",
+      "birth": "1962-04-25",
+      "nat": "Brasil",
+      "start": "2026-05-15",
+      "isPref": 1
+    },
+    "589": {
+      "name": "Sami Uğurlu",
+      "birth": "1978-04-27",
+      "nat": "Turquía",
+      "start": "2026-01-02",
+      "isPref": 1
+    },
+    "596": {
+      "name": "Levir Culpi",
+      "birth": "1953-02-28",
+      "nat": "Brasil",
+      "start": "",
+      "isPref": 0
+    },
+    "599": {
+      "name": "Nikola Šafarić",
+      "birth": "1981-03-11",
+      "nat": "Croacia",
+      "start": "2023-12-08",
+      "isPref": 1
+    },
+    "601": {
+      "name": "Michiel Jonckheere",
+      "birth": "1990-01-03",
+      "nat": "Bélgica",
+      "start": "2025-07-01",
+      "isPref": 1
+    },
+    "602": {
+      "name": "Rolandas Džiaukštas",
+      "birth": "1978-04-01",
+      "nat": "Lituania",
+      "start": "2025-09-01",
+      "isPref": 1
+    },
+    "605": {
+      "name": "Michalis Grigoriou",
+      "birth": "1973-12-19",
+      "nat": "Grecia",
+      "start": "2026-02-26",
+      "isPref": 1
+    },
+    "607": {
+      "name": "Davide Nicola",
+      "birth": "1973-03-05",
+      "nat": "Italia",
+      "start": "2026-10-14",
+      "isPref": 1
+    },
+    "610": {
+      "name": "Miguel Ángel Sánchez Muñoz",
+      "birth": "1975-10-30",
+      "nat": "España",
+      "start": "2026-07-01",
+      "isPref": 1
+    },
+    "621": {
+      "name": "Edin Terzić",
+      "birth": "1982-10-30",
+      "nat": "Alemania",
+      "start": "2026-05-01",
+      "isPref": 1
+    },
+    "623": {
+      "name": "Michael Bradley",
+      "birth": "1987-07-31",
+      "nat": "Estados Unidos",
+      "start": "2025-12-15",
+      "isPref": 1
+    },
+    "629": {
+      "name": "Ever Hugo Almeida",
+      "birth": "1948-07-01",
+      "nat": "Uruguay",
+      "start": "2025-08-27",
+      "isPref": 1
+    },
+    "630": {
+      "name": "José Alberto López Menéndez",
+      "birth": "1982-05-21",
+      "nat": "España",
+      "start": "2022-12-13",
+      "isPref": 1
+    },
+    "631": {
+      "name": "Xabi Alonso",
+      "birth": "1981-11-25",
+      "nat": "España",
+      "start": "2026-07-01",
+      "isPref": 1
+    },
+    "642": {
+      "name": "Mike Snoei",
+      "birth": "1963-12-04",
+      "nat": "Reino de los Países Bajos",
+      "start": "2019-07-01",
+      "isPref": 1
+    },
+    "645": {
+      "name": "Yemi Daniel Olanrewaju",
+      "birth": "1992-05-02",
+      "nat": "",
+      "start": "",
+      "isPref": 0
+    },
+    "653": {
+      "name": "Christos Kontis",
+      "birth": "1975-05-13",
+      "nat": "Grecia",
+      "start": "2025-10-29",
+      "isPref": 1
+    },
+    "660": {
+      "name": "Arda Turan",
+      "birth": "1987-01-30",
+      "nat": "Turquía",
+      "start": "2025-05-27",
+      "isPref": 1
+    },
+    "663": {
+      "name": "Vladimir Kakashvili",
+      "birth": "1980-09-04",
+      "nat": "Georgia",
+      "start": "2024-12-19",
+      "isPref": 1
+    },
+    "664": {
+      "name": "José Manuel Gomes",
+      "birth": "1970-08-28",
+      "nat": "Portugal",
+      "start": "2024-02-02",
+      "isPref": 1
+    },
+    "667": {
+      "name": "Vítor Matos",
+      "birth": "1988-03-28",
+      "nat": "",
+      "start": "2026-11-18",
+      "isPref": 1
+    },
+    "669": {
+      "name": "Saša Ilić",
+      "birth": "1977-12-30",
+      "nat": "Serbia",
+      "start": "2026-01-01",
+      "isPref": 1
+    },
+    "675": {
+      "name": "Ratko Dostanić",
+      "birth": "1959-10-25",
+      "nat": "Serbia",
+      "start": "2025-10-12",
+      "isPref": 1
+    },
+    "678": {
+      "name": "Jakob Poulsen",
+      "birth": "1983-07-07",
+      "nat": "Reino de Dinamarca",
+      "start": "2025-07-01",
+      "isPref": 1
+    },
+    "681": {
+      "name": "Pellegrino Matarazzo",
+      "birth": "1977-11-28",
+      "nat": "Estados Unidos",
+      "start": "2025-12-20",
+      "isPref": 1
+    },
+    "683": {
+      "name": "Imanol Alguacil",
+      "birth": "1971-07-04",
+      "nat": "España",
+      "start": "2026-09-10",
+      "isPref": 1
+    },
+    "687": {
+      "name": "Martin Falk",
+      "birth": "1995-03-28",
+      "nat": "Suecia",
+      "start": "2026-01-01",
+      "isPref": 1
+    },
+    "697": {
+      "name": "Branislav Fodrek",
+      "birth": "1981-02-05",
+      "nat": "Eslovaquia",
+      "start": "2026-06-01",
+      "isPref": 1
+    },
+    "699": {
+      "name": "Klebér Saarenpää",
+      "birth": "1975-12-14",
+      "nat": "Suecia",
+      "start": "2024-01-01",
+      "isPref": 1
+    },
+    "703": {
+      "name": "Oliver Glasner",
+      "birth": "1974-08-28",
+      "nat": "Austria",
+      "start": "2026-07-06",
+      "isPref": 1
+    },
+    "708": {
+      "name": "Zoltán Szélesi",
+      "birth": "1981-11-22",
+      "nat": "Hungría",
+      "start": "2025-12-31",
+      "isPref": 1
+    },
+    "709": {
+      "name": "Tam Courts",
+      "birth": "1981-08-10",
+      "nat": "Reino Unido",
+      "start": "2022-06-15",
+      "isPref": 1
+    },
+    "710": {
+      "name": "Vítor Campelos",
+      "birth": "1975-05-11",
+      "nat": "Portugal",
+      "start": "2026-03-13",
+      "isPref": 1
+    },
+    "713": {
+      "name": "Artyom Kulikov",
+      "birth": "1980-01-30",
+      "nat": "Rusia",
+      "start": "2026-10-20",
+      "isPref": 1
+    },
+    "714": {
+      "name": "Eder Sarabia",
+      "birth": "1980-09-27",
+      "nat": "España",
+      "start": "2026-10-28",
+      "isPref": 1
+    },
+    "715": {
+      "name": "Jaroslav Veselý",
+      "birth": "1977-08-08",
+      "nat": "República Checa",
+      "start": "2022-03-21",
+      "isPref": 1
+    },
+    "720": {
+      "name": "Francesco Farioli",
+      "birth": "1989-04-10",
+      "nat": "Italia",
+      "start": "2025-07-06",
+      "isPref": 1
+    },
+    "730": {
+      "name": "Stanislav Genchev",
+      "birth": "1981-03-20",
+      "nat": "Bulgaria",
+      "start": "2025-05-30",
+      "isPref": 1
+    },
+    "738": {
+      "name": "Valérien Ismaël",
+      "birth": "1975-09-28",
+      "nat": "Francia",
+      "start": "2026-11-12",
+      "isPref": 1
+    },
+    "749": {
+      "name": "Matteo Andreoletti",
+      "birth": "1989-01-30",
+      "nat": "Italia",
+      "start": "2026-09-30",
+      "isPref": 1
+    },
+    "759": {
+      "name": "Ante Šimundža",
+      "birth": "1971-09-28",
+      "nat": "República Federativa Socialista de Yugoslavia",
+      "start": "2024-12-24",
+      "isPref": 1
+    },
+    "762": {
+      "name": "Matthias Jaissle",
+      "birth": "1988-04-05",
+      "nat": "Alemania",
+      "start": "2026-08-05",
+      "isPref": 1
+    },
+    "788": {
+      "name": "Nikola Drinčić",
+      "birth": "1984-09-07",
+      "nat": "Montenegro",
+      "start": "2025-12-26",
+      "isPref": 1
+    },
+    "789": {
+      "name": "Almir Sulejmanović",
+      "birth": "1978-01-26",
+      "nat": "Eslovenia",
+      "start": "2020-07-29",
+      "isPref": 1
+    },
+    "790": {
+      "name": "Feđa Dudić",
+      "birth": "1983-02-01",
+      "nat": "Bosnia y Herzegovina",
+      "start": "2025-10-01",
+      "isPref": 1
+    },
+    "798": {
+      "name": "Ruben den Uil",
+      "birth": "1991-02-03",
+      "nat": "Reino de los Países Bajos",
+      "start": "2024-07-01",
+      "isPref": 1
+    },
+    "800": {
+      "name": "Maurizio Sarri",
+      "birth": "1959-01-10",
+      "nat": "Italia",
+      "start": "2026-06-15",
+      "isPref": 1
+    },
+    "801": {
+      "name": "Stefan Billborn",
+      "birth": "1972-11-15",
+      "nat": "Suecia",
+      "start": "2024-06-25",
+      "isPref": 1
+    },
+    "810": {
+      "name": "Haim Silvas",
+      "birth": "1975-11-21",
+      "nat": "Israel",
+      "start": "2026-01-26",
+      "isPref": 1
+    },
+    "814": {
+      "name": "Zdenko Frťala",
+      "birth": "1970-08-03",
+      "nat": "Eslovaquia",
+      "start": "2023-03-06",
+      "isPref": 1
+    },
+    "826": {
+      "name": "Didier Digard",
+      "birth": "1986-07-12",
+      "nat": "Francia",
+      "start": "2026-11-13",
+      "isPref": 1
+    },
+    "828": {
+      "name": "Tsuyoshi Otsuki",
+      "birth": "1972-12-01",
+      "nat": "Japón",
+      "start": "2019-01-01",
+      "isPref": 0
+    },
+    "829": {
+      "name": "Henning Berg",
+      "birth": "1969-09-01",
+      "nat": "Noruega",
+      "start": "2025-07-01",
+      "isPref": 1
+    },
+    "830": {
+      "name": "Javier Sanguinetti",
+      "birth": "1971-01-08",
+      "nat": "Argentina",
+      "start": "",
+      "isPref": 0
+    },
+    "840": {
+      "name": "Bojan Markovski",
+      "birth": "1983-08-08",
+      "nat": "Macedonia del Norte",
+      "start": "2025-12-29",
+      "isPref": 1
+    },
+    "861": {
+      "name": "Diego Forlán",
+      "birth": "1979-05-19",
+      "nat": "España",
+      "start": "2019-12-20",
+      "isPref": 0
+    },
+    "865": {
+      "name": "Mike Tullberg",
+      "birth": "1985-12-25",
+      "nat": "Reino de Dinamarca",
+      "start": "2025-09-02",
+      "isPref": 1
+    },
+    "866": {
+      "name": "Jadson Viera Castro",
+      "birth": "1981-08-04",
+      "nat": "Brasil",
+      "start": "2025-10-28",
+      "isPref": 1
+    },
+    "873": {
+      "name": "Thomas Frank",
+      "birth": "1973-10-09",
+      "nat": "Reino de Dinamarca",
+      "start": "2026-11-16",
+      "isPref": 1
+    },
+    "875": {
+      "name": "Guillermo Amor",
+      "birth": "1967-12-04",
+      "nat": "España",
+      "start": "",
+      "isPref": 0
+    },
+    "897": {
+      "name": "Antonio Hidalgo Morilla",
+      "birth": "1979-02-06",
+      "nat": "España",
+      "start": "2025-06-10",
+      "isPref": 1
+    },
+    "924": {
+      "name": "Osman Zeki Korkmaz",
+      "birth": "1982-05-02",
+      "nat": "Turquía",
+      "start": "2024-01-19",
+      "isPref": 1
+    },
+    "932": {
+      "name": "Mikhail Galaktionov",
+      "birth": "1984-05-21",
+      "nat": "Rusia",
+      "start": "2022-11-13",
+      "isPref": 1
+    },
+    "937": {
+      "name": "Tadahiro Akiba",
+      "birth": "1975-10-13",
+      "nat": "Japón",
+      "start": "2026-01-01",
+      "isPref": 0
+    },
+    "938": {
+      "name": "Mauro Lustrinelli",
+      "birth": "1976-02-26",
+      "nat": "Suiza",
+      "start": "2022-07-01",
+      "isPref": 1
+    },
+    "940": {
+      "name": "Claudio Giráldez González",
+      "birth": "1988-02-24",
+      "nat": "España",
+      "start": "2024-03-12",
+      "isPref": 1
+    },
+    "941": {
+      "name": "Radoslav Kováč",
+      "birth": "1979-11-27",
+      "nat": "República Checa",
+      "start": "2026-08-23",
+      "isPref": 1
+    },
+    "964": {
+      "name": "Serguéi Semak",
+      "birth": "1976-02-27",
+      "nat": "Rusia",
+      "start": "2018-05-29",
+      "isPref": 1
+    },
+    "967": {
+      "name": "Ilian Iliev",
+      "birth": "1968-07-02",
+      "nat": "Bulgaria",
+      "start": "2017-12-28",
+      "isPref": 1
+    },
+    "968": {
+      "name": "Issame Charaï",
+      "birth": "1982-05-11",
+      "nat": "Bélgica",
+      "start": "2025-07-01",
+      "isPref": 1
+    },
+    "970": {
+      "name": "Kenny Lowe",
+      "birth": "1961-11-06",
+      "nat": "Reino Unido",
+      "start": "",
+      "isPref": 0
+    },
+    "978": {
+      "name": "Fábio Carille",
+      "birth": "1973-09-26",
+      "nat": "Brasil",
+      "start": "2024-12-19",
+      "isPref": 1
+    },
+    "979": {
+      "name": "Vasco Botelho da Costa",
+      "birth": "1989-03-02",
+      "nat": "Portugal",
+      "start": "2025-07-01",
+      "isPref": 1
+    },
+    "982": {
+      "name": "Alexander Santos",
+      "birth": "1976-01-01",
+      "nat": "Portugal",
+      "start": "2026-09-08",
+      "isPref": 1
+    },
+    "985": {
+      "name": "Mauricio Pochettino",
+      "birth": "1972-03-02",
+      "nat": "España",
+      "start": "2026-11-18",
+      "isPref": 1
+    },
+    "989": {
+      "name": "Marco Rose",
+      "birth": "1976-09-11",
+      "nat": "Alemania",
+      "start": "2026-06-03",
+      "isPref": 1
+    },
+    "993": {
+      "name": "Iván Ania",
+      "birth": "1977-10-24",
+      "nat": "España",
+      "start": "2023-07-01",
+      "isPref": 1
+    },
+    "995": {
+      "name": "Grégory Poirier",
+      "birth": "1982-07-09",
+      "nat": "Francia",
+      "start": "2026-08-25",
+      "isPref": 1
+    },
+    "999": {
+      "name": "Oriol Riera",
+      "birth": "1986-07-03",
+      "nat": "España",
+      "start": "2025-09-18",
+      "isPref": 1
+    },
+    "1002": {
+      "name": "Konstantin Vassiljev",
+      "birth": "1984-08-16",
+      "nat": "Estonia",
+      "start": "2024-11-25",
+      "isPref": 1
+    },
+    "1005": {
+      "name": "Eusebio Di Francesco",
+      "birth": "1968-01-01",
+      "nat": "Italia",
+      "start": "2025-06-26",
+      "isPref": 1
+    },
+    "1008": {
+      "name": "Toni Korkeakunnas",
+      "birth": "1968-05-15",
+      "nat": "Finlandia",
+      "start": "2024-05-21",
+      "isPref": 1
+    },
+    "1011": {
+      "name": "Johan Lindholm",
+      "birth": "1988-03-18",
+      "nat": "Suecia",
+      "start": "2024-08-28",
+      "isPref": 1
+    },
+    "1017": {
+      "name": "Elyaniv Barda",
+      "birth": "1981-12-15",
+      "nat": "Israel",
+      "start": "2024-12-10",
+      "isPref": 0
+    },
+    "1023": {
+      "name": "Abel Ferreira",
+      "birth": "1978-12-22",
+      "nat": "Portugal",
+      "start": "2020-11-04",
+      "isPref": 0
+    },
+    "1025": {
+      "name": "Raffaele Palladino",
+      "birth": "1984-04-17",
+      "nat": "Italia",
+      "start": "2026-09-16",
+      "isPref": 1
+    },
+    "1029": {
+      "name": "Gabriel Heinze",
+      "birth": "1978-04-19",
+      "nat": "Italia",
+      "start": "",
+      "isPref": 0
+    },
+    "1030": {
+      "name": "Gabriel Milito",
+      "birth": "1980-09-07",
+      "nat": "Argentina",
+      "start": "",
+      "isPref": 0
+    },
+    "1033": {
+      "name": "Srdjan Tufegdzic",
+      "birth": "1980-04-06",
+      "nat": "Serbia",
+      "start": "2024-08-02",
+      "isPref": 1
+    },
+    "1038": {
+      "name": "Luca D'Angelo",
+      "birth": "1971-07-26",
+      "nat": "Italia",
+      "start": "2026-10-22",
+      "isPref": 1
+    },
+    "1041": {
+      "name": "Carlos Vicens",
+      "birth": "1983-02-12",
+      "nat": "España",
+      "start": "2026-11-09",
+      "isPref": 1
+    },
+    "1043": {
+      "name": "Tamaz Pertia",
+      "birth": "1974-12-23",
+      "nat": "Georgia",
+      "start": "",
+      "isPref": 0
+    },
+    "1044": {
+      "name": "Jani Honkavaara",
+      "birth": "1976-02-02",
+      "nat": "Finlandia",
+      "start": "2025-01-01",
+      "isPref": 1
+    },
+    "1047": {
+      "name": "Cesc Fàbregas",
+      "birth": "1987-05-04",
+      "nat": "España",
+      "start": "2024-07-19",
+      "isPref": 1
+    },
+    "1049": {
+      "name": "Javier Aguirre",
+      "birth": "1958-12-01",
+      "nat": "México",
+      "start": "2026-09-23",
+      "isPref": 1
+    },
+    "1050": {
+      "name": "Iñigo Pérez",
+      "birth": "1988-01-18",
+      "nat": "España",
+      "start": "2026-06-01",
+      "isPref": 1
+    },
+    "1053": {
+      "name": "Steffen Højer",
+      "birth": "1973-05-22",
+      "nat": "Reino de Dinamarca",
+      "start": "2025-07-29",
+      "isPref": 1
+    },
+    "1056": {
+      "name": "Axel Kjäll",
+      "birth": "1981-06-01",
+      "nat": "Suecia",
+      "start": "2017-01-01",
+      "isPref": 1
+    },
+    "1058": {
+      "name": "Knut Rønningene",
+      "birth": "1987-01-05",
+      "nat": "Noruega",
+      "start": "2024-11-13",
+      "isPref": 1
+    },
+    "1059": {
+      "name": "Kim Hellberg",
+      "birth": "1988-02-01",
+      "nat": "Suecia",
+      "start": "2024-01-01",
+      "isPref": 1
+    },
+    "1061": {
+      "name": "Greg Vanney",
+      "birth": "1974-06-11",
+      "nat": "Estados Unidos",
+      "start": "2021-01-05",
+      "isPref": 1
+    },
+    "1063": {
+      "name": "Nickolai Lund",
+      "birth": "1988-05-28",
+      "nat": "Reino de Dinamarca",
+      "start": "2025-07-01",
+      "isPref": 1
+    },
+    "1064": {
+      "name": "posición no ocupada",
+      "birth": "",
+      "nat": "",
+      "start": "",
+      "isPref": 1
+    },
+    "1066": {
+      "name": "Kenta Hasegawa",
+      "birth": "1965-09-25",
+      "nat": "Japón",
+      "start": "",
+      "isPref": 0
+    },
+    "1075": {
+      "name": "Carlos Vicens",
+      "birth": "1983-02-12",
+      "nat": "España",
+      "start": "2025-07-01",
+      "isPref": 1
+    },
+    "1076": {
+      "name": "Farhad Majidi",
+      "birth": "1976-06-03",
+      "nat": "Irán",
+      "start": "2021-01-01",
+      "isPref": 0
+    },
+    "1082": {
+      "name": "Davide Ancelotti",
+      "birth": "1989-07-22",
+      "nat": "Italia",
+      "start": "2026-06-01",
+      "isPref": 1
+    },
+    "1083": {
+      "name": "Jonatan Alba",
+      "birth": "1981-11-16",
+      "nat": "España",
+      "start": "2025-02-25",
+      "isPref": 1
+    },
+    "1084": {
+      "name": "Juan Francisco Funes Arjona",
+      "birth": "",
+      "nat": "España",
+      "start": "2025-11-01",
+      "isPref": 1
+    },
+    "1090": {
+      "name": "Leeroy Echteld",
+      "birth": "1968-09-30",
+      "nat": "Reino de los Países Bajos",
+      "start": "2026-01-18",
+      "isPref": 1
+    },
+    "1091": {
+      "name": "Alessio Lisci",
+      "birth": "1985-11-04",
+      "nat": "Italia",
+      "start": "2026-06-23",
+      "isPref": 1
+    },
+    "1101": {
+      "name": "Björn Hamberg",
+      "birth": "1985-06-05",
+      "nat": "",
+      "start": "2026-02-19",
+      "isPref": 1
+    },
+    "1102": {
+      "name": "Jussi Nuorela",
+      "birth": "1974-08-11",
+      "nat": "Finlandia",
+      "start": "2021-06-18",
+      "isPref": 1
+    },
+    "1106": {
+      "name": "Néstor Gorosito",
+      "birth": "1964-05-14",
+      "nat": "Argentina",
+      "start": "",
+      "isPref": 0
+    },
+    "1108": {
+      "name": "Quique Sánchez Flores",
+      "birth": "1965-02-05",
+      "nat": "España",
+      "start": "2026-03-03",
+      "isPref": 1
+    },
+    "1109": {
+      "name": "Jens Gustafsson",
+      "birth": "1978-10-15",
+      "nat": "Suecia",
+      "start": "2025-01-01",
+      "isPref": 1
+    },
+    "1114": {
+      "name": "Simone Inzaghi",
+      "birth": "1976-04-05",
+      "nat": "Italia",
+      "start": "2025-06-04",
+      "isPref": 1
+    },
+    "1124": {
+      "name": "Oleg Vasilenko",
+      "birth": "1973-10-06",
+      "nat": "Rusia",
+      "start": "2025-10-01",
+      "isPref": 1
+    },
+    "1132": {
+      "name": "Fabio Celestini",
+      "birth": "1975-10-31",
+      "nat": "Suiza",
+      "start": "2026-10-28",
+      "isPref": 1
+    },
+    "1148": {
+      "name": "Keith Andrews",
+      "birth": "1980-09-13",
+      "nat": "Irlanda",
+      "start": "2025-06-27",
+      "isPref": 1
+    },
+    "1158": {
+      "name": "Alexandre Dujeux",
+      "birth": "1976-01-08",
+      "nat": "Francia",
+      "start": "2026-06-09",
+      "isPref": 1
+    },
+    "1180": {
+      "name": "Alyaksandr Shahoyka",
+      "birth": "1980-07-27",
+      "nat": "Bielorrusia",
+      "start": "2026-01-03",
+      "isPref": 1
+    },
+    "1184": {
+      "name": "Jess Thorup",
+      "birth": "1970-02-21",
+      "nat": "Reino de Dinamarca",
+      "start": "2026-07-14",
+      "isPref": 1
+    },
+    "1214": {
+      "name": "Jorge Bava",
+      "birth": "1981-08-02",
+      "nat": "Uruguay",
+      "start": "2025-09-29",
+      "isPref": 1
+    },
+    "1231": {
+      "name": "Jón Þór Hauksson",
+      "birth": "1978-05-02",
+      "nat": "Islandia",
+      "start": "2022-01-30",
+      "isPref": 1
+    },
+    "1234": {
+      "name": "Jadson Viera Castro",
+      "birth": "1981-08-04",
+      "nat": "Brasil",
+      "start": "2026-08-15",
+      "isPref": 1
+    },
+    "1237": {
+      "name": "Fabian Hürzeler",
+      "birth": "1993-02-26",
+      "nat": "Estados Unidos",
+      "start": "2024-07-01",
+      "isPref": 1
+    },
+    "1244": {
+      "name": "Rubén Albés",
+      "birth": "1985-02-24",
+      "nat": "España",
+      "start": "2026-07-01",
+      "isPref": 1
+    },
+    "1247": {
+      "name": "Chris Armas",
+      "birth": "1972-08-27",
+      "nat": "Estados Unidos",
+      "start": "2023-11-17",
+      "isPref": 1
+    },
+    "1268": {
+      "name": "Maurice Steijn",
+      "birth": "1973-11-20",
+      "nat": "Reino de los Países Bajos",
+      "start": "2026-11-13",
+      "isPref": 1
+    },
+    "1269": {
+      "name": "Alex Pastoor",
+      "birth": "1966-10-26",
+      "nat": "Reino de los Países Bajos",
+      "start": "2026-11-07",
+      "isPref": 1
+    },
+    "1274": {
+      "name": "Bob Bradley",
+      "birth": "1958-03-03",
+      "nat": "Estados Unidos",
+      "start": "2023-09-10",
+      "isPref": 1
+    },
+    "1293": {
+      "name": "Jørgen Vik",
+      "birth": "1990-04-26",
+      "nat": "Noruega",
+      "start": "2024-01-08",
+      "isPref": 1
+    },
+    "1304": {
+      "name": "Ernest Faber",
+      "birth": "1971-08-27",
+      "nat": "Reino de los Países Bajos",
+      "start": "2025-12-01",
+      "isPref": 1
+    },
+    "1306": {
+      "name": "Jorge Castelli",
+      "birth": "1946-01-01",
+      "nat": "Argentina",
+      "start": "",
+      "isPref": 0
+    },
+    "1322": {
+      "name": "Luboš Kozel",
+      "birth": "1971-03-16",
+      "nat": "República Checa",
+      "start": "2024-07-01",
+      "isPref": 1
+    },
+    "1385": {
+      "name": "Ezio Capuano",
+      "birth": "1965-01-19",
+      "nat": "Italia",
+      "start": "",
+      "isPref": 0
+    },
+    "1390": {
+      "name": "Fabio Pisacane",
+      "birth": "1986-01-28",
+      "nat": "Italia",
+      "start": "2025-06-11",
+      "isPref": 1
+    },
+    "1403": {
+      "name": "Fernando Ortiz",
+      "birth": "1977-12-25",
+      "nat": "Argentina",
+      "start": "2025-01-01",
+      "isPref": 1
+    },
+    "1418": {
+      "name": "Roberto Bonano",
+      "birth": "1970-01-24",
+      "nat": "Argentina",
+      "start": "",
+      "isPref": 0
+    },
+    "1420": {
+      "name": "Stéphane Gilli",
+      "birth": "1974-04-30",
+      "nat": "Francia",
+      "start": "2026-06-09",
+      "isPref": 1
+    },
+    "1429": {
+      "name": "Alessandro Diamanti",
+      "birth": "1983-05-02",
+      "nat": "Italia",
+      "start": "2026-07-01",
+      "isPref": 1
+    },
+    "1443": {
+      "name": "Pavol Staňo",
+      "birth": "1977-09-29",
+      "nat": "Eslovaquia",
+      "start": "2025-07-11",
+      "isPref": 1
+    },
+    "1444": {
+      "name": "Gustavo Costas",
+      "birth": "1963-02-28",
+      "nat": "Argentina",
+      "start": "2023-12-01",
+      "isPref": 0
+    },
+    "1465": {
+      "name": "Vasco Matos",
+      "birth": "1980-10-10",
+      "nat": "Portugal",
+      "start": "2026-07-08",
+      "isPref": 1
+    },
+    "1531": {
+      "name": "Martín Anselmi",
+      "birth": "1985-07-11",
+      "nat": "Argentina",
+      "start": "2026-06-13",
+      "isPref": 1
+    },
+    "1532": {
+      "name": "Alberto González Fernández",
+      "birth": "1979-06-07",
+      "nat": "España",
+      "start": "2024-03-27",
+      "isPref": 1
+    },
+    "1533": {
+      "name": "Beñat San José",
+      "birth": "1979-09-24",
+      "nat": "España",
+      "start": "2025-02-16",
+      "isPref": 1
+    },
+    "1536": {
+      "name": "Sergio Francisco Ramos",
+      "birth": "1979-03-19",
+      "nat": "España",
+      "start": "2026-01-01",
+      "isPref": 1
+    },
+    "1775": {
+      "name": "Rubén Darío Insúa",
+      "birth": "1961-04-17",
+      "nat": "Argentina",
+      "start": "2022-05-18",
+      "isPref": 1
+    },
+    "1804": {
+      "name": "Antonio Mohamed",
+      "birth": "1970-04-02",
+      "nat": "Argentina",
+      "start": "2024-12-16",
+      "isPref": 1
+    },
+    "1829": {
+      "name": "Rodolfo Diego Flores",
+      "birth": "1980-12-11",
+      "nat": "Argentina",
+      "start": "",
+      "isPref": 0
+    },
+    "1955": {
+      "name": "Karounga Keita",
+      "birth": "1941-09-22",
+      "nat": "Mali",
+      "start": "",
+      "isPref": 0
+    },
+    "2029": {
+      "name": "Ricardinho",
+      "birth": "1976-05-23",
+      "nat": "Brasil",
+      "start": "",
+      "isPref": 0
+    },
+    "2036": {
+      "name": "Frank Schmidt",
+      "birth": "1974-01-03",
+      "nat": "Alemania",
+      "start": "2007-09-17",
+      "isPref": 0
+    },
+    "2063": {
+      "name": "Israel Damonte",
+      "birth": "1982-01-06",
+      "nat": "Argentina",
+      "start": "",
+      "isPref": 0
+    },
+    "2068": {
+      "name": "Jamal Sellami",
+      "birth": "1970-10-06",
+      "nat": "Jordania",
+      "start": "2019-11-11",
+      "isPref": 1
+    },
+    "2124": {
+      "name": "Hugo González Muñoz",
+      "birth": "1963-03-11",
+      "nat": "Chile",
+      "start": "",
+      "isPref": 0
+    },
+    "2125": {
+      "name": "Fábio Carille",
+      "birth": "1973-09-26",
+      "nat": "Brasil",
+      "start": "2025-07-10",
+      "isPref": 1
+    },
+    "2150": {
+      "name": "Leonardo Jardim",
+      "birth": "1974-08-01",
+      "nat": "Portugal",
+      "start": "2024-11-08",
+      "isPref": 1
+    },
+    "2239": {
+      "name": "Fabio Pecchia",
+      "birth": "1973-08-24",
+      "nat": "Italia",
+      "start": "2026-09-02",
+      "isPref": 1
+    },
+    "2241": {
+      "name": "Masatada Ishii",
+      "birth": "1967-02-01",
+      "nat": "Japón",
+      "start": "",
+      "isPref": 0
+    },
+    "2259": {
+      "name": "Dušan Kosič",
+      "birth": "1971-04-23",
+      "nat": "Eslovenia",
+      "start": "2024-12-19",
+      "isPref": 1
+    },
+    "2282": {
+      "name": "Ivan Leko",
+      "birth": "1978-02-07",
+      "nat": "Croacia",
+      "start": "2025-12-08",
+      "isPref": 1
+    },
+    "2293": {
+      "name": "İlhan Palut",
+      "birth": "1976-11-12",
+      "nat": "Turquía",
+      "start": "2026-02-06",
+      "isPref": 1
+    },
+    "2300": {
+      "name": "Adrian Siemieniec",
+      "birth": "1992-01-13",
+      "nat": "Polonia",
+      "start": "2023-04-04",
+      "isPref": 1
+    },
+    "2311": {
+      "name": "Jaime Monroy",
+      "birth": "1982-03-19",
+      "nat": "Portugal",
+      "start": "2026-11-12",
+      "isPref": 1
+    },
+    "2331": {
+      "name": "Ezio Capuano",
+      "birth": "1965-01-19",
+      "nat": "Italia",
+      "start": "",
+      "isPref": 0
+    },
+    "2350": {
+      "name": "Hernán Torres Oliveros",
+      "birth": "1961-05-31",
+      "nat": "Colombia",
+      "start": "2025-08-22",
+      "isPref": 1
+    },
+    "2352": {
+      "name": "David González",
+      "birth": "1982-07-20",
+      "nat": "Colombia",
+      "start": "",
+      "isPref": 0
+    },
+    "2362": {
+      "name": "Mario Gregurina",
+      "birth": "1988-03-23",
+      "nat": "Croacia",
+      "start": "2025-07-01",
+      "isPref": 1
+    },
+    "2374": {
+      "name": "Denis Boyarintsev",
+      "birth": "1978-02-06",
+      "nat": "Rusia",
+      "start": "2026-06-10",
+      "isPref": 1
+    },
+    "2381": {
+      "name": "İsmet Taşdemir",
+      "birth": "1974-01-01",
+      "nat": "Turquía",
+      "start": "2026-02-11",
+      "isPref": 1
+    },
+    "2402": {
+      "name": "Sebastián Beccacece",
+      "birth": "1980-12-17",
+      "nat": "Argentina",
+      "start": "",
+      "isPref": 1
+    },
+    "2407": {
+      "name": "Matías Almeyda",
+      "birth": "1973-12-21",
+      "nat": "Argentina",
+      "start": "2026-01-01",
+      "isPref": 1
+    },
+    "2410": {
+      "name": "Fabio Celestini",
+      "birth": "1975-10-31",
+      "nat": "Suiza",
+      "start": "2025-06-20",
+      "isPref": 1
+    },
+    "2419": {
+      "name": "Guillermo Almada",
+      "birth": "1969-06-18",
+      "nat": "Uruguay",
+      "start": "",
+      "isPref": 0
+    },
+    "2420": {
+      "name": "Tiago Margarido",
+      "birth": "1989-01-02",
+      "nat": "Portugal",
+      "start": "2026-06-24",
+      "isPref": 1
+    },
+    "2423": {
+      "name": "Petit",
+      "birth": "1976-09-25",
+      "nat": "Portugal",
+      "start": "2026-02-03",
+      "isPref": 1
+    },
+    "2424": {
+      "name": "Luís Pinto",
+      "birth": "1989-01-01",
+      "nat": "Portugal",
+      "start": "2026-06-20",
+      "isPref": 1
+    },
+    "2425": {
+      "name": "Sotiris Silaidopoulos",
+      "birth": "1979-02-08",
+      "nat": "",
+      "start": "2025-07-01",
+      "isPref": 1
+    },
+    "2431": {
+      "name": "Pepa",
+      "birth": "1980-12-14",
+      "nat": "Portugal",
+      "start": "2026-06-12",
+      "isPref": 1
+    },
+    "2440": {
+      "name": "Óscar Pareja",
+      "birth": "1968-08-10",
+      "nat": "Colombia",
+      "start": "2026-11-14",
+      "isPref": 1
+    },
+    "2441": {
+      "name": "Marko Nikolić",
+      "birth": "1979-07-20",
+      "nat": "Serbia",
+      "start": "2025-07-01",
+      "isPref": 1
+    },
+    "2448": {
+      "name": "Borja Jiménez Sáez",
+      "birth": "1985-01-21",
+      "nat": "España",
+      "start": "2025-10-08",
+      "isPref": 1
+    },
+    "2462": {
+      "name": "Marco Aurélio de Oliveira",
+      "birth": "1972-07-22",
+      "nat": "Brasil",
+      "start": "2026-08-14",
+      "isPref": 1
+    },
+    "2497": {
+      "name": "Raúl González Blanco",
+      "birth": "1977-06-27",
+      "nat": "España",
+      "start": "2026-11-09",
+      "isPref": 1
+    },
+    "2502": {
+      "name": "Johan Plat",
+      "birth": "1987-02-26",
+      "nat": "Reino de los Países Bajos",
+      "start": "2025-01-20",
+      "isPref": 1
+    },
+    "2521": {
+      "name": "Custódio Castro",
+      "birth": "1983-05-24",
+      "nat": "Portugal",
+      "start": "2025-07-01",
+      "isPref": 1
+    },
+    "2524": {
+      "name": "Cosmin Olăroiu",
+      "birth": "1969-06-10",
+      "nat": "Rumania",
+      "start": "2026-06-13",
+      "isPref": 1
+    },
+    "2531": {
+      "name": "Dimitar Dimitrov",
+      "birth": "1959-06-09",
+      "nat": "Bulgaria",
+      "start": "2025-11-17",
+      "isPref": 1
+    },
+    "2557": {
+      "name": "Josef Zinnbauer",
+      "birth": "1970-05-01",
+      "nat": "Alemania",
+      "start": "",
+      "isPref": 1
+    },
+    "2598": {
+      "name": "Tomáš Zápotočný",
+      "birth": "1980-09-13",
+      "nat": "República Checa",
+      "start": "2021-11-11",
+      "isPref": 1
+    },
+    "2619": {
+      "name": "Eduardo Mario Acevedo",
+      "birth": "1959-09-25",
+      "nat": "Uruguay",
+      "start": "",
+      "isPref": 1
+    },
+    "2672": {
+      "name": "Elias Charalambous",
+      "birth": "1980-09-25",
+      "nat": "Chipre",
+      "start": "2026-06-23",
+      "isPref": 1
+    },
+    "2687": {
+      "name": "Albert Celades",
+      "birth": "1975-09-29",
+      "nat": "España",
+      "start": "2026-08-12",
+      "isPref": 1
+    },
+    "2696": {
+      "name": "Magomed Adiyev",
+      "birth": "1977-06-30",
+      "nat": "Rusia",
+      "start": "2025-06-05",
+      "isPref": 1
+    },
+    "2697": {
+      "name": "Hiroshi Jofuku",
+      "birth": "1961-03-21",
+      "nat": "Japón",
+      "start": "",
+      "isPref": 0
+    },
+    "2698": {
+      "name": "Franc Artiga",
+      "birth": "1976-07-30",
+      "nat": "España",
+      "start": "2026-01-14",
+      "isPref": 1
+    },
+    "2723": {
+      "name": "Francisco Palladino",
+      "birth": "1983-01-23",
+      "nat": "Uruguay",
+      "start": "",
+      "isPref": 0
+    },
+    "2727": {
+      "name": "Timmy Simons",
+      "birth": "1976-12-11",
+      "nat": "Bélgica",
+      "start": "2026-06-23",
+      "isPref": 1
+    },
+    "2741": {
+      "name": "Andrei Talalayev",
+      "birth": "1972-10-05",
+      "nat": "Rusia",
+      "start": "2024-09-06",
+      "isPref": 1
+    },
+    "2778": {
+      "name": "Jens Olsen",
+      "birth": "1975-05-30",
+      "nat": "Reino de Dinamarca",
+      "start": "2024-07-01",
+      "isPref": 1
+    },
+    "2784": {
+      "name": "Nikos Papadopoulos",
+      "birth": "1971-10-05",
+      "nat": "Grecia",
+      "start": "2026-06-19",
+      "isPref": 1
+    },
+    "2790": {
+      "name": "Mattia Croci-Torti",
+      "birth": "1982-04-10",
+      "nat": "Suiza",
+      "start": "2021-09-01",
+      "isPref": 1
+    },
+    "2817": {
+      "name": "Magne Hoseth",
+      "birth": "1980-10-13",
+      "nat": "Noruega",
+      "start": "2026-02-06",
+      "isPref": 1
+    },
+    "2832": {
+      "name": "posición no ocupada",
+      "birth": "",
+      "nat": "",
+      "start": "",
+      "isPref": 1
+    },
+    "2844": {
+      "name": "Martin Falk",
+      "birth": "1995-03-28",
+      "nat": "Suecia",
+      "start": "2025-01-01",
+      "isPref": 1
+    },
+    "2891": {
+      "name": "Andre Arendse",
+      "birth": "1967-06-27",
+      "nat": "Sudáfrica",
+      "start": "",
+      "isPref": 0
+    },
+    "2919": {
+      "name": "Ivan Jurić",
+      "birth": "1975-08-25",
+      "nat": "Croacia",
+      "start": "2026-06-29",
+      "isPref": 1
+    },
+    "2921": {
+      "name": "Alberto Colombo",
+      "birth": "1974-02-24",
+      "nat": "Italia",
+      "start": "2022-06-22",
+      "isPref": 1
+    },
+    "2925": {
+      "name": "Gonçalo Pereira",
+      "birth": "",
+      "nat": "",
+      "start": "2025-01-01",
+      "isPref": 1
+    },
+    "2950": {
+      "name": "Mikheil Ashvetia",
+      "birth": "1977-11-10",
+      "nat": "Rusia",
+      "start": "2025-01-20",
+      "isPref": 1
+    },
+    "2976": {
+      "name": "Ran Kojok",
+      "birth": "1981-01-12",
+      "nat": "Israel",
+      "start": "2024-07-01",
+      "isPref": 1
+    },
+    "3057": {
+      "name": "Vincent Euvrard",
+      "birth": "1982-03-12",
+      "nat": "Bélgica",
+      "start": "2025-08-27",
+      "isPref": 1
+    },
+    "3060": {
+      "name": "Dušan Kerkez",
+      "birth": "1976-05-01",
+      "nat": "Bosnia y Herzegovina",
+      "start": "2025-11-15",
+      "isPref": 1
+    },
+    "3189": {
+      "name": "Joonas Rantanen",
+      "birth": "1987-07-27",
+      "nat": "Finlandia",
+      "start": "2024-01-01",
+      "isPref": 1
+    },
+    "3205": {
+      "name": "Muhammed Türkmen",
+      "birth": "1986-04-09",
+      "nat": "Turquía",
+      "start": "2026-02-10",
+      "isPref": 1
+    },
+    "3237": {
+      "name": "Óskar Hrafn Þorvaldsson",
+      "birth": "1973-10-25",
+      "nat": "Islandia",
+      "start": "2024-08-14",
+      "isPref": 0
+    },
+    "3243": {
+      "name": "Vladimir Klontsak",
+      "birth": "1968-02-27",
+      "nat": "Rusia",
+      "start": "",
+      "isPref": 0
+    },
+    "3268": {
+      "name": "Álvaro Pacheco",
+      "birth": "1971-06-25",
+      "nat": "Portugal",
+      "start": "2026-01-08",
+      "isPref": 1
+    },
+    "3277": {
+      "name": "Tiago Nunes",
+      "birth": "1980-02-15",
+      "nat": "Brasil",
+      "start": "",
+      "isPref": 0
+    },
+    "3282": {
+      "name": "Pablo Franco Martín",
+      "birth": "1980-06-11",
+      "nat": "España",
+      "start": "",
+      "isPref": 0
+    },
+    "3302": {
+      "name": "Francisco Javier García Pimienta",
+      "birth": "1974-08-03",
+      "nat": "España",
+      "start": "2026-01-01",
+      "isPref": 1
+    },
+    "3327": {
+      "name": "Miguel Leal",
+      "birth": "1965-04-22",
+      "nat": "Portugal",
+      "start": "",
+      "isPref": 0
+    },
+    "3329": {
+      "name": "Hugo Oliveira",
+      "birth": "1979-06-22",
+      "nat": "Portugal",
+      "start": "2024-12-10",
+      "isPref": 1
+    },
+    "3345": {
+      "name": "José Carlos Alves Ferreira Pinto",
+      "birth": "1973-03-02",
+      "nat": "Portugal",
+      "start": "",
+      "isPref": 0
+    },
+    "3368": {
+      "name": "Luís Castro",
+      "birth": "1980-05-07",
+      "nat": "Portugal",
+      "start": "2025-12-20",
+      "isPref": 1
+    },
+    "3369": {
+      "name": "Emad El-Nahhas",
+      "birth": "1976-02-15",
+      "nat": "Egipto",
+      "start": "",
+      "isPref": 0
+    },
+    "3385": {
+      "name": "Kostas Georgiadis",
+      "birth": "1980-01-17",
+      "nat": "",
+      "start": "2026-09-22",
+      "isPref": 1
+    },
+    "3426": {
+      "name": "Ólafur Kristjánsson",
+      "birth": "1968-05-20",
+      "nat": "Islandia",
+      "start": "2020-07-16",
+      "isPref": 0
+    },
+    "3508": {
+      "name": "Michael Beale",
+      "birth": "1980-09-04",
+      "nat": "Reino Unido",
+      "start": "2026-05-19",
+      "isPref": 1
+    },
+    "3522": {
+      "name": "Roberto Donadoni",
+      "birth": "1963-09-09",
+      "nat": "Italia",
+      "start": "2025-11-04",
+      "isPref": 1
+    },
+    "3551": {
+      "name": "Ognjen Zarić",
+      "birth": "1989-01-14",
+      "nat": "Austria",
+      "start": "2026-01-09",
+      "isPref": 1
+    },
+    "3601": {
+      "name": "Charles Akonnor",
+      "birth": "1974-03-12",
+      "nat": "Alemania",
+      "start": "",
+      "isPref": 0
+    },
+    "3609": {
+      "name": "Artyom Kulikov",
+      "birth": "1980-01-30",
+      "nat": "Rusia",
+      "start": "2022-01-01",
+      "isPref": 1
+    },
+    "3631": {
+      "name": "André Jardine",
+      "birth": "1979-09-08",
+      "nat": "Brasil",
+      "start": "2023-06-16",
+      "isPref": 1
+    },
+    "3654": {
+      "name": "Toni Koskela",
+      "birth": "1983-02-16",
+      "nat": "Finlandia",
+      "start": "2025-01-01",
+      "isPref": 1
+    },
+    "3690": {
+      "name": "Aleksei Poddubskiy",
+      "birth": "1972-06-13",
+      "nat": "Rusia",
+      "start": "2019-01-01",
+      "isPref": 0
+    },
+    "3709": {
+      "name": "José Bordalás",
+      "birth": "1964-03-05",
+      "nat": "España",
+      "start": "2023-04-29",
+      "isPref": 1
+    },
+    "3711": {
+      "name": "Joel Huiqui",
+      "birth": "1983-02-18",
+      "nat": "México",
+      "start": "2026-04-22",
+      "isPref": 1
+    },
+    "3714": {
+      "name": "Yuri Gazzaev",
+      "birth": "1960-11-27",
+      "nat": "Rusia",
+      "start": "2019-08-16",
+      "isPref": 1
+    },
+    "3718": {
+      "name": "Shota Arveladze",
+      "birth": "1973-02-22",
+      "nat": "Georgia",
+      "start": "",
+      "isPref": 0
+    },
+    "3725": {
+      "name": "Stanislav Cherchésov",
+      "birth": "1963-09-02",
+      "nat": "Rusia",
+      "start": "2025-08-06",
+      "isPref": 1
+    },
+    "3729": {
+      "name": "Aleh Konanaw",
+      "birth": "1966-03-23",
+      "nat": "Rusia",
+      "start": "2022-06-10",
+      "isPref": 1
+    },
+    "3733": {
+      "name": "Yüri Ütkelbayıf",
+      "birth": "1969-12-16",
+      "nat": "Rusia",
+      "start": "",
+      "isPref": 0
+    },
+    "3785": {
+      "name": "Noam Shoham",
+      "birth": "1970-04-04",
+      "nat": "Israel",
+      "start": "2025-03-18",
+      "isPref": 1
+    },
+    "3793": {
+      "name": "Barak Yitzhaki",
+      "birth": "1984-09-25",
+      "nat": "Israel",
+      "start": "2024-02-20",
+      "isPref": 1
+    },
+    "3828": {
+      "name": "Steve Holland",
+      "birth": "1970-04-30",
+      "nat": "Reino Unido",
+      "start": "2024-11-01",
+      "isPref": 1
+    },
+    "3834": {
+      "name": "Aleksei Stukalov",
+      "birth": "1983-11-24",
+      "nat": "Rusia",
+      "start": "2024-11-19",
+      "isPref": 1
+    },
+    "3876": {
+      "name": "Pintado",
+      "birth": "1965-09-17",
+      "nat": "Brasil",
+      "start": "",
+      "isPref": 0
+    },
+    "3899": {
+      "name": "Mauro Camoranesi",
+      "birth": "1976-10-04",
+      "nat": "Italia",
+      "start": "2026-02-03",
+      "isPref": 1
+    },
+    "3911": {
+      "name": "Julien Lachuer",
+      "birth": "1976-11-15",
+      "nat": "Francia",
+      "start": "2026-06-27",
+      "isPref": 1
+    },
+    "3938": {
+      "name": "Carlos Tévez",
+      "birth": "1984-02-05",
+      "nat": "Argentina",
+      "start": "2025-07-09",
+      "isPref": 1
+    },
+    "3958": {
+      "name": "Michael Skibbe",
+      "birth": "1965-08-04",
+      "nat": "Alemania",
+      "start": "2026-01-01",
+      "isPref": 1
+    },
+    "4000": {
+      "name": "John Carver",
+      "birth": "1965-01-16",
+      "nat": "Reino Unido",
+      "start": "2024-11-30",
+      "isPref": 1
+    },
+    "4035": {
+      "name": "Guillermo Almada",
+      "birth": "1969-06-18",
+      "nat": "Uruguay",
+      "start": "2021-12-02",
+      "isPref": 1
+    },
+    "4097": {
+      "name": "Vincenzo Vivarini",
+      "birth": "1966-09-05",
+      "nat": "Italia",
+      "start": "2021-11-30",
+      "isPref": 0
+    },
+    "4159": {
+      "name": "Antonio Calabro",
+      "birth": "1976-08-10",
+      "nat": "Italia",
+      "start": "2024-01-17",
+      "isPref": 1
+    },
+    "4172": {
+      "name": "Paolo Bianco",
+      "birth": "1977-08-20",
+      "nat": "Italia",
+      "start": "2026-06-22",
+      "isPref": 1
+    },
+    "4284": {
+      "name": "posición no ocupada",
+      "birth": "",
+      "nat": "",
+      "start": "",
+      "isPref": 1
+    },
+    "4291": {
+      "name": "Martí Cifuentes",
+      "birth": "1982-07-07",
+      "nat": "España",
+      "start": "2026-07-21",
+      "isPref": 1
+    },
+    "4294": {
+      "name": "José Faria",
+      "birth": "1986-06-07",
+      "nat": "Portugal",
+      "start": "2026-02-05",
+      "isPref": 1
+    },
+    "4321": {
+      "name": "Jorge Pellicer",
+      "birth": "1966-02-07",
+      "nat": "Chile",
+      "start": "",
+      "isPref": 0
+    },
+    "4362": {
+      "name": "Yasen Petrov",
+      "birth": "1968-06-23",
+      "nat": "Bulgaria",
+      "start": "2026-01-04",
+      "isPref": 1
+    },
+    "4441": {
+      "name": "Thomas Silberberger",
+      "birth": "1973-06-03",
+      "nat": "Austria",
+      "start": "2026-04-07",
+      "isPref": 1
+    },
+    "4529": {
+      "name": "Branislav Fodrek",
+      "birth": "1981-02-05",
+      "nat": "Eslovaquia",
+      "start": "2024-11-27",
+      "isPref": 1
+    },
+    "4554": {
+      "name": "Stefano Vecchi",
+      "birth": "1971-07-20",
+      "nat": "Italia",
+      "start": "2019-01-01",
+      "isPref": 0
+    },
+    "4576": {
+      "name": "Jesús Oropesa",
+      "birth": "1970-03-31",
+      "nat": "Perú",
+      "start": "",
+      "isPref": 0
+    },
+    "4603": {
+      "name": "Sokratis Ofrydopoulos",
+      "birth": "1973-10-26",
+      "nat": "Grecia",
+      "start": "2026-07-16",
+      "isPref": 1
+    },
+    "4633": {
+      "name": "Vladimir Gaćinović",
+      "birth": "1966-01-03",
+      "nat": "",
+      "start": "2025-02-11",
+      "isPref": 1
+    },
+    "4645": {
+      "name": "Božidar Bandović",
+      "birth": "1969-08-30",
+      "nat": "Montenegro",
+      "start": "2026-01-03",
+      "isPref": 1
+    },
+    "4769": {
+      "name": "Yossi Abukasis",
+      "birth": "1970-09-10",
+      "nat": "Israel",
+      "start": "2026-02-18",
+      "isPref": 1
+    },
+    "4772": {
+      "name": "Federico Bessone",
+      "birth": "1984-01-23",
+      "nat": "Argentina",
+      "start": "2025-09-22",
+      "isPref": 1
+    },
+    "4774": {
+      "name": "Ricardo La Volpe",
+      "birth": "1952-02-06",
+      "nat": "Argentina",
+      "start": "",
+      "isPref": 0
+    },
+    "4941": {
+      "name": "Eduardo Berizzo",
+      "birth": "1969-11-13",
+      "nat": "Argentina",
+      "start": "2024-09-09",
+      "isPref": 1
+    },
+    "4947": {
+      "name": "José Morais",
+      "birth": "1965-07-27",
+      "nat": "Portugal",
+      "start": "",
+      "isPref": 0
+    },
+    "4961": {
+      "name": "Esteban González",
+      "birth": "1998-10-16",
+      "nat": "Chile",
+      "start": "2026-01-01",
+      "isPref": 1
+    },
+    "5138": {
+      "name": "Juan Antonio Luna",
+      "birth": "1959-05-17",
+      "nat": "México",
+      "start": "",
+      "isPref": 0
+    },
+    "5196": {
+      "name": "Hans Eklund",
+      "birth": "1969-04-16",
+      "nat": "Suecia",
+      "start": "2015-01-01",
+      "isPref": 0
+    },
+    "5223": {
+      "name": "Ronny Levy",
+      "birth": "1966-11-14",
+      "nat": "Israel",
+      "start": "2026-01-14",
+      "isPref": 1
+    },
+    "5225": {
+      "name": "Martin Svědík",
+      "birth": "1974-06-27",
+      "nat": "Checoslovaquia",
+      "start": "2025-04-12",
+      "isPref": 1
+    },
+    "5358": {
+      "name": "Antonio Hidalgo Morilla",
+      "birth": "1979-02-06",
+      "nat": "España",
+      "start": "2023-10-11",
+      "isPref": 1
+    },
+    "5544": {
+      "name": "Jan Jelínek",
+      "birth": "1982-03-22",
+      "nat": "República Checa",
+      "start": "2026-06-16",
+      "isPref": 1
+    },
+    "5545": {
+      "name": "Pavel Hoftych",
+      "birth": "1967-05-09",
+      "nat": "República Checa",
+      "start": "2026-09-07",
+      "isPref": 1
+    },
+    "5546": {
+      "name": "Aleš Majer",
+      "birth": "1979-10-10",
+      "nat": "República Checa",
+      "start": "2025-06-01",
+      "isPref": 1
+    },
+    "5551": {
+      "name": "Gary van Egmond",
+      "birth": "1965-06-29",
+      "nat": "Australia",
+      "start": "",
+      "isPref": 0
+    },
+    "5587": {
+      "name": "Guido Pagliuca",
+      "birth": "1976-02-17",
+      "nat": "Italia",
+      "start": "2023-06-26",
+      "isPref": 0
+    },
+    "5619": {
+      "name": "Kjetil Rekdal",
+      "birth": "1968-11-06",
+      "nat": "Noruega",
+      "start": "2024-07-01",
+      "isPref": 1
+    },
+    "5662": {
+      "name": "Pablo Guede",
+      "birth": "1974-11-12",
+      "nat": "Argentina",
+      "start": "2024-12-02",
+      "isPref": 1
+    },
+    "5689": {
+      "name": "Aleksandar Vuković",
+      "birth": "1979-08-25",
+      "nat": "Serbia",
+      "start": "2026-11-11",
+      "isPref": 1
+    },
+    "5724": {
+      "name": "Rasmus Bertelsen",
+      "birth": "1983-12-21",
+      "nat": "Reino de Dinamarca",
+      "start": "2023-03-23",
+      "isPref": 1
+    },
+    "5817": {
+      "name": "Thomas Nørgaard",
+      "birth": "1982-04-13",
+      "nat": "Reino de Dinamarca",
+      "start": "2022-12-16",
+      "isPref": 1
+    },
+    "5818": {
+      "name": "Peter Sørensen",
+      "birth": "1973-03-24",
+      "nat": "Reino de Dinamarca",
+      "start": "2019-02-21",
+      "isPref": 1
+    },
+    "5849": {
+      "name": "Sölvi Ottesen",
+      "birth": "1984-02-18",
+      "nat": "Islandia",
+      "start": "2025-01-20",
+      "isPref": 1
+    },
+    "5862": {
+      "name": "Miran Srebrnič",
+      "birth": "1970-01-08",
+      "nat": "Eslovenia",
+      "start": "2023-06-23",
+      "isPref": 1
+    },
+    "6017": {
+      "name": "Gary Williams",
+      "birth": "1977-12-07",
+      "nat": "Reino Unido",
+      "start": "2024-08-16",
+      "isPref": 1
+    },
+    "6028": {
+      "name": "Shai Barda",
+      "birth": "1968-10-22",
+      "nat": "Israel",
+      "start": "2023-07-01",
+      "isPref": 1
+    },
+    "6076": {
+      "name": "Javad Nekounam",
+      "birth": "1980-09-07",
+      "nat": "Irán",
+      "start": "",
+      "isPref": 0
+    },
+    "6079": {
+      "name": "İsmail Kartal",
+      "birth": "1961-06-15",
+      "nat": "Turquía",
+      "start": "2025-01-01",
+      "isPref": 0
+    },
+    "6080": {
+      "name": "Mojtaba Taghavi",
+      "birth": "1968-02-02",
+      "nat": "Irán",
+      "start": "",
+      "isPref": 0
+    },
+    "6081": {
+      "name": "Amir Ghalenoei",
+      "birth": "1963-11-21",
+      "nat": "Irán",
+      "start": "",
+      "isPref": 0
+    },
+    "6110": {
+      "name": "Jacek Zieliński",
+      "birth": "1961-03-22",
+      "nat": "Polonia",
+      "start": "2024-08-07",
+      "isPref": 1
+    },
+    "6112": {
+      "name": "Daniel Myśliwiec",
+      "birth": "1985-11-19",
+      "nat": "Polonia",
+      "start": "2025-10-23",
+      "isPref": 1
+    },
+    "6131": {
+      "name": "Aleksandr Sednev",
+      "birth": "1973-08-16",
+      "nat": "Bielorrusia",
+      "start": "2025-01-09",
+      "isPref": 1
+    },
+    "6195": {
+      "name": "Massimiliano Allegri",
+      "birth": "1967-08-11",
+      "nat": "Italia",
+      "start": "2026-07-03",
+      "isPref": 1
+    },
+    "6251": {
+      "name": "Jarkko Wiss",
+      "birth": "1972-04-17",
+      "nat": "Finlandia",
+      "start": "2025-01-01",
+      "isPref": 1
+    },
+    "6321": {
+      "name": "Jesper Sørensen",
+      "birth": "1973-06-10",
+      "nat": "Reino de Dinamarca",
+      "start": "2025-01-14",
+      "isPref": 1
+    },
+    "6356": {
+      "name": "Pitso Mosimane",
+      "birth": "1964-07-26",
+      "nat": "Sudáfrica",
+      "start": "",
+      "isPref": 0
+    },
+    "6363": {
+      "name": "Juan José Ribera",
+      "birth": "1980-08-07",
+      "nat": "Chile",
+      "start": "2024-07-01",
+      "isPref": 0
+    },
+    "6365": {
+      "name": "Revaz Gotsiridze",
+      "birth": "1981-01-17",
+      "nat": "Georgia",
+      "start": "2023-05-01",
+      "isPref": 1
+    },
+    "6368": {
+      "name": "Gustavo Álvarez",
+      "birth": "1972-10-27",
+      "nat": "Argentina",
+      "start": "",
+      "isPref": 0
+    },
+    "6395": {
+      "name": "Yoshiro Moriyama",
+      "birth": "1967-11-09",
+      "nat": "Japón",
+      "start": "2024-01-01",
+      "isPref": 0
+    },
+    "6399": {
+      "name": "Andreas Tegström",
+      "birth": "1979-01-18",
+      "nat": "Suecia",
+      "start": "2021-01-01",
+      "isPref": 1
+    },
+    "6418": {
+      "name": "Giorgos Petrakis",
+      "birth": "1988-02-08",
+      "nat": "Grecia",
+      "start": "2026-11-14",
+      "isPref": 1
+    },
+    "6423": {
+      "name": "Ivan Bionchik",
+      "birth": "1985-10-07",
+      "nat": "Bielorrusia",
+      "start": "2022-10-21",
+      "isPref": 1
+    },
+    "6536": {
+      "name": "Emiliano Astorga",
+      "birth": "1960-09-21",
+      "nat": "Chile",
+      "start": "",
+      "isPref": 0
+    },
+    "6574": {
+      "name": "posición no ocupada",
+      "birth": "",
+      "nat": "",
+      "start": "",
+      "isPref": 1
+    },
+    "6593": {
+      "name": "Ángel Comizzo",
+      "birth": "1962-04-27",
+      "nat": "Argentina",
+      "start": "",
+      "isPref": 0
+    },
+    "6600": {
+      "name": "Pablo de Toledo",
+      "birth": "1975-04-21",
+      "nat": "Brasil",
+      "start": "2026-09-20",
+      "isPref": 1
+    },
+    "6603": {
+      "name": "Hussein Ammouta",
+      "birth": "1969-10-24",
+      "nat": "Marruecos",
+      "start": "2022-08-18",
+      "isPref": 1
+    },
+    "6621": {
+      "name": "Milan Lešnjak",
+      "birth": "1975-09-09",
+      "nat": "Serbia",
+      "start": "2025-10-04",
+      "isPref": 1
+    },
+    "6622": {
+      "name": "Dragiša Žunić",
+      "birth": "1978-06-09",
+      "nat": "Serbia",
+      "start": "2026-01-01",
+      "isPref": 1
+    },
+    "6631": {
+      "name": "Rikizo Matsuhashi",
+      "birth": "1968-08-22",
+      "nat": "Japón",
+      "start": "",
+      "isPref": 0
+    },
+    "6632": {
+      "name": "Ricardo Rodríguez",
+      "birth": "1974-04-03",
+      "nat": "España",
+      "start": "2025-01-01",
+      "isPref": 0
+    },
+    "6643": {
+      "name": "Pablo Mastroeni",
+      "birth": "1976-08-29",
+      "nat": "Estados Unidos",
+      "start": "2021-08-27",
+      "isPref": 1
+    },
+    "6646": {
+      "name": "Aleksandar Stanojević",
+      "birth": "1973-10-28",
+      "nat": "Serbia",
+      "start": "2026-01-01",
+      "isPref": 1
+    },
+    "6676": {
+      "name": "Gonçalo Feio",
+      "birth": "1990-01-17",
+      "nat": "Portugal",
+      "start": "2026-11-02",
+      "isPref": 1
+    },
+    "6711": {
+      "name": "Óscar García Junyent",
+      "birth": "1973-04-26",
+      "nat": "España",
+      "start": "2024-12-03",
+      "isPref": 1
+    },
+    "6764": {
+      "name": "Josu Uribe",
+      "birth": "1969-05-25",
+      "nat": "España",
+      "start": "2025-11-27",
+      "isPref": 1
+    },
+    "6889": {
+      "name": "Franco Navarro",
+      "birth": "1961-11-10",
+      "nat": "Perú",
+      "start": "",
+      "isPref": 0
+    },
+    "6890": {
+      "name": "Nuri Şahin",
+      "birth": "1988-09-05",
+      "nat": "Turquía",
+      "start": "2025-09-15",
+      "isPref": 1
+    },
+    "6912": {
+      "name": "Fábio Pereira",
+      "birth": "1978-12-06",
+      "nat": "",
+      "start": "2024-12-16",
+      "isPref": 1
+    },
+    "6954": {
+      "name": "Graham Arnold",
+      "birth": "1963-08-03",
+      "nat": "Australia",
+      "start": "",
+      "isPref": 0
+    },
+    "6984": {
+      "name": "Hernán Darío Herrera",
+      "birth": "1957-10-28",
+      "nat": "Colombia",
+      "start": "",
+      "isPref": 0
+    },
+    "7006": {
+      "name": "Kevin Muscat",
+      "birth": "1973-08-07",
+      "nat": "Australia",
+      "start": "",
+      "isPref": 0
+    },
+    "7011": {
+      "name": "Clinton Larsen",
+      "birth": "1971-02-17",
+      "nat": "Sudáfrica",
+      "start": "",
+      "isPref": 0
+    },
+    "7055": {
+      "name": "Victor Veljko Paunović Ramírez",
+      "birth": "1977-08-21",
+      "nat": "España",
+      "start": "2024-06-09",
+      "isPref": 1
+    },
+    "7087": {
+      "name": "Jaroslav Köstl",
+      "birth": "1989-12-04",
+      "nat": "República Checa",
+      "start": "2026-01-13",
+      "isPref": 1
+    },
+    "7090": {
+      "name": "Azer Bagirov",
+      "birth": "1984-06-18",
+      "nat": "Azerbaiyán",
+      "start": "2025-10-01",
+      "isPref": 1
+    },
+    "7097": {
+      "name": "Leonardo Madelón",
+      "birth": "1963-01-25",
+      "nat": "Argentina",
+      "start": "",
+      "isPref": 0
+    },
+    "7098": {
+      "name": "Gustavo Morínigo",
+      "birth": "1977-01-23",
+      "nat": "Paraguay",
+      "start": "",
+      "isPref": 0
+    },
+    "7179": {
+      "name": "Cristiano Bacci",
+      "birth": "1975-07-06",
+      "nat": "Italia",
+      "start": "2025-11-13",
+      "isPref": 1
+    },
+    "7315": {
+      "name": "Jonas Nyholm",
+      "birth": "1992-06-23",
+      "nat": "Finlandia",
+      "start": "2024-01-01",
+      "isPref": 1
+    },
+    "7378": {
+      "name": "Ricardo Jorge Rodrigues Pessoa",
+      "birth": "1982-02-05",
+      "nat": "Portugal",
+      "start": "2024-08-27",
+      "isPref": 1
+    },
+    "7452": {
+      "name": "Narcís Pelach",
+      "birth": "1988-09-05",
+      "nat": "España",
+      "start": "2026-01-01",
+      "isPref": 0
+    },
+    "7532": {
+      "name": "Yaron Hochenboim",
+      "birth": "1971-07-24",
+      "nat": "Israel",
+      "start": "2022-01-06",
+      "isPref": 1
+    },
+    "7567": {
+      "name": "Takis Lemonis",
+      "birth": "1960-01-13",
+      "nat": "Grecia",
+      "start": "2025-12-10",
+      "isPref": 1
+    },
+    "7633": {
+      "name": "Gustavo Lema",
+      "birth": "1968-11-01",
+      "nat": "Argentina",
+      "start": "2023-12-12",
+      "isPref": 1
+    },
+    "7656": {
+      "name": "Hernán Rodrigo López",
+      "birth": "1978-01-21",
+      "nat": "Uruguay",
+      "start": "",
+      "isPref": 0
+    },
+    "7769": {
+      "name": "Marius Șumudică",
+      "birth": "1971-03-04",
+      "nat": "Rumania",
+      "start": "2026-08-14",
+      "isPref": 1
+    },
+    "7775": {
+      "name": "Bekir İrtegün",
+      "birth": "1984-04-20",
+      "nat": "Turquía",
+      "start": "2026-01-09",
+      "isPref": 1
+    },
+    "7831": {
+      "name": "Ruben Zadkovich",
+      "birth": "1986-05-23",
+      "nat": "Australia",
+      "start": "",
+      "isPref": 0
+    },
+    "7918": {
+      "name": "Ricardo Moniz",
+      "birth": "1964-06-17",
+      "nat": "Reino de los Países Bajos",
+      "start": "2025-07-01",
+      "isPref": 1
+    },
+    "7964": {
+      "name": "Dzyanis Karolik",
+      "birth": "1979-05-07",
+      "nat": "Bielorrusia",
+      "start": "2026-09-24",
+      "isPref": 1
+    },
+    "8023": {
+      "name": "Sérgio Conceição",
+      "birth": "1974-11-15",
+      "nat": "Portugal",
+      "start": "2025-10-08",
+      "isPref": 1
+    },
+    "8024": {
+      "name": "Vasco Seabra",
+      "birth": "1983-09-15",
+      "nat": "Portugal",
+      "start": "2024-10-29",
+      "isPref": 1
+    },
+    "8031": {
+      "name": "Yuriy Vernydub",
+      "birth": "1966-01-22",
+      "nat": "Ucrania",
+      "start": "2025-12-09",
+      "isPref": 1
+    },
+    "8042": {
+      "name": "Vesa Vasara",
+      "birth": "1976-08-16",
+      "nat": "Finlandia",
+      "start": "2024-01-01",
+      "isPref": 1
+    },
+    "8047": {
+      "name": "Donatas Vencevičius",
+      "birth": "1973-11-28",
+      "nat": "Lituania",
+      "start": "2025-01-01",
+      "isPref": 1
+    },
+    "8054": {
+      "name": "Ufuk Talay",
+      "birth": "1976-03-26",
+      "nat": "Australia",
+      "start": "",
+      "isPref": 0
+    },
+    "8172": {
+      "name": "Lucas González Vélez",
+      "birth": "1981-06-07",
+      "nat": "Colombia",
+      "start": "2026-06-01",
+      "isPref": 1
+    },
+    "8331": {
+      "name": "Carlos Fabián Maldonado",
+      "birth": "1963-07-30",
+      "nat": "Uruguay",
+      "start": "",
+      "isPref": 0
+    },
+    "8344": {
+      "name": "Yuzo Funakoshi",
+      "birth": "1977-06-12",
+      "nat": "Japón",
+      "start": "2026-01-01",
+      "isPref": 1
+    },
+    "8445": {
+      "name": "Chris Greenacre",
+      "birth": "1977-12-23",
+      "nat": "Reino Unido",
+      "start": "",
+      "isPref": 0
+    },
+    "8457": {
+      "name": "Bin Ukishima",
+      "birth": "1967-09-04",
+      "nat": "Japón",
+      "start": "2020-01-01",
+      "isPref": 0
+    },
+    "8563": {
+      "name": "Valery Strypeykis",
+      "birth": "1974-11-13",
+      "nat": "Bielorrusia",
+      "start": "2026-11-15",
+      "isPref": 1
+    },
+    "8568": {
+      "name": "José Juan Romero",
+      "birth": "1975-11-18",
+      "nat": "España",
+      "start": "",
+      "isPref": 1
+    },
+    "8590": {
+      "name": "Gonzalo Pineda",
+      "birth": "1982-10-19",
+      "nat": "México",
+      "start": "2024-12-16",
+      "isPref": 1
+    },
+    "8718": {
+      "name": "Jair Zaksauskas Ribeiro Ventura",
+      "birth": "1979-03-19",
+      "nat": "Brasil",
+      "start": "",
+      "isPref": 0
+    },
+    "8793": {
+      "name": "Fernando Seabra",
+      "birth": "1977-01-01",
+      "nat": "",
+      "start": "2024-10-30",
+      "isPref": 1
+    },
+    "8816": {
+      "name": "Eric Quill",
+      "birth": "1978-02-28",
+      "nat": "Estados Unidos",
+      "start": "2024-11-20",
+      "isPref": 1
+    },
+    "8818": {
+      "name": "posición no ocupada",
+      "birth": "",
+      "nat": "",
+      "start": "",
+      "isPref": 1
+    },
+    "8819": {
+      "name": "Radovan Ćurčić",
+      "birth": "1972-01-10",
+      "nat": "Serbia",
+      "start": "2023-06-06",
+      "isPref": 1
+    },
+    "8850": {
+      "name": "Patrice Beaumelle",
+      "birth": "1978-04-24",
+      "nat": "Francia",
+      "start": "",
+      "isPref": 0
+    },
+    "8970": {
+      "name": "Leandro Greco",
+      "birth": "1986-07-19",
+      "nat": "Italia",
+      "start": "2024-10-22",
+      "isPref": 1
+    },
+    "9079": {
+      "name": "Joachim Yaw",
+      "birth": "1973-11-02",
+      "nat": "Ghana",
+      "start": "",
+      "isPref": 0
+    },
+    "9094": {
+      "name": "Ali Maher",
+      "birth": "1973-12-03",
+      "nat": "Egipto",
+      "start": "",
+      "isPref": 0
+    },
+    "9095": {
+      "name": "Nissim Avitan",
+      "birth": "1971-09-29",
+      "nat": "Israel",
+      "start": "2022-02-03",
+      "isPref": 1
+    },
+    "9168": {
+      "name": "Ben Olsen",
+      "birth": "1977-05-03",
+      "nat": "Estados Unidos",
+      "start": "2022-11-08",
+      "isPref": 1
+    },
+    "9241": {
+      "name": "Vladimir Radenković",
+      "birth": "1978-01-22",
+      "nat": "Serbia",
+      "start": "2025-06-18",
+      "isPref": 1
+    },
+    "9368": {
+      "name": "Luc Eymael",
+      "birth": "1959-09-20",
+      "nat": "Bélgica",
+      "start": "",
+      "isPref": 0
+    },
+    "9597": {
+      "name": "Shinya Tsukahara",
+      "birth": "1985-04-02",
+      "nat": "Japón",
+      "start": "2026-01-01",
+      "isPref": 1
+    },
+    "9598": {
+      "name": "Shigetoshi Hasebe",
+      "birth": "1971-04-23",
+      "nat": "Japón",
+      "start": "2025-01-01",
+      "isPref": 0
+    },
+    "9599": {
+      "name": "Gjoko Hadžievski",
+      "birth": "1955-03-31",
+      "nat": "Macedonia del Norte",
+      "start": "2025-07-09",
+      "isPref": 1
+    },
+    "9636": {
+      "name": "Brian Schmetzer",
+      "birth": "1962-08-18",
+      "nat": "Estados Unidos",
+      "start": "2016-07-26",
+      "isPref": 1
+    },
+    "9811": {
+      "name": "Leonel Álvarez",
+      "birth": "1965-07-29",
+      "nat": "Colombia",
+      "start": "",
+      "isPref": 0
+    },
+    "9875": {
+      "name": "Nelson Haedo Valdez",
+      "birth": "1983-11-28",
+      "nat": "Paraguay",
+      "start": "2026-07-01",
+      "isPref": 1
+    },
+    "9899": {
+      "name": "Xabi Alonso",
+      "birth": "1981-11-25",
+      "nat": "España",
+      "start": "2020-01-01",
+      "isPref": 1
+    },
+    "9961": {
+      "name": "Rafael Dudamel",
+      "birth": "1973-01-07",
+      "nat": "Venezuela",
+      "start": "",
+      "isPref": 0
+    },
+    "10004": {
+      "name": "Liam Rosenior",
+      "birth": "1984-07-09",
+      "nat": "Reino Unido",
+      "start": "2026-07-07",
+      "isPref": 1
+    },
+    "10010": {
+      "name": "Rogério Ceni",
+      "birth": "1973-01-22",
+      "nat": "Brasil",
+      "start": "2023-09-09",
+      "isPref": 1
+    },
+    "10091": {
+      "name": "José Guadalupe Cruz",
+      "birth": "1967-11-22",
+      "nat": "México",
+      "start": "",
+      "isPref": 0
+    },
+    "10093": {
+      "name": "Hernán Darío Gómez",
+      "birth": "1956-02-03",
+      "nat": "Colombia",
+      "start": "",
+      "isPref": 0
+    },
+    "10157": {
+      "name": "Nikolay Kostov",
+      "birth": "1963-07-02",
+      "nat": "Bulgaria",
+      "start": "2025-08-13",
+      "isPref": 1
+    },
+    "10217": {
+      "name": "Even Sel",
+      "birth": "1989-10-14",
+      "nat": "Noruega",
+      "start": "2026-01-01",
+      "isPref": 1
+    },
+    "10262": {
+      "name": "Paul Zammit",
+      "birth": "1969-08-21",
+      "nat": "Malta",
+      "start": "2026-01-31",
+      "isPref": 1
+    },
+    "10301": {
+      "name": "Artak Òseyan",
+      "birth": "1987-05-16",
+      "nat": "Armenia",
+      "start": "2025-08-11",
+      "isPref": 1
+    },
+    "10330": {
+      "name": "Hélder Cristóvão",
+      "birth": "1971-03-21",
+      "nat": "Portugal",
+      "start": "",
+      "isPref": 0
+    },
+    "10480": {
+      "name": "Jiří Jarošík",
+      "birth": "1977-10-27",
+      "nat": "República Checa",
+      "start": "2024-11-05",
+      "isPref": 1
+    },
+    "10481": {
+      "name": "Miroslav Romaschenko",
+      "birth": "1973-12-16",
+      "nat": "Rusia",
+      "start": "2026-04-22",
+      "isPref": 1
+    },
+    "10482": {
+      "name": "Rafael Urazbakhtin",
+      "birth": "1978-11-20",
+      "nat": "Kazajistán",
+      "start": "2024-09-06",
+      "isPref": 1
+    },
+    "10484": {
+      "name": "Emre Belözoğlu",
+      "birth": "1980-09-07",
+      "nat": "Turquía",
+      "start": "2025-12-05",
+      "isPref": 1
+    },
+    "10511": {
+      "name": "Néstor Gorosito",
+      "birth": "1964-05-14",
+      "nat": "Argentina",
+      "start": "",
+      "isPref": 0
+    },
+    "10540": {
+      "name": "Nurbol Zhumaskaliyev",
+      "birth": "1981-05-11",
+      "nat": "Kazajistán",
+      "start": "2026-05-13",
+      "isPref": 1
+    },
+    "10586": {
+      "name": "Artsyom Radzkow",
+      "birth": "1985-08-26",
+      "nat": "Bielorrusia",
+      "start": "2026-06-01",
+      "isPref": 1
+    },
+    "10604": {
+      "name": "Branko Nišević",
+      "birth": "1971-08-31",
+      "nat": "Serbia",
+      "start": "2023-07-17",
+      "isPref": 1
+    },
+    "10625": {
+      "name": "Gurban Gurbanov",
+      "birth": "1972-04-13",
+      "nat": "Azerbaiyán",
+      "start": "2008-08-05",
+      "isPref": 0
+    },
+    "10663": {
+      "name": "Joaquín Papa",
+      "birth": "1986-10-23",
+      "nat": "",
+      "start": "",
+      "isPref": 0
+    },
+    "10680": {
+      "name": "Gavin Hunt",
+      "birth": "1964-07-11",
+      "nat": "Sudáfrica",
+      "start": "",
+      "isPref": 0
+    },
+    "10684": {
+      "name": "Ali Daei",
+      "birth": "1969-03-21",
+      "nat": "Irán Imperial",
+      "start": "",
+      "isPref": 0
+    },
+    "10690": {
+      "name": "Viktor Skrypnyk",
+      "birth": "1969-11-19",
+      "nat": "Ucrania",
+      "start": "2025-06-16",
+      "isPref": 1
+    },
+    "10694": {
+      "name": "Andrey Harawtsow",
+      "birth": "1981-04-02",
+      "nat": "Bielorrusia",
+      "start": "2023-08-01",
+      "isPref": 1
+    },
+    "10718": {
+      "name": "Carles Manso",
+      "birth": "1992-11-05",
+      "nat": "España",
+      "start": "2026-01-01",
+      "isPref": 1
+    },
+    "10870": {
+      "name": "Thiago Carpini",
+      "birth": "1984-07-16",
+      "nat": "Brasil",
+      "start": "",
+      "isPref": 0
+    },
+    "10949": {
+      "name": "Manuel Fernandes",
+      "birth": "1951-06-05",
+      "nat": "Portugal",
+      "start": "",
+      "isPref": 0
+    },
+    "10999": {
+      "name": "Hiroki Shibuya",
+      "birth": "1966-11-30",
+      "nat": "Japón",
+      "start": "2026-01-01",
+      "isPref": 0
+    },
+    "11107": {
+      "name": "Tamás Pető",
+      "birth": "1974-06-08",
+      "nat": "Hungría",
+      "start": "2025-11-12",
+      "isPref": 1
+    },
+    "11127": {
+      "name": "Vasili Berezutski",
+      "birth": "1982-06-20",
+      "nat": "Rusia",
+      "start": "2025-12-11",
+      "isPref": 1
+    },
+    "11141": {
+      "name": "posición no ocupada",
+      "birth": "",
+      "nat": "",
+      "start": "",
+      "isPref": 1
+    },
+    "11194": {
+      "name": "Nikica Jelavić",
+      "birth": "1985-08-27",
+      "nat": "Croacia",
+      "start": "2025-07-01",
+      "isPref": 1
+    },
+    "11282": {
+      "name": "João Pedro da Silva Pereira",
+      "birth": "1984-02-25",
+      "nat": "Portugal",
+      "start": "2025-03-22",
+      "isPref": 1
+    },
+    "11338": {
+      "name": "Vegard Hansen",
+      "birth": "1969-08-08",
+      "nat": "Noruega",
+      "start": "2006-01-01",
+      "isPref": 0
+    },
+    "11344": {
+      "name": "Giorgi Chiabrishvili",
+      "birth": "1979-10-07",
+      "nat": "Georgia",
+      "start": "2024-10-19",
+      "isPref": 1
+    },
+    "11391": {
+      "name": "Ramon Tribulietx",
+      "birth": "1972-09-20",
+      "nat": "España",
+      "start": "",
+      "isPref": 0
+    },
+    "11470": {
+      "name": "Pablo de Muner",
+      "birth": "1981-04-14",
+      "nat": "Argentina",
+      "start": "",
+      "isPref": 0
+    },
+    "11648": {
+      "name": "Pablo SinRepetto",
+      "birth": "1974-03-14",
+      "nat": "Uruguay",
+      "start": "",
+      "isPref": 0
+    },
+    "11831": {
+      "name": "Juan Carlos Blengio",
+      "birth": "1980-06-26",
+      "nat": "Argentina",
+      "start": "",
+      "isPref": 0
+    },
+    "11855": {
+      "name": "Diego Alonso",
+      "birth": "1975-04-16",
+      "nat": "Italia",
+      "start": "",
+      "isPref": 0
+    },
+    "12163": {
+      "name": "György Bognár",
+      "birth": "1961-11-05",
+      "nat": "Hungría",
+      "start": "2023-02-14",
+      "isPref": 1
+    },
+    "12179": {
+      "name": "Fernando Gamboa",
+      "birth": "1970-10-28",
+      "nat": "Argentina",
+      "start": "",
+      "isPref": 0
+    },
+    "12301": {
+      "name": "Gustavo Álvarez",
+      "birth": "1972-10-27",
+      "nat": "Argentina",
+      "start": "",
+      "isPref": 0
+    },
+    "12321": {
+      "name": "Quique Álvarez",
+      "birth": "1975-07-20",
+      "nat": "España",
+      "start": "2026-07-01",
+      "isPref": 1
+    },
+    "12574": {
+      "name": "Sebastián Ariel Méndez",
+      "birth": "1977-07-04",
+      "nat": "Italia",
+      "start": "",
+      "isPref": 0
+    },
+    "12935": {
+      "name": "Masoud Shojaei",
+      "birth": "1984-06-09",
+      "nat": "Irán",
+      "start": "",
+      "isPref": 0
+    },
+    "13222": {
+      "name": "Alessio Lisci",
+      "birth": "1985-11-04",
+      "nat": "Italia",
+      "start": "2023-07-01",
+      "isPref": 1
+    },
+    "13306": {
+      "name": "Islombek Ismoilov",
+      "birth": "1992-07-19",
+      "nat": "Uzbekistán",
+      "start": "",
+      "isPref": 0
+    },
+    "13353": {
+      "name": "Juan Carlos Osorio",
+      "birth": "1961-06-08",
+      "nat": "Colombia",
+      "start": "2024-05-24",
+      "isPref": 1
+    },
+    "13366": {
+      "name": "Josef Zinnbauer",
+      "birth": "1970-05-01",
+      "nat": "Alemania",
+      "start": "",
+      "isPref": 0
+    },
+    "13607": {
+      "name": "Sellas Tetteh",
+      "birth": "1956-12-12",
+      "nat": "Ghana",
+      "start": "",
+      "isPref": 0
+    },
+    "13613": {
+      "name": "Cosmin Olăroiu",
+      "birth": "1969-06-10",
+      "nat": "Rumania",
+      "start": "",
+      "isPref": 0
+    },
+    "13744": {
+      "name": "Anton Šoltis",
+      "birth": "1976-02-05",
+      "nat": "Eslovaquia",
+      "start": "2024-07-01",
+      "isPref": 1
+    },
+    "14104": {
+      "name": "Bernardo Tavares",
+      "birth": "1980-05-02",
+      "nat": "Portugal",
+      "start": "",
+      "isPref": 0
+    },
+    "14178": {
+      "name": "Igor Kovalevich",
+      "birth": "1968-02-03",
+      "nat": "Bielorrusia",
+      "start": "2016-06-17",
+      "isPref": 1
+    },
+    "14187": {
+      "name": "Ernst Middendorp",
+      "birth": "1958-10-28",
+      "nat": "Alemania",
+      "start": "",
+      "isPref": 0
+    },
+    "14456": {
+      "name": "Alen Horvat",
+      "birth": "1973-09-13",
+      "nat": "Croacia",
+      "start": "",
+      "isPref": 0
+    },
+    "14491": {
+      "name": "Héctor Núñez",
+      "birth": "1936-05-08",
+      "nat": "Uruguay",
+      "start": "",
+      "isPref": 0
+    },
+    "14555": {
+      "name": "José de Jesús Vera",
+      "birth": "1969-02-09",
+      "nat": "Venezuela",
+      "start": "",
+      "isPref": 0
+    },
+    "14589": {
+      "name": "İldar Äxmätcanof",
+      "birth": "1983-11-25",
+      "nat": "Rusia",
+      "start": "2025-10-09",
+      "isPref": 1
+    },
+    "14590": {
+      "name": "Rinat Bilyaletdinov",
+      "birth": "1957-08-17",
+      "nat": "Rusia",
+      "start": "2026-05-25",
+      "isPref": 1
+    },
+    "14806": {
+      "name": "Rolando Adrián Carlen",
+      "birth": "1966-11-11",
+      "nat": "Argentina",
+      "start": "",
+      "isPref": 1
+    },
+    "15276": {
+      "name": "Miloš Kruščić",
+      "birth": "1976-10-03",
+      "nat": "Serbia",
+      "start": "2025-12-04",
+      "isPref": 1
+    },
+    "15299": {
+      "name": "Kairat Nurdauletov",
+      "birth": "1982-11-06",
+      "nat": "Kazajistán",
+      "start": "2025-12-17",
+      "isPref": 1
+    },
+    "15542": {
+      "name": "Walter Zenga",
+      "birth": "1960-04-28",
+      "nat": "Italia",
+      "start": "",
+      "isPref": 0
+    },
+    "16198": {
+      "name": "Vladimir Cheburin",
+      "birth": "1965-07-07",
+      "nat": "Kazajistán",
+      "start": "2026-03-06",
+      "isPref": 1
+    },
+    "16704": {
+      "name": "Murad Musayev",
+      "birth": "1983-11-10",
+      "nat": "Rusia",
+      "start": "2024-03-14",
+      "isPref": 1
+    },
+    "16779": {
+      "name": "Andrei Martin",
+      "birth": "1974-06-27",
+      "nat": "Moldavia",
+      "start": "2024-12-22",
+      "isPref": 1
+    },
+    "16795": {
+      "name": "José Rojo Martín",
+      "birth": "1968-03-23",
+      "nat": "España",
+      "start": "2025-05-14",
+      "isPref": 1
+    },
+    "17149": {
+      "name": "Giacomo Modica",
+      "birth": "1964-05-31",
+      "nat": "Italia",
+      "start": "2025-06-01",
+      "isPref": 1
+    },
+    "17194": {
+      "name": "Matías Mazmud",
+      "birth": "1976-11-24",
+      "nat": "Argentina",
+      "start": "",
+      "isPref": 0
+    },
+    "17222": {
+      "name": "Lukass",
+      "birth": "",
+      "nat": "",
+      "start": "",
+      "isPref": 0
+    },
+    "17224": {
+      "name": "Vyacheslav Geraschenko",
+      "birth": "1972-07-25",
+      "nat": "Bielorrusia",
+      "start": "2026-05-22",
+      "isPref": 1
+    },
+    "17425": {
+      "name": "Néstor Otero",
+      "birth": "1955-09-18",
+      "nat": "Colombia",
+      "start": "",
+      "isPref": 0
+    },
+    "17499": {
+      "name": "Mohammad Ahmadzadeh",
+      "birth": "1961-01-10",
+      "nat": "Irán",
+      "start": "",
+      "isPref": 0
+    },
+    "18018": {
+      "name": "Francesco Stifano",
+      "birth": "1979-07-19",
+      "nat": "Venezuela",
+      "start": "",
+      "isPref": 0
+    },
+    "18076": {
+      "name": "Cristián Leiva",
+      "birth": "1976-03-03",
+      "nat": "Chile",
+      "start": "",
+      "isPref": 0
+    },
+    "18234": {
+      "name": "Walter Meeuws",
+      "birth": "1951-07-11",
+      "nat": "Bélgica",
+      "start": "",
+      "isPref": 0
+    },
+    "18303": {
+      "name": "Kyrylo Nesterenko",
+      "birth": "1992-03-01",
+      "nat": "Ucrania",
+      "start": "2025-06-17",
+      "isPref": 1
+    },
+    "18487": {
+      "name": "Marino Pusic",
+      "birth": "1971-08-18",
+      "nat": "Bosnia y Herzegovina",
+      "start": "2026-08-01",
+      "isPref": 1
+    },
+    "18544": {
+      "name": "Ange Postecoglou",
+      "birth": "1965-08-27",
+      "nat": "",
+      "start": "2026-07-03",
+      "isPref": 1
+    },
+    "18945": {
+      "name": "Ángel López Pérez",
+      "birth": "1983-04-05",
+      "nat": "España",
+      "start": "2025-07-01",
+      "isPref": 1
+    },
+    "19401": {
+      "name": "Mirjalol Qosimov",
+      "birth": "1970-09-17",
+      "nat": "Uzbekistán",
+      "start": "",
+      "isPref": 0
+    },
+    "20063": {
+      "name": "Štefan Markulík",
+      "birth": "1991-10-27",
+      "nat": "Eslovaquia",
+      "start": "2024-09-02",
+      "isPref": 1
+    },
+    "20189": {
+      "name": "Danielo Núñez",
+      "birth": "1964-10-25",
+      "nat": "Uruguay",
+      "start": "",
+      "isPref": 0
+    },
+    "20514": {
+      "name": "Néstor Craviotto",
+      "birth": "1963-10-03",
+      "nat": "Argentina",
+      "start": "",
+      "isPref": 0
+    },
+    "21170": {
+      "name": "Carlos Bustos",
+      "birth": "1966-04-16",
+      "nat": "Argentina",
+      "start": "",
+      "isPref": 0
+    },
+    "21202": {
+      "name": "Luc Eymael",
+      "birth": "1959-09-20",
+      "nat": "Bélgica",
+      "start": "",
+      "isPref": 0
+    },
+    "22177": {
+      "name": "Kim Myung-Hwi",
+      "birth": "1981-05-08",
+      "nat": "Corea del Sur",
+      "start": "",
+      "isPref": 0
+    },
+    "22220": {
+      "name": "Grigori Babayan",
+      "birth": "1980-04-02",
+      "nat": "Kazajistán",
+      "start": "2022-09-13",
+      "isPref": 1
+    },
+    "22381": {
+      "name": "Igor Jovićević",
+      "birth": "1973-11-30",
+      "nat": "Croacia",
+      "start": "",
+      "isPref": 0
+    },
+    "22902": {
+      "name": "Guillermo Berrío",
+      "birth": "1967-04-11",
+      "nat": "Colombia",
+      "start": "",
+      "isPref": 0
+    },
+    "22944": {
+      "name": "Abdelhadi Sektioui",
+      "birth": "1965-01-01",
+      "nat": "Marruecos",
+      "start": "2020-03-08",
+      "isPref": 1
+    },
+    "22994": {
+      "name": "Nurmat Mirzabaev",
+      "birth": "1972-11-11",
+      "nat": "Kazajistán",
+      "start": "2022-10-21",
+      "isPref": 1
+    },
+    "23371": {
+      "name": "Vladimir Vassiljev",
+      "birth": "1988-02-13",
+      "nat": "Estonia",
+      "start": "2025-05-25",
+      "isPref": 1
+    },
+    "23664": {
+      "name": "Artsyom Chelyadzinski",
+      "birth": "1977-12-29",
+      "nat": "Bielorrusia",
+      "start": "2024-01-09",
+      "isPref": 1
+    },
+    "23777": {
+      "name": "Stevie Grieve",
+      "birth": "1986-12-31",
+      "nat": "Escocia",
+      "start": "2024-05-28",
+      "isPref": 1
+    },
+    "23826": {
+      "name": "Martín Demichelis",
+      "birth": "1980-12-20",
+      "nat": "Italia",
+      "start": "2026-06-22",
+      "isPref": 1
+    },
+    "23911": {
+      "name": "Karen Barseghyan",
+      "birth": "1975-03-15",
+      "nat": "Armenia",
+      "start": "2023-01-25",
+      "isPref": 1
+    },
+    "24015": {
+      "name": "Yuri Puntus",
+      "birth": "1960-10-08",
+      "nat": "Bielorrusia",
+      "start": "2026-04-06",
+      "isPref": 1
+    },
+    "24078": {
+      "name": "Akis Vavalis",
+      "birth": "1985-09-21",
+      "nat": "Grecia",
+      "start": "2025-12-29",
+      "isPref": 1
+    },
+    "24575": {
+      "name": "Mario Carević",
+      "birth": "1982-03-29",
+      "nat": "Croacia",
+      "start": "2024-10-15",
+      "isPref": 1
+    },
+    "25467": {
+      "name": "Bradley Carnell",
+      "birth": "1977-01-21",
+      "nat": "Sudáfrica",
+      "start": "2025-01-02",
+      "isPref": 1
+    },
+    "25580": {
+      "name": "Warren Joyce",
+      "birth": "1965-01-20",
+      "nat": "Reino Unido",
+      "start": "",
+      "isPref": 0
+    },
+    "26069": {
+      "name": "Brendan Rodgers",
+      "birth": "1973-01-26",
+      "nat": "Reino Unido",
+      "start": "2025-12-17",
+      "isPref": 1
+    },
+    "26459": {
+      "name": "Oleh Shandruk",
+      "birth": "1983-01-30",
+      "nat": "Ucrania",
+      "start": "2023-12-12",
+      "isPref": 1
+    },
+    "26462": {
+      "name": "Todor Simov",
+      "birth": "1985-01-26",
+      "nat": "Bulgaria",
+      "start": "2025-09-24",
+      "isPref": 1
+    },
+    "26586": {
+      "name": "Miodrag Ješić",
+      "birth": "1958-11-30",
+      "nat": "Serbia",
+      "start": "",
+      "isPref": 0
+    },
+    "27221": {
+      "name": "Slaven Bilić",
+      "birth": "1968-09-11",
+      "nat": "Croacia",
+      "start": "",
+      "isPref": 0
+    },
+    "28095": {
+      "name": "Yevgeni Kharlachyov",
+      "birth": "1974-01-20",
+      "nat": "Rusia",
+      "start": "2023-08-28",
+      "isPref": 1
+    },
+    "28643": {
+      "name": "Tim Bakens",
+      "birth": "1982-11-02",
+      "nat": "Reino de los Países Bajos",
+      "start": "2026-06-18",
+      "isPref": 1
+    },
+    "28770": {
+      "name": "Andris Riherts",
+      "birth": "1981-05-31",
+      "nat": "Letonia",
+      "start": "2022-07-01",
+      "isPref": 1
+    },
+    "28931": {
+      "name": "Kirill Kurbatov",
+      "birth": "1971-08-06",
+      "nat": "Rusia",
+      "start": "2022-09-01",
+      "isPref": 1
+    },
+    "30120": {
+      "name": "Sebastián Leto",
+      "birth": "1986-08-30",
+      "nat": "Argentina",
+      "start": "2024-07-01",
+      "isPref": 0
+    },
+    "30685": {
+      "name": "Roger Lemerre",
+      "birth": "1941-06-18",
+      "nat": "Francia",
+      "start": "",
+      "isPref": 0
+    },
+    "30929": {
+      "name": "Khaled Lounici",
+      "birth": "1967-07-09",
+      "nat": "Argelia",
+      "start": "",
+      "isPref": 0
+    },
+    "31283": {
+      "name": "Teboho Moloi",
+      "birth": "1968-07-02",
+      "nat": "Sudáfrica",
+      "start": "",
+      "isPref": 0
+    },
+    "31444": {
+      "name": "Paul Munster",
+      "birth": "1982-02-09",
+      "nat": "Reino Unido",
+      "start": "",
+      "isPref": 0
+    },
+    "31614": {
+      "name": "Thomas Reis",
+      "birth": "1973-10-04",
+      "nat": "Alemania",
+      "start": "2026-07-14",
+      "isPref": 1
+    },
+    "32017": {
+      "name": "Diego Longo",
+      "birth": "1976-08-16",
+      "nat": "Italia",
+      "start": "2025-06-14",
+      "isPref": 1
+    },
+    "32768": {
+      "name": "Darren Abdilla",
+      "birth": "1979-07-10",
+      "nat": "Malta",
+      "start": "2025-09-29",
+      "isPref": 1
+    },
+    "33328": {
+      "name": "Marko Jakšić",
+      "birth": "1983-08-10",
+      "nat": "Serbia",
+      "start": "2024-11-23",
+      "isPref": 1
+    },
+    "34423": {
+      "name": "Gilbert Agius",
+      "birth": "1974-02-21",
+      "nat": "Malta",
+      "start": "2026-02-09",
+      "isPref": 1
+    },
+    "34826": {
+      "name": "Wellyansyah",
+      "birth": "1966-01-19",
+      "nat": "Indonesia",
+      "start": "",
+      "isPref": 0
+    },
+    "35157": {
+      "name": "Davron Fayziev",
+      "birth": "1976-01-14",
+      "nat": "Uzbekistán",
+      "start": "",
+      "isPref": 0
+    },
+    "35488": {
+      "name": "Roman Hudec",
+      "birth": "1986-06-10",
+      "nat": "Eslovaquia",
+      "start": "2025-12-01",
+      "isPref": 1
+    },
+    "36100": {
+      "name": "Tony Popovic",
+      "birth": "1973-07-04",
+      "nat": "Australia",
+      "start": "",
+      "isPref": 0
+    },
+    "36596": {
+      "name": "Juan Díaz Quinta",
+      "birth": "1977-11-19",
+      "nat": "España",
+      "start": "2026-10-04",
+      "isPref": 1
+    },
+    "36755": {
+      "name": "Dzmitry Kamarowski",
+      "birth": "1986-10-10",
+      "nat": "Bielorrusia",
+      "start": "2022-12-07",
+      "isPref": 1
+    },
+    "36999": {
+      "name": "Saša Ilić",
+      "birth": "1977-12-30",
+      "nat": "Serbia",
+      "start": "2025-07-07",
+      "isPref": 1
+    },
+    "37169": {
+      "name": "Zsolt Hornyák",
+      "birth": "1973-05-01",
+      "nat": "Eslovaquia",
+      "start": "2019-07-01",
+      "isPref": 1
+    },
+    "37176": {
+      "name": "Bubista",
+      "birth": "1970-01-06",
+      "nat": "",
+      "start": "2026-08-03",
+      "isPref": 1
+    },
+    "39097": {
+      "name": "Ołeksandr Antonenko",
+      "birth": "1978-12-29",
+      "nat": "Ucrania",
+      "start": "2025-06-06",
+      "isPref": 1
+    },
+    "39252": {
+      "name": "Hubert Bodhert",
+      "birth": "1972-01-17",
+      "nat": "Colombia",
+      "start": "2016-01-01",
+      "isPref": 0
+    },
+    "40058": {
+      "name": "posición no ocupada",
+      "birth": "",
+      "nat": "",
+      "start": "",
+      "isPref": 1
+    },
+    "40090": {
+      "name": "Eivinas Černiauskas",
+      "birth": "1984-09-24",
+      "nat": "Lituania",
+      "start": "2025-01-01",
+      "isPref": 1
+    },
+    "40416": {
+      "name": "Simão Freitas",
+      "birth": "1980-12-10",
+      "nat": "Portugal",
+      "start": "2026-06-15",
+      "isPref": 1
+    },
+    "40604": {
+      "name": "Aleksandar Tunchev",
+      "birth": "1981-07-10",
+      "nat": "Bulgaria",
+      "start": "2024-06-07",
+      "isPref": 1
+    },
+    "40812": {
+      "name": "Filipe Coelho",
+      "birth": "1980-10-20",
+      "nat": "Portugal",
+      "start": "2025-11-11",
+      "isPref": 1
+    },
+    "40843": {
+      "name": "Florin Pârvu",
+      "birth": "1975-04-02",
+      "nat": "Rumania",
+      "start": "2025-04-25",
+      "isPref": 1
+    },
+    "41231": {
+      "name": "Igor Osinkin",
+      "birth": "1965-06-04",
+      "nat": "Rusia",
+      "start": "2025-09-01",
+      "isPref": 1
+    },
+    "42310": {
+      "name": "Jurģis Pučinskis",
+      "birth": "1973-01-03",
+      "nat": "Letonia",
+      "start": "2026-01-01",
+      "isPref": 1
+    },
+    "42918": {
+      "name": "Rafael Santana Fontes",
+      "birth": "1945-03-03",
+      "nat": "España",
+      "start": "",
+      "isPref": 0
+    },
+    "43162": {
+      "name": "Andreas Alm",
+      "birth": "1973-06-19",
+      "nat": "Suecia",
+      "start": "2025-05-08",
+      "isPref": 1
+    },
+    "43408": {
+      "name": "Egidijus Varnas",
+      "birth": "1975-07-31",
+      "nat": "Lituania",
+      "start": "2020-01-01",
+      "isPref": 0
+    },
+    "45457": {
+      "name": "Albert Celades",
+      "birth": "1975-09-29",
+      "nat": "España",
+      "start": "2026-01-09",
+      "isPref": 1
+    },
+    "45604": {
+      "name": "Óscar Pareja",
+      "birth": "1968-08-10",
+      "nat": "Colombia",
+      "start": "2019-12-04",
+      "isPref": 1
+    },
+    "46507": {
+      "name": "Armen Gyulbudaghyants",
+      "birth": "1966-12-19",
+      "nat": "Armenia",
+      "start": "2023-12-09",
+      "isPref": 1
+    },
+    "46710": {
+      "name": "Rashad Sadygov",
+      "birth": "1982-06-16",
+      "nat": "Azerbaiyán",
+      "start": "2020-07-17",
+      "isPref": 1
+    },
+    "48332": {
+      "name": "Ruslan Kostyshyn",
+      "birth": "1977-01-08",
+      "nat": "Ucrania",
+      "start": "2025-03-10",
+      "isPref": 1
+    },
+    "48726": {
+      "name": "Ivan Fedyk",
+      "birth": "1987-07-09",
+      "nat": "Ucrania",
+      "start": "2025-06-11",
+      "isPref": 1
+    },
+    "49702": {
+      "name": "Vadim Garanin",
+      "birth": "1970-11-29",
+      "nat": "Rusia",
+      "start": "2026-04-29",
+      "isPref": 0
+    },
+    "51663": {
+      "name": "Ronny Deila",
+      "birth": "1975-09-21",
+      "nat": "Noruega",
+      "start": "2024-12-20",
+      "isPref": 1
+    },
+    "51772": {
+      "name": "Pat Noonan",
+      "birth": "1980-08-02",
+      "nat": "Estados Unidos",
+      "start": "2021-12-14",
+      "isPref": 1
+    },
+    "51828": {
+      "name": "Steve Cherundolo",
+      "birth": "1979-02-19",
+      "nat": "Estados Unidos",
+      "start": "2022-01-03",
+      "isPref": 1
+    },
+    "53453": {
+      "name": "Tulipa",
+      "birth": "1972-10-02",
+      "nat": "Portugal",
+      "start": "2025-07-01",
+      "isPref": 1
+    },
+    "53646": {
+      "name": "Ruslan Rotan",
+      "birth": "1981-10-29",
+      "nat": "Ucrania",
+      "start": "2025-05-01",
+      "isPref": 1
+    },
+    "55686": {
+      "name": "Mladen Bartulović",
+      "birth": "1986-10-05",
+      "nat": "Croacia",
+      "start": "2025-06-20",
+      "isPref": 1
+    },
+    "56089": {
+      "name": "Eric Ramsay",
+      "birth": "1992-02-14",
+      "nat": "Reino Unido",
+      "start": "2024-03-04",
+      "isPref": 1
+    },
+    "59024": {
+      "name": "Denis Laktionov",
+      "birth": "1977-09-04",
+      "nat": "Rusia",
+      "start": "",
+      "isPref": 0
+    },
+    "59358": {
+      "name": "Radomir Koković",
+      "birth": "1984-01-06",
+      "nat": "Serbia",
+      "start": "2025-03-04",
+      "isPref": 1
+    },
+    "60222": {
+      "name": "Daniel Ogunmodede",
+      "birth": "1980-05-19",
+      "nat": "Nigeria",
+      "start": "2022-08-05",
+      "isPref": 0
+    },
+    "60368": {
+      "name": "Sandro Perković",
+      "birth": "1984-04-15",
+      "nat": "Croacia",
+      "start": "2025-07-01",
+      "isPref": 1
+    },
+    "60949": {
+      "name": "Juan Carlos Garrido Fernández",
+      "birth": "1969-03-29",
+      "nat": "España",
+      "start": "2026-10-26",
+      "isPref": 1
+    },
+    "61955": {
+      "name": "posición no ocupada",
+      "birth": "",
+      "nat": "",
+      "start": "",
+      "isPref": 1
+    },
+    "63007": {
+      "name": "Vitaliy Ponomaryov",
+      "birth": "1973-12-07",
+      "nat": "Ucrania",
+      "start": "2025-06-05",
+      "isPref": 1
+    },
+    "63966": {
+      "name": "B. J. Callaghan",
+      "birth": "1981-07-01",
+      "nat": "Estados Unidos",
+      "start": "2024-07-22",
+      "isPref": 1
+    },
+    "69261": {
+      "name": "Kily González",
+      "birth": "1974-08-04",
+      "nat": "Argentina",
+      "start": "2026-08-28",
+      "isPref": 1
+    },
+    "71085": {
+      "name": "Mile Sterjovski",
+      "birth": "1979-05-27",
+      "nat": "Australia",
+      "start": "",
+      "isPref": 0
+    },
+    "71985": {
+      "name": "Zaur Tedeyev",
+      "birth": "1981-03-02",
+      "nat": "Rusia",
+      "start": "2023-12-07",
+      "isPref": 1
+    },
+    "72309": {
+      "name": "Nicolás Estévez Martínez",
+      "birth": "1980-01-29",
+      "nat": "España",
+      "start": "2024-10-25",
+      "isPref": 1
+    },
+    "72822": {
+      "name": "Ihor Voronkov",
+      "birth": "1981-04-24",
+      "nat": "Ucrania",
+      "start": "2026-01-07",
+      "isPref": 1
+    },
+    "75231": {
+      "name": "Vadim Evséyev",
+      "birth": "1976-01-08",
+      "nat": "Rusia",
+      "start": "2025-12-29",
+      "isPref": 1
+    },
+    "78435": {
+      "name": "Dean Smith",
+      "birth": "1971-03-19",
+      "nat": "Reino Unido",
+      "start": "2023-12-12",
+      "isPref": 1
+    },
+    "81401": {
+      "name": "Pawło Matwijczenko",
+      "birth": "1969-07-12",
+      "nat": "Ucrania",
+      "start": "2025-07-30",
+      "isPref": 1
+    },
+    "82686": {
+      "name": "Olof Mellberg",
+      "birth": "1977-09-03",
+      "nat": "Suecia",
+      "start": "2024-11-26",
+      "isPref": 1
+    },
+    "84122": {
+      "name": "Serhiy Nahornyak",
+      "birth": "1971-09-05",
+      "nat": "Ucrania",
+      "start": "2022-09-02",
+      "isPref": 1
+    },
+    "93182": {
+      "name": "John Maduka",
+      "birth": "1970-09-27",
+      "nat": "Malaui",
+      "start": "",
+      "isPref": 1
+    },
+    "110302": {
+      "name": "João Henriques",
+      "birth": "1972-10-31",
+      "nat": "Portugal",
+      "start": "2025-12-21",
+      "isPref": 1
+    },
+    "118373": {
+      "name": "Steve Corica",
+      "birth": "1973-03-24",
+      "nat": "Australia",
+      "start": "",
+      "isPref": 0
+    }
+  },
+  "presidentsByTm": {
+    "5": {
+      "name": "Paolo Scaroni",
+      "birth": "1946-11-28",
+      "nat": "Italia",
+      "start": "",
+      "isPref": 1
+    },
+    "7": {
+      "name": "Mahmoud El Khatib",
+      "birth": "1954-10-30",
+      "nat": "Egipto",
+      "start": "",
+      "isPref": 0
+    },
+    "11": {
+      "name": "Stan Kroenke",
+      "birth": "1947-07-29",
+      "nat": "Estados Unidos",
+      "start": "",
+      "isPref": 1
+    },
+    "12": {
+      "name": "Dan Friedkin",
+      "birth": "1965-02-27",
+      "nat": "Estados Unidos",
+      "start": "",
+      "isPref": 0
+    },
+    "13": {
+      "name": "Enrique Cerezo",
+      "birth": "1948-02-27",
+      "nat": "España",
+      "start": "",
+      "isPref": 0
+    },
+    "14": {
+      "name": "Wolfgang Katzian",
+      "birth": "1956-10-28",
+      "nat": "Austria",
+      "start": "",
+      "isPref": 0
+    },
+    "15": {
+      "name": "Fernando Carro",
+      "birth": "1964-07-27",
+      "nat": "España",
+      "start": "",
+      "isPref": 1
+    },
+    "16": {
+      "name": "Hans-Joachim Watzke",
+      "birth": "1959-06-21",
+      "nat": "Alemania",
+      "start": "",
+      "isPref": 0
+    },
+    "18": {
+      "name": "Rolf Königs",
+      "birth": "1941-08-19",
+      "nat": "Alemania",
+      "start": "",
+      "isPref": 0
+    },
+    "27": {
+      "name": "Jan-Christian Dreesen",
+      "birth": "1967-09-04",
+      "nat": "",
+      "start": "",
+      "isPref": 1
+    },
+    "31": {
+      "name": "Tom Werner",
+      "birth": "1950-04-12",
+      "nat": "Estados Unidos",
+      "start": "",
+      "isPref": 0
+    },
+    "35": {
+      "name": "Oke Göttlich",
+      "birth": "1975-11-28",
+      "nat": "Alemania",
+      "start": "",
+      "isPref": 1
+    },
+    "36": {
+      "name": "Aziz Yıldırım",
+      "birth": "1952-11-02",
+      "nat": "Turquía",
+      "start": "",
+      "isPref": 1
+    },
+    "39": {
+      "name": "Stefan Hofmann",
+      "birth": "1963-06-14",
+      "nat": "",
+      "start": "",
+      "isPref": 1
+    },
+    "41": {
+      "name": "Stefan Kuntz",
+      "birth": "1962-10-30",
+      "nat": "Alemania",
+      "start": "",
+      "isPref": 1
+    },
+    "46": {
+      "name": "Giuseppe Marotta",
+      "birth": "1957-03-25",
+      "nat": "Italia",
+      "start": "",
+      "isPref": 1
+    },
+    "62": {
+      "name": "Jaroslav Tvrdík",
+      "birth": "1968-09-11",
+      "nat": "República Checa",
+      "start": "",
+      "isPref": 1
+    },
+    "89": {
+      "name": "Dirk Zingler",
+      "birth": "1964-08-23",
+      "nat": "Alemania Oriental",
+      "start": "",
+      "isPref": 0
+    },
+    "114": {
+      "name": "Serdal Adalı",
+      "birth": "1964-01-01",
+      "nat": "Turquía",
+      "start": "",
+      "isPref": 0
+    },
+    "131": {
+      "name": "Joan Laporta",
+      "birth": "1962-06-29",
+      "nat": "España",
+      "start": "",
+      "isPref": 1
+    },
+    "141": {
+      "name": "Dursun Özbek",
+      "birth": "1950-03-25",
+      "nat": "Turquía",
+      "start": "",
+      "isPref": 1
+    },
+    "142": {
+      "name": "Jorge Mas",
+      "birth": "1963-02-28",
+      "nat": "Estados Unidos",
+      "start": "",
+      "isPref": 1
+    },
+    "148": {
+      "name": "Daniel Levy",
+      "birth": "1962-02-08",
+      "nat": "Reino Unido",
+      "start": "",
+      "isPref": 0
+    },
+    "157": {
+      "name": "Ivan De Witte",
+      "birth": "1947-06-09",
+      "nat": "Bélgica",
+      "start": "",
+      "isPref": 0
+    },
+    "159": {
+      "name": "Dragan Džajić",
+      "birth": "1946-05-30",
+      "nat": "Yugoslavia",
+      "start": "",
+      "isPref": 0
+    },
+    "162": {
+      "name": "Dmitry Rybolovlev",
+      "birth": "1966-11-22",
+      "nat": "Rusia",
+      "start": "",
+      "isPref": 0
+    },
+    "173": {
+      "name": "Niels Thorborg",
+      "birth": "1964-02-19",
+      "nat": "Reino de Dinamarca",
+      "start": "",
+      "isPref": 0
+    },
+    "189": {
+      "name": "Juan Román Riquelme",
+      "birth": "1978-06-24",
+      "nat": "Argentina",
+      "start": "",
+      "isPref": 0
+    },
+    "195": {
+      "name": "Cecilie Gotaas Johnsen",
+      "birth": "1976-04-20",
+      "nat": "Noruega",
+      "start": "",
+      "isPref": 0
+    },
+    "210": {
+      "name": "Romildo Bolzan Jr.",
+      "birth": "",
+      "nat": "Brasil",
+      "start": "",
+      "isPref": 0
+    },
+    "237": {
+      "name": "Andy Kohlberg",
+      "birth": "1959-08-17",
+      "nat": "Estados Unidos",
+      "start": "",
+      "isPref": 1
+    },
+    "244": {
+      "name": "Stéphane Richard",
+      "birth": "1961-08-24",
+      "nat": "Francia",
+      "start": "",
+      "isPref": 1
+    },
+    "252": {
+      "name": "Dan Șucu",
+      "birth": "1963-04-25",
+      "nat": "Rumania",
+      "start": "",
+      "isPref": 0
+    },
+    "260": {
+      "name": "Ancillo Canepa",
+      "birth": "1953-05-05",
+      "nat": "Suiza",
+      "start": "",
+      "isPref": 0
+    },
+    "265": {
+      "name": "Giannis Alafouzos",
+      "birth": "1957-07-02",
+      "nat": "Grecia",
+      "start": "",
+      "isPref": 1
+    },
+    "272": {
+      "name": "Jonny Jergander",
+      "birth": "",
+      "nat": "",
+      "start": "",
+      "isPref": 0
+    },
+    "276": {
+      "name": "Maurizio Setti",
+      "birth": "1963-06-05",
+      "nat": "Italia",
+      "start": "",
+      "isPref": 0
+    },
+    "281": {
+      "name": "Khaldoon Al Mubarak",
+      "birth": "1976-01-01",
+      "nat": "Emiratos Árabes Unidos",
+      "start": "",
+      "isPref": 0
+    },
+    "288": {
+      "name": "Juan Sebastián Verón",
+      "birth": "1975-03-09",
+      "nat": "Argentina",
+      "start": "",
+      "isPref": 0
+    },
+    "290": {
+      "name": "Guy Cotret",
+      "birth": "1949-12-31",
+      "nat": "Francia",
+      "start": "",
+      "isPref": 0
+    },
+    "294": {
+      "name": "Rui Costa",
+      "birth": "1972-03-29",
+      "nat": "Portugal",
+      "start": "",
+      "isPref": 1
+    },
+    "301": {
+      "name": "Valeriu Argăseală",
+      "birth": "1955-08-14",
+      "nat": "",
+      "start": "",
+      "isPref": 1
+    },
+    "331": {
+      "name": "Luis Sabalza Iriarte",
+      "birth": "1947-10-23",
+      "nat": "España",
+      "start": "",
+      "isPref": 0
+    },
+    "336": {
+      "name": "Frederico Varandas",
+      "birth": "1979-09-19",
+      "nat": "Portugal",
+      "start": "",
+      "isPref": 0
+    },
+    "398": {
+      "name": "Claudio Lotito",
+      "birth": "1957-05-09",
+      "nat": "Italia",
+      "start": "",
+      "isPref": 0
+    },
+    "405": {
+      "name": "Nassef Sawiris",
+      "birth": "1961-01-19",
+      "nat": "Egipto",
+      "start": "",
+      "isPref": 1
+    },
+    "410": {
+      "name": "Franco Soldati",
+      "birth": "1959-09-30",
+      "nat": "Italia",
+      "start": "",
+      "isPref": 1
+    },
+    "415": {
+      "name": "Olivier Cloarec",
+      "birth": "1974-03-01",
+      "nat": "",
+      "start": "",
+      "isPref": 1
+    },
+    "418": {
+      "name": "Florentino Pérez",
+      "birth": "1947-03-08",
+      "nat": "Cerrillo",
+      "start": "",
+      "isPref": 0
+    },
+    "429": {
+      "name": "Nikos Kirzis",
+      "birth": "",
+      "nat": "",
+      "start": "",
+      "isPref": 0
+    },
+    "449": {
+      "name": "Ertuğrul Doğan",
+      "birth": "1977-01-30",
+      "nat": "Turquía",
+      "start": "",
+      "isPref": 1
+    },
+    "472": {
+      "name": "Miguel Ángel Ramírez",
+      "birth": "1969-01-01",
+      "nat": "España",
+      "start": "",
+      "isPref": 0
+    },
+    "496": {
+      "name": "Anders Pålsson",
+      "birth": "1958-04-12",
+      "nat": "",
+      "start": "",
+      "isPref": 0
+    },
+    "506": {
+      "name": "Gianluca Ferrero",
+      "birth": "1963-01-01",
+      "nat": "Italia",
+      "start": "",
+      "isPref": 1
+    },
+    "568": {
+      "name": "Kaizer Motaung",
+      "birth": "1944-10-10",
+      "nat": "Sudáfrica",
+      "start": "",
+      "isPref": 0
+    },
+    "583": {
+      "name": "Nasser Al-Khelaifi",
+      "birth": "1973-11-12",
+      "nat": "Catar",
+      "start": "",
+      "isPref": 1
+    },
+    "602": {
+      "name": "Vilma Venslovaitienė",
+      "birth": "1974-01-27",
+      "nat": "",
+      "start": "",
+      "isPref": 0
+    },
+    "610": {
+      "name": "Hennie Henrichs",
+      "birth": "",
+      "nat": "Reino de los Países Bajos",
+      "start": "",
+      "isPref": 0
+    },
+    "614": {
+      "name": "Rodolfo Landim",
+      "birth": "1957-03-24",
+      "nat": "Brasil",
+      "start": "",
+      "isPref": 0
+    },
+    "630": {
+      "name": "Manolo Higuera",
+      "birth": "1964-02-14",
+      "nat": "España",
+      "start": "",
+      "isPref": 0
+    },
+    "631": {
+      "name": "Todd Boehlyl",
+      "birth": "1973-09-20",
+      "nat": "Estados Unidos",
+      "start": "",
+      "isPref": 1
+    },
+    "645": {
+      "name": "Nwankwo Kanu",
+      "birth": "1976-08-01",
+      "nat": "Nigeria",
+      "start": "",
+      "isPref": 0
+    },
+    "653": {
+      "name": "Michalis Bousis",
+      "birth": "",
+      "nat": "Estados Unidos",
+      "start": "",
+      "isPref": 0
+    },
+    "660": {
+      "name": "Rinat Ajmétov",
+      "birth": "1966-09-21",
+      "nat": "Ucrania",
+      "start": "",
+      "isPref": 0
+    },
+    "664": {
+      "name": "Hussein Labib",
+      "birth": "1955-01-01",
+      "nat": "Egipto",
+      "start": "",
+      "isPref": 0
+    },
+    "667": {
+      "name": "Marc Keller",
+      "birth": "1968-01-14",
+      "nat": "Francia",
+      "start": "",
+      "isPref": 0
+    },
+    "669": {
+      "name": "Milorad Vučelić",
+      "birth": "1948-06-17",
+      "nat": "",
+      "start": "",
+      "isPref": 0
+    },
+    "675": {
+      "name": "Ventseslav Stefanov",
+      "birth": "1949-11-28",
+      "nat": "",
+      "start": "",
+      "isPref": 0
+    },
+    "681": {
+      "name": "Jokin Aperribay",
+      "birth": "1966-05-27",
+      "nat": "España",
+      "start": "",
+      "isPref": 0
+    },
+    "683": {
+      "name": "Evangelos Marinakis",
+      "birth": "1967-07-30",
+      "nat": "Grecia",
+      "start": "",
+      "isPref": 0
+    },
+    "687": {
+      "name": "Odd Ivar Moen",
+      "birth": "1955-03-06",
+      "nat": "Noruega",
+      "start": "",
+      "isPref": 0
+    },
+    "714": {
+      "name": "Alan Pace",
+      "birth": "1968-08-11",
+      "nat": "Estados Unidos",
+      "start": "",
+      "isPref": 1
+    },
+    "715": {
+      "name": "Antonín Panenka",
+      "birth": "1948-12-02",
+      "nat": "República Checa",
+      "start": "",
+      "isPref": 0
+    },
+    "762": {
+      "name": "Yasir Al-Rumayyan",
+      "birth": "1970-01-01",
+      "nat": "Arabia Saudí",
+      "start": "",
+      "isPref": 0
+    },
+    "786": {
+      "name": "Andгeas Sofocleous",
+      "birth": "1967-01-01",
+      "nat": "Chipre",
+      "start": "",
+      "isPref": 0
+    },
+    "800": {
+      "name": "Antonio Percassi",
+      "birth": "1953-06-09",
+      "nat": "Italia",
+      "start": "",
+      "isPref": 1
+    },
+    "829": {
+      "name": "Stavros Papastavrou",
+      "birth": "",
+      "nat": "",
+      "start": "",
+      "isPref": 0
+    },
+    "830": {
+      "name": "Matías Mariotto",
+      "birth": "",
+      "nat": "",
+      "start": "",
+      "isPref": 0
+    },
+    "840": {
+      "name": "Giorgos Tsokkos",
+      "birth": "",
+      "nat": "",
+      "start": "",
+      "isPref": 0
+    },
+    "897": {
+      "name": "Antonio Couceiro",
+      "birth": "1955-12-18",
+      "nat": "España",
+      "start": "",
+      "isPref": 1
+    },
+    "932": {
+      "name": "Vladimir Leonchenko",
+      "birth": "1972-04-11",
+      "nat": "Rusia",
+      "start": "",
+      "isPref": 0
+    },
+    "964": {
+      "name": "Konstantín Ziriánov",
+      "birth": "1977-10-05",
+      "nat": "Rusia",
+      "start": "",
+      "isPref": 0
+    },
+    "970": {
+      "name": "Tony Sage",
+      "birth": "1960-06-26",
+      "nat": "Australia",
+      "start": "",
+      "isPref": 0
+    },
+    "985": {
+      "name": "Avram Glazer",
+      "birth": "1960-10-19",
+      "nat": "Estados Unidos",
+      "start": "",
+      "isPref": 1
+    },
+    "1025": {
+      "name": "Joey Saputo",
+      "birth": "1964-09-25",
+      "nat": "Canadá",
+      "start": "",
+      "isPref": 0
+    },
+    "1038": {
+      "name": "Marco Lanna",
+      "birth": "1968-07-13",
+      "nat": "Italia",
+      "start": "",
+      "isPref": 1
+    },
+    "1041": {
+      "name": "John Textor",
+      "birth": "1965-09-30",
+      "nat": "Estados Unidos",
+      "start": "",
+      "isPref": 0
+    },
+    "1049": {
+      "name": "Lay Hoon",
+      "birth": "1964-08-01",
+      "nat": "Singapur",
+      "start": "",
+      "isPref": 1
+    },
+    "1082": {
+      "name": "Olivier Létang",
+      "birth": "1972-11-29",
+      "nat": "Francia",
+      "start": "",
+      "isPref": 0
+    },
+    "1084": {
+      "name": "Abdullah ben Nasser Al Thani",
+      "birth": "1967-02-19",
+      "nat": "Catar",
+      "start": "",
+      "isPref": 0
+    },
+    "1091": {
+      "name": "Ivan Savvidi",
+      "birth": "1959-03-27",
+      "nat": "Grecia",
+      "start": "",
+      "isPref": 0
+    },
+    "1114": {
+      "name": "Nawaf bin Saad",
+      "birth": "1391-01-01",
+      "nat": "Arabia Saudí",
+      "start": "",
+      "isPref": 1
+    },
+    "1158": {
+      "name": "Loïc Féry",
+      "birth": "1974-03-15",
+      "nat": "Francia",
+      "start": "",
+      "isPref": 1
+    },
+    "1234": {
+      "name": "Néstor Grindetti",
+      "birth": "1955-02-24",
+      "nat": "Argentina",
+      "start": "",
+      "isPref": 1
+    },
+    "1237": {
+      "name": "Tony Bloom",
+      "birth": "1970-03-20",
+      "nat": "Reino Unido",
+      "start": "",
+      "isPref": 0
+    },
+    "1390": {
+      "name": "Tommaso Giulini",
+      "birth": "1977-06-18",
+      "nat": "Italia",
+      "start": "",
+      "isPref": 0
+    },
+    "1403": {
+      "name": "Dante Elizalde",
+      "birth": "1979-08-28",
+      "nat": "México",
+      "start": "",
+      "isPref": 0
+    },
+    "1418": {
+      "name": "Raúl Broglia",
+      "birth": "1950-03-14",
+      "nat": "Argentina",
+      "start": "",
+      "isPref": 0
+    },
+    "1420": {
+      "name": "Saïd Chabane",
+      "birth": "",
+      "nat": "Argelia",
+      "start": "",
+      "isPref": 0
+    },
+    "1444": {
+      "name": "Diego Milito",
+      "birth": "1979-06-12",
+      "nat": "Argentina",
+      "start": "",
+      "isPref": 1
+    },
+    "1533": {
+      "name": "Amaia Gorostiza Telleria",
+      "birth": "1966-01-01",
+      "nat": "España",
+      "start": "",
+      "isPref": 0
+    },
+    "1775": {
+      "name": "Horacio Arreceygor",
+      "birth": "1959-01-01",
+      "nat": "",
+      "start": "",
+      "isPref": 1
+    },
+    "2063": {
+      "name": "Alejandro Nadur",
+      "birth": "1952-08-11",
+      "nat": "Argentina",
+      "start": "",
+      "isPref": 0
+    },
+    "2259": {
+      "name": "Hristo Bonev",
+      "birth": "1947-02-03",
+      "nat": "Bulgaria",
+      "start": "",
+      "isPref": 0
+    },
+    "2282": {
+      "name": "Bart Verhaeghe",
+      "birth": "1965-01-01",
+      "nat": "Bélgica",
+      "start": "",
+      "isPref": 0
+    },
+    "2381": {
+      "name": "Mecnun Otyakmaz",
+      "birth": "1965-02-10",
+      "nat": "Turquía",
+      "start": "",
+      "isPref": 0
+    },
+    "2441": {
+      "name": "Evangelos Aslanidis",
+      "birth": "1951-01-01",
+      "nat": "Grecia",
+      "start": "",
+      "isPref": 1
+    },
+    "2448": {
+      "name": "Alejandro Irarragorri",
+      "birth": "1971-05-12",
+      "nat": "México",
+      "start": "",
+      "isPref": 1
+    },
+    "2497": {
+      "name": "Martín Peláez",
+      "birth": "1972-01-06",
+      "nat": "México",
+      "start": "",
+      "isPref": 1
+    },
+    "2502": {
+      "name": "Haralabos Voulgaris",
+      "birth": "1975-04-07",
+      "nat": "Canadá",
+      "start": "",
+      "isPref": 0
+    },
+    "2687": {
+      "name": "Manuel Vizcaíno Fernández",
+      "birth": "1965-12-21",
+      "nat": "España",
+      "start": "",
+      "isPref": 0
+    },
+    "2698": {
+      "name": "Radik Shaimiev",
+      "birth": "1964-11-14",
+      "nat": "Rusia",
+      "start": "",
+      "isPref": 0
+    },
+    "2784": {
+      "name": "Prodromos Petrides",
+      "birth": "",
+      "nat": "",
+      "start": "",
+      "isPref": 0
+    },
+    "2921": {
+      "name": "Daniele Sebastiani",
+      "birth": "1968-03-06",
+      "nat": "Italia",
+      "start": "",
+      "isPref": 1
+    },
+    "3393": {
+      "name": "Costas Christodoulou",
+      "birth": "",
+      "nat": "",
+      "start": "",
+      "isPref": 0
+    },
+    "3508": {
+      "name": "Willy Naessens",
+      "birth": "1939-02-14",
+      "nat": "Bélgica",
+      "start": "",
+      "isPref": 0
+    },
+    "3725": {
+      "name": "Ibrahim Salmanovich Zakriev",
+      "birth": "1990-10-16",
+      "nat": "Rusia",
+      "start": "",
+      "isPref": 0
+    },
+    "3899": {
+      "name": "Andreas Panteli",
+      "birth": "",
+      "nat": "",
+      "start": "",
+      "isPref": 0
+    },
+    "3938": {
+      "name": "Andrés Fassi",
+      "birth": "1962-01-29",
+      "nat": "Argentina",
+      "start": "",
+      "isPref": 0
+    },
+    "4097": {
+      "name": "Floriano Noto",
+      "birth": "1958-06-28",
+      "nat": "Italia",
+      "start": "",
+      "isPref": 1
+    },
+    "4172": {
+      "name": "Damien Comolli",
+      "birth": "1971-11-24",
+      "nat": "Francia",
+      "start": "",
+      "isPref": 0
+    },
+    "4590": {
+      "name": "Kikis Filippou",
+      "birth": "",
+      "nat": "Chipre",
+      "start": "",
+      "isPref": 0
+    },
+    "4633": {
+      "name": "Bajro Župić",
+      "birth": "1960-01-21",
+      "nat": "Serbia",
+      "start": "",
+      "isPref": 0
+    },
+    "4772": {
+      "name": "Milan Mandarić",
+      "birth": "1938-09-05",
+      "nat": "Estados Unidos",
+      "start": "",
+      "isPref": 0
+    },
+    "5196": {
+      "name": "Patrik Hannell",
+      "birth": "",
+      "nat": "",
+      "start": "",
+      "isPref": 0
+    },
+    "6195": {
+      "name": "Aurelio De Laurentiis",
+      "birth": "1949-05-21",
+      "nat": "Italia",
+      "start": "",
+      "isPref": 1
+    },
+    "6418": {
+      "name": "Makis Belevonis",
+      "birth": "1975-12-19",
+      "nat": "Grecia",
+      "start": "",
+      "isPref": 0
+    },
+    "6676": {
+      "name": "Georgios Borovilos",
+      "birth": "1960-10-05",
+      "nat": "Grecia",
+      "start": "",
+      "isPref": 0
+    },
+    "6890": {
+      "name": "Göksel Gümüşdağ",
+      "birth": "1972-10-10",
+      "nat": "Turquía",
+      "start": "",
+      "isPref": 0
+    },
+    "7006": {
+      "name": "Anthony Di Pietro",
+      "birth": "1969-02-15",
+      "nat": "Australia",
+      "start": "",
+      "isPref": 0
+    },
+    "7775": {
+      "name": "Nihat Tazearslan",
+      "birth": "1976-04-30",
+      "nat": "Turquía",
+      "start": "",
+      "isPref": 0
+    },
+    "8042": {
+      "name": "Stefan Håkans",
+      "birth": "1941-07-25",
+      "nat": "Finlandia",
+      "start": "",
+      "isPref": 0
+    },
+    "8054": {
+      "name": "Scott Barlow",
+      "birth": "1976-07-23",
+      "nat": "Australia",
+      "start": "",
+      "isPref": 0
+    },
+    "8970": {
+      "name": "Maurizio Stirpe",
+      "birth": "1958-07-31",
+      "nat": "Italia",
+      "start": "",
+      "isPref": 0
+    },
+    "9094": {
+      "name": "Samir Halabia",
+      "birth": "",
+      "nat": "",
+      "start": "",
+      "isPref": 0
+    },
+    "9636": {
+      "name": "Garth Lagerwey",
+      "birth": "1972-12-12",
+      "nat": "Estados Unidos",
+      "start": "",
+      "isPref": 0
+    },
+    "9875": {
+      "name": "Daniel Angelici",
+      "birth": "1964-05-03",
+      "nat": "Argentina",
+      "start": "",
+      "isPref": 0
+    },
+    "9899": {
+      "name": "Jokin Aperribay",
+      "birth": "1966-05-27",
+      "nat": "España",
+      "start": "",
+      "isPref": 0
+    },
+    "10010": {
+      "name": "Guilherme Bellintani",
+      "birth": "1977-01-01",
+      "nat": "Brasil",
+      "start": "",
+      "isPref": 0
+    },
+    "10625": {
+      "name": "Tahir Gözəl",
+      "birth": "1972-01-01",
+      "nat": "Azerbaiyán",
+      "start": "",
+      "isPref": 0
+    },
+    "10870": {
+      "name": "Eduardo Girão",
+      "birth": "1972-09-25",
+      "nat": "Brasil",
+      "start": "",
+      "isPref": 0
+    },
+    "11127": {
+      "name": "Grigory Ivanov",
+      "birth": "1961-01-21",
+      "nat": "Rusia",
+      "start": "",
+      "isPref": 1
+    },
+    "11391": {
+      "name": "Ivan Vuksich",
+      "birth": "1948-01-01",
+      "nat": "Nueva Zelanda",
+      "start": "",
+      "isPref": 0
+    },
+    "13366": {
+      "name": "Mobilis",
+      "birth": "",
+      "nat": "",
+      "start": "",
+      "isPref": 0
+    },
+    "16795": {
+      "name": "Jiang Lizhang",
+      "birth": "1981-10-27",
+      "nat": "República Popular China",
+      "start": "",
+      "isPref": 0
+    },
+    "18544": {
+      "name": "Safwan Al Suwaiket",
+      "birth": "",
+      "nat": "Arabia Saudí",
+      "start": "",
+      "isPref": 0
+    },
+    "18945": {
+      "name": "Yannos Chrysostomou",
+      "birth": "",
+      "nat": "Chipre",
+      "start": "",
+      "isPref": 1
+    },
+    "22010": {
+      "name": "Tale Heydarov",
+      "birth": "1985-02-09",
+      "nat": "Azerbaiyán",
+      "start": "",
+      "isPref": 0
+    },
+    "23826": {
+      "name": "Oliver Mintzlaff",
+      "birth": "1975-08-19",
+      "nat": "Alemania",
+      "start": "",
+      "isPref": 0
+    },
+    "25580": {
+      "name": "Khaldoon Al Mubarak",
+      "birth": "1976-01-01",
+      "nat": "Emiratos Árabes Unidos",
+      "start": "",
+      "isPref": 0
+    },
+    "36100": {
+      "name": "Paul Lederer",
+      "birth": "",
+      "nat": "Australia",
+      "start": "",
+      "isPref": 0
+    },
+    "40416": {
+      "name": "Rumen Chandarov",
+      "birth": "1966-02-13",
+      "nat": "",
+      "start": "",
+      "isPref": 0
+    },
+    "46710": {
+      "name": "Taleh Nasibov",
+      "birth": "1985-06-19",
+      "nat": "Azerbaiyán",
+      "start": "",
+      "isPref": 0
+    },
+    "85465": {
+      "name": "Stepan Yurchyshyn",
+      "birth": "1957-08-28",
+      "nat": "Ucrania",
+      "start": "",
+      "isPref": 0
+    },
+    "118373": {
+      "name": "William P. Foley II",
+      "birth": "1944-12-14",
+      "nat": "Estados Unidos",
+      "start": "",
+      "isPref": 0
+    }
+  },
+  "directorsByTm": {
+    "16": {
+      "name": "Hans-Joachim Watzke",
+      "birth": "1959-06-21",
+      "nat": "Alemania",
+      "start": "",
+      "isPref": 0
+    },
+    "58": {
+      "name": "Michael Verschueren",
+      "birth": "1970-08-13",
+      "nat": "Bélgica",
+      "start": "",
+      "isPref": 0
+    },
+    "131": {
+      "name": "Deco",
+      "birth": "1977-08-27",
+      "nat": "Portugal",
+      "start": "",
+      "isPref": 0
+    },
+    "331": {
+      "name": "Braulio Vázquez",
+      "birth": "1972-03-14",
+      "nat": "España",
+      "start": "",
+      "isPref": 0
+    },
+    "681": {
+      "name": "Roberto Olabe",
+      "birth": "1967-10-20",
+      "nat": "España",
+      "start": "",
+      "isPref": 0
+    },
+    "1041": {
+      "name": "Laurent Prud’homme",
+      "birth": "1974-08-29",
+      "nat": "Francia",
+      "start": "",
+      "isPref": 0
+    },
+    "1108": {
+      "name": "Sergio Fernández Álvarez",
+      "birth": "1975-02-09",
+      "nat": "España",
+      "start": "",
+      "isPref": 0
+    },
+    "1533": {
+      "name": "César Palacios",
+      "birth": "1974-10-19",
+      "nat": "España",
+      "start": "",
+      "isPref": 0
+    },
+    "2761": {
+      "name": "Martin Fauskanger",
+      "birth": "1986-10-21",
+      "nat": "Noruega",
+      "start": "",
+      "isPref": 0
+    },
+    "4097": {
+      "name": "Ciro Polito",
+      "birth": "1979-04-12",
+      "nat": "Italia",
+      "start": "",
+      "isPref": 0
+    },
+    "6674": {
+      "name": "Audrey Chicot",
+      "birth": "",
+      "nat": "Camerún",
+      "start": "",
+      "isPref": 0
+    },
+    "9899": {
+      "name": "Roberto Olabe",
+      "birth": "1967-10-20",
+      "nat": "España",
+      "start": "",
+      "isPref": 0
+    }
+  }
+}

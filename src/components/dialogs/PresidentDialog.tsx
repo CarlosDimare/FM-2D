@@ -13,6 +13,8 @@ const PRESIDENT_FIRST = ['Alberto', 'Carlos', 'Eduardo', 'Jorge', 'Ricardo', 'Fe
 const PRESIDENT_LAST = ['Mendoza', 'Aguilar', 'Castellanos', 'Salazar', 'Montoya', 'Domínguez', 'Villarreal', 'Peralta', 'Escobar', 'Sarmiento'];
 
 export function getClubPresidentName(clubId: string): string {
+  const realPres = world.getClub(clubId)?.presidentName;
+  if (realPres) return realPres;
   let hash = 0;
   for (let i = 0; i < clubId.length; i++) {
     hash = (hash * 31 + clubId.charCodeAt(i)) >>> 0;

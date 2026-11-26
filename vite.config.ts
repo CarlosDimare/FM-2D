@@ -66,11 +66,11 @@ export default defineConfig(() => {
           runtimeCaching: [
             {
               urlPattern: /\/data\/.*\.json$/i,
-              handler: 'CacheFirst',
+              handler: 'StaleWhileRevalidate',
               options: {
-                cacheName: 'fm-database-cache',
+                cacheName: 'fm-database-v2-cache',
                 expiration: {
-                  maxEntries: 10,
+                  maxEntries: 200,
                   maxAgeSeconds: 60 * 60 * 24 * 30,
                 },
                 cacheableResponse: {

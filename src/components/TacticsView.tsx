@@ -12,6 +12,7 @@ import { autoCompleteElevenWithChosenTactic } from '../services/staffAdviceServi
 import { checkAssistantTrigger, checkReserveManagerTrigger, checkYouthManagerTrigger } from '../services/dialogueTriggers';
 import { Save, UserCheck, MousePointer2, ArrowUpRight, LayoutGrid, ClipboardList, X, Users, Star, Trash2, User, ChevronLeft, ChevronRight } from 'lucide-react';
 import { FMButton, FMBox } from './FMUI';
+import { getClubHexPalette } from './ClubBannerChrome';
 import { DialogueAvatar } from './dialogs/DialogueAvatar';
 
 interface TacticsViewProps {
@@ -671,9 +672,24 @@ export const TacticsView: React.FC<TacticsViewProps> = ({ players, club, squad =
                  >
                     {p ? (
                        <div className="flex flex-col items-center gap-0.5">
-                           <div title={`${p.name} — ${SLOT_CONFIG[slotIdx]?.abbr || ''}`} className={`relative w-10 h-10 sm:w-12 sm:h-12 lg:w-12 lg:h-12 rounded-full border-2 flex items-center justify-center font-black text-[11px] sm:text-sm shadow-lg transition-all hover:scale-110 cursor-pointer ${isSelected ? 'ring-4 ring-yellow-400' : ''} ${p.positions.includes(Position.GK) ? 'bg-yellow-400 text-black border-yellow-600' : `${club.primaryColor} ${club.secondaryColor} border-black/20`}`}>
-                               {getDorsal(p, players)}
-                            </div>
+                           {(() => {
+                             const isGk = p.positions.includes(Position.GK);
+                             const pal = getClubHexPalette(club, '#2b5d2c', '#f8fafc');
+                             const circleStyle = isGk ? undefined : {
+                               backgroundColor: pal.primary,
+                               color: pal.isLightPrimary ? '#0f172a' : '#ffffff',
+                               borderColor: pal.secondary,
+                             };
+                             return (
+                               <div
+                                 title={`${p.name} — ${SLOT_CONFIG[slotIdx]?.abbr || ''}`}
+                                 style={circleStyle}
+                                 className={`relative w-10 h-10 sm:w-12 sm:h-12 lg:w-12 lg:h-12 rounded-full border-2 flex items-center justify-center font-black text-[11px] sm:text-sm shadow-lg transition-all hover:scale-110 cursor-pointer ${isSelected ? 'ring-4 ring-yellow-400' : ''} ${isGk ? 'bg-yellow-400 text-black border-yellow-600' : ''}`}
+                               >
+                                 {getDorsal(p, players)}
+                               </div>
+                             );
+                           })()}
                             <span className="px-1 py-px bg-black/70 text-white text-[5px] sm:text-[6px] lg:text-[7px] font-black uppercase rounded-sm leading-none truncate max-w-[56px] lg:max-w-[64px] shadow-sm">{p.name}</span>
                        </div>
                     ) : (

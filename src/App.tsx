@@ -360,11 +360,23 @@ const App: React.FC = () => {
     notify();
   };
 
+  const ensureLeagueReadyForStart = async (leagueId: string): Promise<void> => {
+    if (world.isLeaguePlayersLoaded(leagueId)) return;
+    setIsPreparingCareer(true);
+    try {
+      await world.ensureLeaguePlayersLoaded(leagueId);
+    } finally {
+      setIsPreparingCareer(false);
+    }
+  };
+
   const createManagerAndStartGame = async (manager: RealManager, clubId: string, fired: boolean) => {
-    await ensureWorldReadyForStart();
+    await world.clubsReadyPromise;
     const club = world.getClub(clubId);
     if (!club) return;
+    await ensureLeagueReadyForStart(club.leagueId);
     if (selectedNationalTeamId && careerMode !== 'CLUB') {
+      await ensureWorldReadyForStart();
       if (!setupNationalControl(selectedNationalTeamId)) return;
       world.replaceHeadCoach(manager, club.id, fired);
     } else {
@@ -384,8 +396,9 @@ const App: React.FC = () => {
   };
 
   const startUserClubCareer = async (club: Club) => {
-    await ensureWorldReadyForStart();
+    await world.clubsReadyPromise;
     const freshClub = world.getClub(club.id) || club;
+    await ensureLeagueReadyForStart(freshClub.leagueId);
     world.ensureDeepSquads(freshClub.leagueId);
     useGameStore.getState().setDeepSimLeagues([freshClub.leagueId]);
     setUserClub(freshClub);

@@ -68,26 +68,40 @@ export const PreCareerPreviewView: React.FC<PreCareerPreviewViewProps> = ({
   onBack,
   onConfirmChoose,
 }) => {
-  const [worldReady, setWorldReady] = useState(() => world.isReady);
+  const [worldReady, setWorldReady] = useState(() =>
+    mode === 'CLUB' && club ? world.isLeaguePlayersLoaded(club.leagueId) : world.isReady
+  );
   const [squadFilter, setSquadFilter] = useState<SquadType | 'ALL'>('SENIOR');
   const [inspectedPlayer, setInspectedPlayer] = useState<Player | null>(null);
   const [refreshTick, setRefreshTick] = useState(0);
 
   useEffect(() => {
     let active = true;
-    const sync = () => {
-      if (!active) return;
-      setWorldReady(world.isReady);
-      if (mode === 'CLUB' && club) {
+    if (mode === 'CLUB' && club) {
+      const syncClub = () => {
+        if (!active) return;
         world.ensureDeepSquads(club.leagueId);
+        setWorldReady(true);
+        setRefreshTick((t) => t + 1);
+      };
+      if (world.isLeaguePlayersLoaded(club.leagueId)) {
+        syncClub();
+      } else {
+        setWorldReady(false);
+        world.ensureLeaguePlayersLoaded(club.leagueId).then(syncClub);
       }
-      setRefreshTick((t) => t + 1);
-    };
-
-    if (!world.isReady) {
-      world.readyPromise.then(sync);
     } else {
-      sync();
+      const syncNat = () => {
+        if (!active) return;
+        setWorldReady(world.isReady);
+        setRefreshTick((t) => t + 1);
+      };
+      if (!world.isReady) {
+        setWorldReady(false);
+        world.readyPromise.then(syncNat);
+      } else {
+        syncNat();
+      }
     }
 
     return () => {

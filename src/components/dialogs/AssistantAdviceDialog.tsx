@@ -131,8 +131,8 @@ export const AssistantAdviceDialog: React.FC<AssistantAdviceDialogProps> = ({ on
     : staffRole === 'YOUTH_MANAGER' ? 'Entrenador Sub-20'
     : 'Ayudante de Campo';
   const iniciales = staffName.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
-  const clubPrimary = club?.primaryColor || 'bg-[#3a4a3a]';
-  const clubBorder = club?.primaryColor ? club.primaryColor.replace('bg-', 'border-') : 'border-[#3a4a3a]';
+  const clubPrimary = club?.primaryColor || '#3a4a3a';
+  const clubBorder = clubPrimary;
 
   const advice = useMemo(() => {
     const raw = club ? generateTacticAdvice(club, opponent, data?.squad || 'SENIOR', tacticalStaff || undefined) : null;

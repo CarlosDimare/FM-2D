@@ -8,7 +8,7 @@ import { SLOT_CONFIG } from "./engine";
 import { sendTransferNotification, sendInboxNotification, sendInjuryNotification } from "./notifications";
 import { generatePlayer, generateRandomPlayer, getPlayerTag } from "./playerGenerator";
 import { useGameStore } from "../stores/gameStore";
-import { loadConvertedClubs, loadConvertedPlayers, loadConvertedLeagues } from "../data/convertedDataLoader";
+import { loadConvertedClubs, loadConvertedLeagues, loadConvertedStaff, loadPlayersManifest, loadLeaguePlayerChunk, PlayersManifest, PlayerTuple } from "../data/convertedDataLoader";
 
 // ─── Perfil táctico de los entrenadores generados ───────────────────────────
 const COACH_STYLES = ['CONTROL', 'ATTACK', 'DEFENSE', 'COUNTER', 'BALANCED'] as const;
@@ -62,7 +62,7 @@ export class WorldManager {
   private indexedStaffCount = 0;
   private lastRetirementSweepTime = 0;
 
-  // Estado de inicialización progresiva (evita congelar el hilo principal en Android)
+  // Estado de inicialización progresiva y carga por chunks de liga
   clubsReady = false;
   isReady = false;
   clubsReadyPromise: Promise<void> = Promise.resolve();
@@ -70,6 +70,12 @@ export class WorldManager {
   private resolveClubsReady: (() => void) | null = null;
   private resolveReady: (() => void) | null = null;
   private loadGeneration = 0;
+  private playersManifest: PlayersManifest | null = null;
+  private loadedPlayerLeagues = new Set<string>();
+  private loadingLeaguePromises = new Map<string, Promise<void>>();
+  private seenPlayerIds = new Set<string>();
+  private staticClubIds = new Set<string>();
+  private realPlayersByShortCache: Map<string, RealPlayerDef[]> | null = null;
 
   constructor() { this.initWorld(); }
 
@@ -84,6 +90,10 @@ export class WorldManager {
       this.clubByIdCache.clear();
       this.playersIndexDirty = true;
       this.staffIndexDirty = true;
+      this.loadingLeaguePromises.clear();
+      for (const comp of this.competitions) {
+        if (comp.type === 'LEAGUE') this.loadedPlayerLeagues.add(comp.id);
+      }
       if (this.resolveClubsReady) { this.resolveClubsReady(); this.resolveClubsReady = null; }
       if (this.resolveReady) { this.resolveReady(); this.resolveReady = null; }
    }
@@ -110,13 +120,18 @@ export class WorldManager {
       this.staffByIdIndex = null;
       this.staffIndexDirty = true;
       this.indexedStaffCount = 0;
+      this.playersManifest = null;
+      this.loadedPlayerLeagues.clear();
+      this.loadingLeaguePromises.clear();
+      this.seenPlayerIds.clear();
+      this.staticClubIds.clear();
 
       // Base competitions (only W_CLUB)
       this.competitions = [
         { id: "W_CLUB", name: "Mundial de Clubes", country: "Global", type: 'GLOBAL', tier: 1, continent: "Global", confederation: "FIFA", defaultPrizePool: 5000000 },
       ];
 
-      // Load all clubs and players from open-football-database cooperatively without blocking UI taps
+      // Load leagues, clubs, staff & manifest immediately (~80ms), then hydrate player chunks lazily/cooperatively
       this.loadConvertedData(gen).catch(err => {
         console.error('Failed to load converted data:', err);
         if (gen === this.loadGeneration) {
@@ -128,30 +143,81 @@ export class WorldManager {
       });
     }
 
-   // ─── Load from open-football-database converted data (2-phase, cooperative) ───
+   private static readonly POS_MAP: Record<string, Position> = {
+      'P': Position.GK, 'DFC': Position.DC, 'LIB': Position.SW,
+      'LD': Position.DR, 'LI': Position.DL, 'CD': Position.DMR, 'CI': Position.DML,
+      'MCD': Position.DM, 'MC': Position.MC, 'MD': Position.MR, 'MI': Position.ML,
+      'MPC': Position.AM, 'ED': Position.AMR, 'EI': Position.AML,
+      'DC': Position.ST, 'WD': Position.STR, 'WI': Position.STL
+   };
+
+   private static readonly COUNTRY_ECONOMY: Record<string, number> = {
+      'Argentina': 0.65, 'Brasil': 0.85, 'Uruguay': 0.6, 'Chile': 0.7, 'Colombia': 0.65,
+      'Inglaterra': 2.0, 'España': 1.8, 'Italia': 1.7, 'Alemania': 1.9, 'Francia': 1.8,
+      'Portugal': 1.2, 'Países Bajos': 1.5, 'Bélgica': 1.3, 'Turquía': 1.0, 'Rusia': 0.9,
+      'Croacia': 0.75, 'Grecia': 0.7, 'Austria': 1.5, 'Suiza': 1.6, 'Dinamarca': 1.3,
+      'Suecia': 1.1, 'Noruega': 1.2, 'Polonia': 0.8, 'Ucrania': 0.6,
+      'USA': 2.1, 'Estados Unidos': 2.1, 'México': 0.75, 'Japón': 1.5, 'China': 1.3,
+      'Arabia Saudita': 1.8, 'Emiratos Árabes Unidos': 1.6, 'Egipto': 0.7, 'Marruecos': 0.65,
+      'Sudáfrica': 0.8, 'Corea del Sur': 1.3, 'Australia': 1.2,
+   };
+
+   private static facilityScore(label: unknown, fallback: number): number {
+      if (typeof label === 'number' && Number.isFinite(label)) return Math.max(4, Math.min(20, Math.round(label)));
+      switch (label) {
+         case 'StateOfTheArt':
+         case 'Superb':
+         case 'Excellent': return 18;
+         case 'Great': return 15;
+         case 'Good': return 13;
+         case 'Adequate':
+         case 'Average': return 10;
+         case 'Fair':
+         case 'BelowAverage': return 8;
+         case 'Basic':
+         case 'Poor': return 6;
+         default: return Math.max(4, Math.min(20, fallback));
+      }
+   }
+
+   private static ageFromBirthDate(birthStr: string): number {
+      const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(birthStr || '');
+      if (!m) return 24;
+      const y = parseInt(m[1], 10);
+      const mo = parseInt(m[2], 10);
+      const d = parseInt(m[3], 10);
+      let age = 2026 - y;
+      if (mo > 11 || (mo === 11 && d > 26)) age -= 1;
+      return Math.max(15, Math.min(45, age));
+   }
+
+   // ─── Load from open-football-database converted data (Phase 1 instant + Phase 2 chunked) ───
    async loadConvertedData(gen: number = this.loadGeneration) {
-      // Disparar la descarga pesada de jugadores en paralelo mientras cargamos ligas + clubes (~198 KB)
-      const playersPromise = loadConvertedPlayers();
-      const [CONVERTED_CLUBS, CONVERTED_LEAGUES, ntModule] = await Promise.all([
+      const [CONVERTED_CLUBS, CONVERTED_LEAGUES, CONVERTED_STAFF, MANIFEST, ntModule] = await Promise.all([
         loadConvertedClubs(),
         loadConvertedLeagues(),
+        loadConvertedStaff(),
+        loadPlayersManifest(),
         import('./nationalTeamManager'),
       ]);
       if (gen !== this.loadGeneration) return;
 
-      const posMap: Record<string, Position> = {
-        'P': Position.GK, 'DFC': Position.DC, 'LIB': Position.SW,
-        'LD': Position.DR, 'LI': Position.DL, 'CD': Position.DMR, 'CI': Position.DML,
-        'MCD': Position.DM, 'MC': Position.MC, 'MD': Position.MR, 'MI': Position.ML,
-        'MPC': Position.AM, 'ED': Position.AMR, 'EI': Position.AML,
-        'DC': Position.ST, 'WD': Position.STR, 'WI': Position.STL
-      };
+      this.playersManifest = MANIFEST;
 
-      // ── FASE 1 (rápida, ~20ms): Ligas, competiciones, clubes y selecciones disponibles de inmediato ──
+      const crossYearCountries = new Set([
+        'Inglaterra', 'España', 'Italia', 'Alemania', 'Francia', 'Portugal', 'Países Bajos', 'Bélgica',
+        'Turquía', 'Grecia', 'Escocia', 'Austria', 'Suiza', 'Dinamarca', 'Polonia', 'Rusia', 'Ucrania',
+        'República Checa', 'Croacia', 'Serbia', 'Rumania', 'Hungría', 'Bulgaria', 'Eslovaquia', 'Eslovenia',
+        'Israel', 'Chipre', 'Azerbaiyán', 'Arabia Saudita', 'Emiratos Árabes Unidos', 'Irán', 'Egipto',
+        'Marruecos', 'Sudáfrica', 'México', 'Australia'
+      ]);
+
+      // ── FASE 1 (~60-90ms): Ligas, clubes con colores/presidentes reales y staff real ──
       for (const lg of CONVERTED_LEAGUES) {
          const continent = this.getContinentForCountry(lg.country);
          const confederation = this.getConfederationForContinent(continent);
-         const isCrossYear = ['Inglaterra', 'España', 'Italia', 'Alemania', 'Francia', 'Portugal', 'Países Bajos', 'Bélgica'].includes(lg.country);
+         const isCrossYear = crossYearCountries.has(lg.country);
+         const repScaled = Math.max(12, Math.min(95, Math.round((lg.reputation || 3000) / 100)));
          this.competitions.push({
             id: lg.id,
             name: lg.name,
@@ -165,41 +231,50 @@ export class WorldManager {
             u21Requirement: 3,
             seasonStartMonth: isCrossYear ? 7 : 0,
             seasonEndMonth: isCrossYear ? 4 : 11,
+            dynamicReputation: repScaled,
          });
       }
 
-      // 2. Add continental + global competitions + static club shells (sin bloquear con planteles aún)
+      // 2. Add continental + global competitions + missing static leagues (KOR, ECU, BOL only)
       const staticClubs = this.addContinentalCompetitions(true);
+      for (const sc of staticClubs) {
+         this.staticClubIds.add(sc.id);
+      }
 
-      // 3. Load clubs and index by ID in O(1)
+      // 3. Load all converted clubs preserving real hex primary/secondary colors and president names
       for (const c of CONVERTED_CLUBS) {
+         const clubId = String(c.id);
+         const rep = c.reputation || 4000;
+         const avgAtt = Number(c.average_attendance || 0);
+         const fallbackCap = rep >= 8000 ? 50000 : rep >= 7000 ? 30000 : rep >= 6000 ? 20000 : rep >= 5000 ? 12000 : 8000;
          const club: Club = {
-            id: String(c.id),
+            id: clubId,
             name: c.name,
             shortName: c.shortName,
             leagueId: c.competitionId,
             country: c.country,
             primaryColor: this.hexToTailwind(c.primaryColor),
-            secondaryColor: this.hexToTailwind(c.secondaryColor),
-             finances: {
-                balance: c.reputation * 2500,
-                transferBudget: c.reputation * 800,
-                wageBudget: c.reputation * 80,
-                monthlyIncome: c.reputation * 200,
-                monthlyExpenses: 0,
-                scoutingBudget: c.reputation * 100,
-                monthlyHistory: [],
-             },
-            reputation: c.reputation,
+            secondaryColor: this.hexToTailwind(c.secondaryColor, c.primaryColor === '#ffffff' ? '#0f172a' : '#f8fafc'),
+            presidentName: c.presidentName || undefined,
+            finances: {
+               balance: rep * 2500,
+               transferBudget: rep * 800,
+               wageBudget: rep * 80,
+               monthlyIncome: rep * 200,
+               monthlyExpenses: 0,
+               scoutingBudget: rep * 100,
+               monthlyHistory: [],
+            },
+            reputation: rep,
             stadium: `${c.name} Stadium`,
-            stadiumCapacity: c.reputation >= 8000 ? 50000 : c.reputation >= 7000 ? 30000 : c.reputation >= 6000 ? 20000 : c.reputation >= 5000 ? 12000 : 8000,
+            stadiumCapacity: avgAtt > 0 ? Math.max(4000, Math.round(avgAtt * 1.25)) : fallbackCap,
             honours: this.generateRandomHonours(),
-            trainingFacilities: Math.min(20, Math.floor(c.reputation / 500) + randomInt(-2, 2)),
-            youthFacilities: Math.min(20, Math.floor(c.reputation / 55) + randomInt(-3, 3)),
-            youthRecruitment: Math.min(20, Math.floor(c.reputation / 60) + randomInt(-2, 2)),
+            trainingFacilities: WorldManager.facilityScore(c.facilities?.training, Math.floor(rep / 500) + randomInt(-1, 2)),
+            youthFacilities: WorldManager.facilityScore(c.facilities?.youth, Math.floor(rep / 550) + randomInt(-1, 2)),
+            youthRecruitment: WorldManager.facilityScore(c.facilities?.recruitment, Math.floor(rep / 600) + randomInt(-1, 2)),
             scoutingRegion: (["ARG", "BRA", "URU", "CHL", "COL", "ECU", "PAR", "PER", "URY", "VEN", "BOL", "GLO"] as const)[randomInt(0, 11)],
             boardConfidence: 65 + randomInt(0, 25),
-            seasonObjective: c.reputation > 4000 ? 'TOP_4' : c.reputation > 2500 ? 'TOP_HALF' : 'AVOID_RELEGATION',
+            seasonObjective: rep > 5500 ? 'TOP_4' : rep > 3200 ? 'TOP_HALF' : 'AVOID_RELEGATION',
             shortlistedPlayerIds: [],
             transferFolderIds: [],
             u21MinutesThisSeason: 0,
@@ -210,180 +285,339 @@ export class WorldManager {
          this.clubByIdCache.set(club.id, club);
       }
 
+      // Ensure base league reputations are calibrated cleanly
+      for (const comp of this.competitions) {
+         if (comp.type === 'LEAGUE') {
+            comp.dynamicReputation = this.getBaseLeagueRep(comp);
+            comp.marketMultiplier = 0.5 + (comp.dynamicReputation / 100) * 1.5;
+         }
+      }
+
+      // 4. Hydrate O(1) indices + real converted staff (~19.5k records across all clubs + free agents)
+      this.playersByClubIndex = new Map();
+      this.playerByIdIndex = new Map();
+      this.playersIndexDirty = false;
+      this.indexedPlayersCount = 0;
+
+      this.staffByClubIndex = new Map();
+      this.staffByIdIndex = new Map();
+      this.staffIndexDirty = false;
+      this.indexedStaffCount = 0;
+
+      const roles = CONVERTED_STAFF.roles as StaffRole[];
+      const styles = CONVERTED_STAFF.styles as Staff['tacticalStyle'][];
+      const formations = CONVERTED_STAFF.formations;
+      const staffNats = CONVERTED_STAFF.nats;
+      const personalities = ['LEADER', 'PASSIONATE', 'CALM', 'DISCIPLINARIAN', 'VISIONARY'];
+
+      for (let i = 0; i < CONVERTED_STAFF.rows.length; i++) {
+         const [rawClubId, roleIdx, name, age, natIdx, rep, styleIdx, formIdx, baseSkill] = CONVERTED_STAFF.rows[i];
+         const isFree = !rawClubId || rawClubId === 'FREE_AGENT';
+         const clubId = isFree ? '' : String(rawClubId);
+         const club = clubId ? this.clubByIdCache.get(clubId) : undefined;
+         if (clubId && !club) continue;
+
+         const role: StaffRole = roles[roleIdx] || 'COACH';
+         const nat = staffNats[natIdx] || club?.country || 'Argentina';
+         const econ = club ? (WorldManager.COUNTRY_ECONOMY[club.country] || 0.85) : 1.0;
+         const skill = Math.max(6, Math.min(20, baseSkill || 11));
+         const clamp20 = (v: number) => Math.max(4, Math.min(20, v));
+         const isPhysio = role === 'PHYSIO';
+         const isFitness = role === 'FITNESS_COACH';
+         const isScout = role === 'SCOUT';
+         const isDirector = role === 'SPORTING_DIRECTOR';
+         const isTreasurer = role === 'TREASURER';
+         const style = styleIdx >= 0 ? styles[styleIdx] : undefined;
+         const form = formIdx >= 0 ? formations[formIdx] : undefined;
+
+         const s: Staff = {
+            id: `st_${clubId || 'fa'}_${role}_${i}`,
+            name,
+            age,
+            nationality: nat,
+            role,
+            clubId,
+            attributes: {
+               coaching: isDirector || isTreasurer ? clamp20(skill - 5) : clamp20(skill + (role === 'HEAD_COACH' || role === 'COACH' ? 2 : 0)),
+               judgingAbility: isScout || isDirector ? clamp20(skill + 4) : clamp20(skill),
+               judgingPotential: isScout || isDirector ? clamp20(skill + 4) : clamp20(skill - 1),
+               tacticalKnowledge: isTreasurer || isPhysio ? clamp20(skill - 5) : clamp20(skill + (role === 'HEAD_COACH' || role === 'ASSISTANT_MANAGER' ? 2 : 0)),
+               adaptability: clamp20(skill + ((i % 5) - 2)),
+               medical: isPhysio ? clamp20(skill + 5) : 5,
+               physiotherapy: isPhysio ? clamp20(skill + 5) : isFitness ? clamp20(skill + 1) : 5,
+               motivation: clamp20(skill + ((i % 4) - 1)),
+               manManagement: isDirector || isTreasurer ? clamp20(skill + 3) : clamp20(skill + 1),
+            },
+            salary: Math.round((2800 + skill * 550) * econ),
+            contractExpiry: new Date(2010, 5, 30),
+            history: [],
+            personality: personalities[i % personalities.length],
+            morale: 72,
+            reputation: rep || 50,
+            relationships: {},
+            pressReputation: 50,
+            boardRelationship: isTreasurer ? 75 : 62,
+            tacticalStyle: style,
+            preferredFormation: form,
+            playingStyle: style ? COACH_PLAYING_STYLE[style] : undefined,
+            pressIntensity: role === 'HEAD_COACH' ? (['LOW', 'MEDIUM', 'HIGH'] as const)[i % 3] : undefined,
+            possessionVsCounter: role === 'HEAD_COACH' ? (['POSSESSION', 'COUNTER', 'BALANCED'] as const)[i % 3] : undefined,
+         };
+         this.addStaffIndexed(s);
+      }
+
+      // Generate staff for the remaining static-only clubs (KOR, ECU, BOL)
+      for (const sc of staticClubs) {
+         this.generateStaffForClub(sc.id);
+      }
+
       this.nationalTeamManager = new ntModule.NationalTeamManager();
       this.clubsReady = true;
       if (this.resolveClubsReady) { this.resolveClubsReady(); this.resolveClubsReady = null; }
 
-      // Ceder un frame al navegador para que cualquier toque en pantalla se procese sin demora
+      // Ceder un frame antes de iniciar la hidratación cooperativa de chunks de jugadores
       await this.yieldToMainThread();
       if (gen !== this.loadGeneration) return;
 
-      // ── FASE 2 (cooperativa en cortes de ~10ms): Jugadores, planteles, staff y selecciones ──
-      const CONVERTED_PLAYERS = await playersPromise;
-      if (gen !== this.loadGeneration) return;
+      await this.hydratePlayersInBackground(gen);
+   }
 
-      // Inicializar índices limpios para inserción O(1) sin reconstrucciones
-      this.playersByClubIndex = new Map();
-      this.playerByIdIndex = new Map();
-      this.playersIndexDirty = false;
-      this.indexedPlayersCount = this.players.length;
-      this.staffByClubIndex = new Map();
-      this.staffByIdIndex = new Map();
-      this.staffIndexDirty = false;
-      this.indexedStaffCount = this.staff.length;
+   private decodePlayerTuple(tuple: PlayerTuple, manifest: PlayersManifest): Player | null {
+      const [id, firstName, lastName, birthDateStr, natIdx, clubIdRaw, squadIdx, posIndices, attrs13, ca, pa, value, salary, contractExpiry, height, weight, person4] = tuple;
+      if (this.seenPlayerIds.has(id)) return null;
+      const clubId = String(clubIdRaw);
+      const club = this.clubByIdCache.get(clubId);
+      if (!club) return null;
 
-      const seenPlayerIds = new Set<string>();
-      let sliceStart = performance.now();
+      this.seenPlayerIds.add(id);
 
-      for (let i = 0; i < CONVERTED_PLAYERS.length; i++) {
-         const p = CONVERTED_PLAYERS[i];
-         if (seenPlayerIds.has(p.id)) continue;
-         seenPlayerIds.add(p.id);
-         const club = this.clubByIdCache.get(String(p.clubId));
-         if (!club) continue;
-
-         const primaryPos = posMap[p.primaryPosition] || Position.MC;
-         const allPositions = p.positions.map((pp: string) => posMap[pp] || Position.MC).filter((pp: Position) => pp);
-
-         const player: Player = {
-            id: p.id,
-            name: p.name,
-            firstName: p.firstName,
-            lastName: p.lastName,
-            age: p.age,
-            nationality: p.nationality,
-            clubId: club.id,
-            squad: p.age >= 23 ? 'SENIOR' : p.age >= 20 ? 'RESERVE' : 'U20',
-            positions: allPositions,
-            primaryPosition: primaryPos,
-            stats: {
-               internal: {
-                  velocidad: p.stats.internal.velocidad || 10,
-                  resistencia: p.stats.internal.resistencia || 10,
-                  fuerza: p.stats.internal.fuerza || 10,
-                  control: p.stats.internal.control || 10,
-                  pase: p.stats.internal.pase || 10,
-                  regate: p.stats.internal.regate || 10,
-                  disparo: p.stats.internal.disparo || 10,
-                  anticipacion: p.stats.internal.anticipacion || 10,
-                  decision: p.stats.internal.decision || 10,
-                  posicionamiento: p.stats.internal.posicionamiento || 10,
-                  vision: p.stats.internal.vision || 10,
-                  agresividad: p.stats.internal.agresividad || 10,
-                  polivalencia: p.stats.internal.polivalencia || 10,
-               },
-               visible: {
-                  fisico: p.stats.visible.fisico || 10,
-                  mental: p.stats.visible.mental || 10,
-                  tecnica: p.stats.visible.tecnica || 10,
-                  agresividad: p.stats.visible.agresividad || 10,
-                  polivalencia: p.stats.visible.polivalencia || 10,
-               },
-            },
-            currentAbility: p.ca,
-            potentialAbility: p.pa,
-            value: p.value,
-            salary: p.salary,
-            contractExpiry: new Date(p.contractExpiry),
-            fitness: 85 + randomInt(0, 15),
-            morale: 60 + randomInt(0, 30),
-            injury: null,
-            developmentTrend: 'STABLE',
-            history: [],
-            relationships: {},
-            secondaryPositions: [],
-            isStarter: false,
-            loyalty: randomInt(10, 20),
-            negotiationAttempts: 0,
-            isUnhappyWithContract: false,
-            yellowCardsAccumulated: 0,
-            injuryHistory: [],
-            injuryProneness: randomInt(1, 15),
-            isTransferListed: false,
-            transferStatus: 'NONE',
-            releaseClause: p.value * 1.5,
-            height: p.height,
-            weight: p.weight,
-            birthDate: new Date(p.birthDate),
-            reputation: p.ca * 45,
-            formRatings: [],
-            tacticalFamiliarity: 50,
-            leadership: randomInt(5, 20),
-            consistency: randomInt(5, 20),
-            bigMatchTemperament: randomInt(5, 20),
-            seasonStats: { appearances: 0, goals: 0, assists: 0, cleanSheets: 0, conceded: 0, totalRating: 0 },
-            careerStats: { totalApps: 0, totalGoals: 0, totalAssists: 0, totalCleanSheets: 0, clubsPlayedFor: [club.id] },
-            statsByCompetition: {},
-            personality: this.assignPlayerPersonality(randomInt(5, 20), randomInt(5, 20), p.stats.internal.agresividad || 10, p.stats.internal.decision || 10, p.stats.internal.vision || 10),
-         };
-         this.addPlayerIndexed(player);
-
-         if ((i & 255) === 255 && performance.now() - sliceStart >= 10) {
-            await this.yieldToMainThread();
-            if (gen !== this.loadGeneration) return;
-            sliceStart = performance.now();
-         }
+      const posPool = manifest.pos;
+      const mappedPositions: Position[] = [];
+      for (let i = 0; i < posIndices.length; i++) {
+         const code = posPool[posIndices[i]];
+         const mapped = WorldManager.POS_MAP[code];
+         if (mapped && !mappedPositions.includes(mapped)) mappedPositions.push(mapped);
       }
+      if (mappedPositions.length === 0) mappedPositions.push(Position.MC);
+      const primaryPos = mappedPositions[0];
 
-      // 4b. Inyectar jugadores reales de clubes estáticos (AFC/CAF/ARG Zona B) en O(1) por shortName
-      if (staticClubs.length > 0) {
-         const realByShort = new Map<string, RealPlayerDef[]>();
+      const [vel = 10, res = 10, fue = 10, ctrl = 10, pase = 10, reg = 10, disp = 10, ant = 10, dec = 10, pos = 10, vis = 10, agr = 10, pol = 10] = attrs13 || [];
+      const [loy = 12, amb = 11, pro = 11] = person4 || [];
+      const age = WorldManager.ageFromBirthDate(birthDateStr);
+      const squad: SquadType = manifest.squads[squadIdx] || (age <= 19 ? 'U20' : age <= 22 && ca < 115 ? 'RESERVE' : 'SENIOR');
+      const fullName = `${firstName} ${lastName}`.trim() || lastName || firstName || 'Jugador';
+      const nationality = manifest.nats[natIdx] || club.country || 'Argentina';
+      const leadership = Math.max(5, Math.min(20, Math.round((dec + vis) / 2)));
+      const loyalty = Math.max(1, Math.min(20, loy));
+      const personality = this.assignPlayerPersonality(leadership, loyalty, agr, Math.max(dec, pro), Math.max(vis, amb));
+
+      const r = Math.random();
+      const transferStatus = r < 0.08
+         ? (age < 22 && ca < 120 && pa > 140 ? 'LOANABLE' : age > 28 ? 'TRANSFERABLE' : 'NONE')
+         : 'NONE';
+
+      return {
+         id,
+         name: fullName,
+         firstName,
+         lastName,
+         age,
+         nationality,
+         clubId: club.id,
+         squad,
+         positions: mappedPositions,
+         primaryPosition: primaryPos,
+         stats: {
+            internal: {
+               velocidad: vel,
+               resistencia: res,
+               fuerza: fue,
+               control: ctrl,
+               pase: pase,
+               regate: reg,
+               disparo: disp,
+               anticipacion: ant,
+               decision: dec,
+               posicionamiento: pos,
+               vision: vis,
+               agresividad: agr,
+               polivalencia: pol,
+            },
+            visible: {
+               fisico: Math.round((vel + res + fue) / 3),
+               mental: Math.round((ant + dec + pos + vis) / 4),
+               tecnica: Math.round((ctrl + pase + reg + disp) / 4),
+               agresividad: agr,
+               polivalencia: pol,
+            },
+         },
+         currentAbility: ca,
+         potentialAbility: pa,
+         value,
+         salary,
+         contractExpiry: new Date(contractExpiry || '2027-06-30'),
+         fitness: 85 + randomInt(0, 15),
+         morale: 60 + randomInt(0, 30),
+         injury: null,
+         developmentTrend: 'STABLE',
+         history: [],
+         relationships: {},
+         secondaryPositions: [],
+         isStarter: false,
+         loyalty,
+         negotiationAttempts: 0,
+         isUnhappyWithContract: false,
+         yellowCardsAccumulated: 0,
+         injuryHistory: [],
+         injuryProneness: randomInt(1, 15),
+         isTransferListed: transferStatus === 'TRANSFERABLE',
+         transferStatus,
+         releaseClause: Math.round(value * 1.5),
+         height: height || 178,
+         weight: weight || 74,
+         birthDate: new Date(birthDateStr || '2000-01-01'),
+         reputation: ca * 45,
+         formRatings: [],
+         tacticalFamiliarity: 50,
+         leadership,
+         consistency: Math.max(5, Math.min(20, pro)),
+         bigMatchTemperament: Math.max(5, Math.min(20, amb)),
+         seasonStats: { appearances: 0, goals: 0, assists: 0, cleanSheets: 0, conceded: 0, totalRating: 0 },
+         careerStats: { totalApps: 0, totalGoals: 0, totalAssists: 0, totalCleanSheets: 0, clubsPlayedFor: [club.id] },
+         statsByCompetition: {},
+         personality,
+      };
+   }
+
+   private ensureMinimumSeniorSquad(clubId: string, minSenior = 18) {
+      const existing = this.getPlayersByClub(clubId).filter(p => p.squad === 'SENIOR');
+      const needed = Math.max(0, minSenior - existing.length);
+      if (needed === 0) return;
+
+      const gkCount = existing.filter(p => p.positions.includes(Position.GK)).length;
+      const roles: Array<'GK' | 'DEF' | 'DM' | 'MID' | 'ATT'> = [];
+      for (let i = 0; i < needed; i++) {
+         if (i === 0 && gkCount < 2) roles.push('GK');
+         else if (i % 5 === 1) roles.push('DEF');
+         else if (i % 5 === 2) roles.push('DM');
+         else if (i % 5 === 3) roles.push('MID');
+         else roles.push('ATT');
+      }
+      for (const roleType of roles) {
+         const posPool: Position[] = roleType === 'GK' ? POS_DEFINITIONS.GK : roleType === 'DEF' ? POS_DEFINITIONS.DEF : roleType === 'DM' ? POS_DEFINITIONS.DM : roleType === 'MID' ? POS_DEFINITIONS.MID : POS_DEFINITIONS.ATT;
+         const primaryPos = posPool[randomInt(0, posPool.length - 1)];
+         const player = this.createRandomPlayer(clubId, primaryPos, 18, 35);
+         player.squad = 'SENIOR';
+         this.addPlayerIndexed(player);
+      }
+   }
+
+   private injectStaticPlayersForClub(club: Club) {
+      if (!this.realPlayersByShortCache) {
+         const map = new Map<string, RealPlayerDef[]>();
          for (const rp of REAL_PLAYERS_DB) {
-            let list = realByShort.get(rp.clubShort);
-            if (!list) { list = []; realByShort.set(rp.clubShort, list); }
+            let list = map.get(rp.clubShort);
+            if (!list) { list = []; map.set(rp.clubShort, list); }
             list.push(rp);
          }
-         for (let i = 0; i < staticClubs.length; i++) {
-            const club = staticClubs[i];
-            const defs = realByShort.get(club.shortName);
-            if (defs) {
-               for (const def of defs) {
-                  this.addPlayerIndexed(this.createRealPlayer(club.id, def));
+         this.realPlayersByShortCache = map;
+      }
+      const defs = this.realPlayersByShortCache.get(club.shortName);
+      if (defs) {
+         for (const def of defs) {
+            const pl = this.createRealPlayer(club.id, def);
+            if (!this.seenPlayerIds.has(pl.id)) {
+               this.seenPlayerIds.add(pl.id);
+               this.addPlayerIndexed(pl);
+            }
+         }
+      }
+   }
+
+   async ensureLeaguePlayersLoaded(leagueId: string): Promise<void> {
+      await this.clubsReadyPromise;
+      if (this.loadedPlayerLeagues.has(leagueId)) return;
+
+      const existing = this.loadingLeaguePromises.get(leagueId);
+      if (existing) return existing;
+
+      const genAtStart = this.loadGeneration;
+      const promise = (async () => {
+         try {
+            const manifest = this.playersManifest;
+            const hasChunk = Boolean(manifest?.leagues.includes(leagueId));
+            if (hasChunk && manifest) {
+               const tuples = await loadLeaguePlayerChunk(leagueId);
+               if (genAtStart !== this.loadGeneration || this.loadedPlayerLeagues.has(leagueId)) return;
+               for (let i = 0; i < tuples.length; i++) {
+                  const player = this.decodePlayerTuple(tuples[i], manifest);
+                  if (player) this.addPlayerIndexed(player);
                }
             }
-            if ((i & 15) === 15 && performance.now() - sliceStart >= 10) {
-               await this.yieldToMainThread();
-               if (gen !== this.loadGeneration) return;
-               sliceStart = performance.now();
+
+            if (genAtStart !== this.loadGeneration || this.loadedPlayerLeagues.has(leagueId)) return;
+
+            const leagueClubs = this.getClubsByLeague(leagueId);
+            for (const club of leagueClubs) {
+               if (this.staticClubIds.has(club.id)) {
+                  this.injectStaticPlayersForClub(club);
+               }
+               this.ensureMinimumSeniorSquad(club.id, 18);
+               this.updateClubMonthlyExpenses(club.id);
             }
+            this.loadedPlayerLeagues.add(leagueId);
+         } finally {
+            this.loadingLeaguePromises.delete(leagueId);
          }
+      })();
+
+      this.loadingLeaguePromises.set(leagueId, promise);
+      return promise;
+   }
+
+   isLeaguePlayersLoaded(leagueId: string): boolean {
+      return this.loadedPlayerLeagues.has(leagueId);
+   }
+
+   ensureAllPlayersLoaded(): Promise<void> {
+      return this.readyPromise;
+   }
+
+   private async hydratePlayersInBackground(gen: number) {
+      const priorityLeagues = [
+         'L_ARG_1', 'L_ENG_1', 'L_ESP_1', 'L_ITA_1', 'L_DEU_1', 'L_FRA_1', 'L_BRA_1',
+         'L_PRT_1', 'L_NLD_1', 'L_MEX_1', 'L_USA_1', 'L_BEL_1', 'L_TUR_1', 'L_CHI_1',
+         'L_COL_1', 'L_URY_1', 'L_SAU_1', 'L_JPN_1', 'L_ARG_2', 'L_BRA_2', 'L_ESP_2', 'L_ENG_2',
+      ];
+      const allLeagueIds = this.competitions.filter(c => c.type === 'LEAGUE').map(c => c.id);
+      const prioritySet = new Set(priorityLeagues);
+      const ordered = [
+         ...priorityLeagues.filter(id => allLeagueIds.includes(id)),
+         ...allLeagueIds.filter(id => !prioritySet.has(id)),
+      ];
+
+      const BATCH_SIZE = 6;
+      for (let i = 0; i < ordered.length; i += BATCH_SIZE) {
+         if (gen !== this.loadGeneration) return;
+         const batch = ordered.slice(i, i + BATCH_SIZE).filter(id => !this.loadedPlayerLeagues.has(id));
+         if (batch.length > 0) {
+            await Promise.all(batch.map(id => this.ensureLeaguePlayersLoaded(id)));
+         }
+         if (gen !== this.loadGeneration) return;
+         await this.yieldToMainThread();
       }
 
-      // 5. Completar planteles y staff de TODOS los clubes (SENIOR/RESERVA/SUB-20) con índices O(1) y cortes de ~10ms
-      for (let i = 0; i < this.clubs.length; i++) {
-         const club = this.clubs[i];
-         this.generateSquadsForClub(club.id);
-         this.generateStaffForClub(club.id);
-         this.updateClubMonthlyExpenses(club.id);
+      if (gen !== this.loadGeneration) return;
 
-         if ((i & 7) === 7 && performance.now() - sliceStart >= 10) {
-            await this.yieldToMainThread();
-            if (gen !== this.loadGeneration) return;
-            sliceStart = performance.now();
-         }
-      }
-
-      // 6. Set transfer status (en cortes cooperativos)
-      for (let i = 0; i < this.players.length; i++) {
-         const p = this.players[i];
-         if (!p.relationships) p.relationships = {};
-         if (Math.random() < 0.08) {
-            if (p.age < 22 && p.currentAbility < 120 && p.potentialAbility > 140) p.transferStatus = 'LOANABLE';
-            else if (p.age > 28) p.transferStatus = 'TRANSFERABLE';
-         }
-         if ((i & 2047) === 2047 && performance.now() - sliceStart >= 10) {
-            await this.yieldToMainThread();
-            if (gen !== this.loadGeneration) return;
-            sliceStart = performance.now();
-         }
-      }
-
-      // 7. Assign players to national teams (O(M+N))
       this.nationalTeamManager.assignPlayersToNationalTeams(this.players, this.clubs);
-
       this.isReady = true;
       if (this.resolveReady) { this.resolveReady(); this.resolveReady = null; }
-      console.log(`[WorldManager] Loaded ${this.clubs.length} clubs, ${this.players.length} players, ${this.competitions.length} competitions`);
+
+      import('../stores/worldStore')
+         .then(mod => mod.notifyPlayers())
+         .catch(() => {});
+
+      console.log(`[WorldManager] Ready: ${this.clubs.length} clubs, ${this.players.length} players, ${this.staff.length} staff, ${this.competitions.length} competitions`);
    }
 
    private getContinentForCountry(country: string): string {
@@ -396,13 +630,22 @@ export class WorldManager {
          'Francia': 'Europa', 'Portugal': 'Europa', 'Países Bajos': 'Europa', 'Bélgica': 'Europa',
          'Turquía': 'Europa', 'Rusia': 'Europa', 'Croacia': 'Europa', 'Grecia': 'Europa',
          'Austria': 'Europa', 'Suiza': 'Europa', 'Dinamarca': 'Europa', 'Suecia': 'Europa',
-         'Noruega': 'Europa', 'Polonia': 'Europa', 'Ucrania': 'Europa',
-         'USA': 'América del Norte', 'México': 'América del Norte',
-         'Japón': 'Asia', 'Arabia Saudita': 'Asia',
-         'Egipto': 'África', 'Marruecos': 'África', 'Sudáfrica': 'África',
-         'Nigeria': 'África', 'Ghana': 'África', 'Camerún': 'África',
-         'Costa de Marfil': 'África', 'Túnez': 'África', 'Senegal': 'África',
-         'Corea del Sur': 'Asia', 'China': 'Asia', 'Australia': 'Oceanía',
+         'Noruega': 'Europa', 'Polonia': 'Europa', 'Ucrania': 'Europa', 'Escocia': 'Europa',
+         'Gales': 'Europa', 'Irlanda': 'Europa', 'Irlanda del Norte': 'Europa',
+         'República Checa': 'Europa', 'Rumania': 'Europa', 'Serbia': 'Europa', 'Hungría': 'Europa',
+         'Bulgaria': 'Europa', 'Eslovaquia': 'Europa', 'Eslovenia': 'Europa', 'Bielorrusia': 'Europa',
+         'Bosnia y Herzegovina': 'Europa', 'Albania': 'Europa', 'Macedonia del Norte': 'Europa',
+         'Armenia': 'Europa', 'Azerbaiyán': 'Europa', 'Georgia': 'Europa', 'Chipre': 'Europa',
+         'Finlandia': 'Europa', 'Islandia': 'Europa', 'Estonia': 'Europa', 'Letonia': 'Europa',
+         'Lituania': 'Europa', 'Malta': 'Europa', 'Israel': 'Europa', 'Kazajistán': 'Europa',
+         'USA': 'América del Norte', 'Estados Unidos': 'América del Norte', 'México': 'América del Norte',
+         'Canadá': 'América del Norte', 'Costa Rica': 'América del Norte',
+         'Japón': 'Asia', 'Arabia Saudita': 'Asia', 'Emiratos Árabes Unidos': 'Asia',
+         'Irán': 'Asia', 'Indonesia': 'Asia', 'Uzbekistán': 'Asia', 'Corea del Sur': 'Asia', 'China': 'Asia',
+         'Egipto': 'África', 'Marruecos': 'África', 'Sudáfrica': 'África', 'Argelia': 'África',
+         'Nigeria': 'África', 'Ghana': 'África', 'Camerún': 'África', 'Kenia': 'África',
+         'Costa de Marfil': 'África', 'Túnez': 'África', 'Senegal': 'África', 'Malí': 'África', 'Chad': 'África',
+         'Australia': 'Oceanía', 'Nueva Zelanda': 'Oceanía', 'Fiyi': 'Oceanía',
       };
       return map[country] || 'Europa';
    }
@@ -410,7 +653,7 @@ export class WorldManager {
    private getConfederationForContinent(continent: string): string {
       const map: Record<string, string> = {
          'América del Sur': 'CONMEBOL', 'Europa': 'UEFA', 'América del Norte': 'CONCACAF',
-         'Asia': 'AFC', 'África': 'CAF', 'Global': 'FIFA',
+         'Asia': 'AFC', 'África': 'CAF', 'Oceanía': 'OFC', 'Global': 'FIFA',
       };
       return map[continent] || 'UEFA';
    }
@@ -420,83 +663,69 @@ export class WorldManager {
       return Math.max(500000, reputation * 800);
    }
 
-   private hexToTailwind(hex: string): string {
-      if (!hex || !hex.startsWith('#')) return 'bg-slate-500';
-      const r = parseInt(hex.slice(1, 3), 16);
-      const g = parseInt(hex.slice(3, 5), 16);
-      const b = parseInt(hex.slice(5, 7), 16);
-      if (r > 200 && g < 100 && b < 100) return 'bg-red-600';
-      if (r > 200 && g > 200 && b < 100) return 'bg-yellow-400';
-      if (r < 100 && g < 100 && b > 200) return 'bg-blue-800';
-      if (r < 100 && g > 150 && b < 100) return 'bg-green-600';
-      if (r > 200 && g > 200 && b > 200) return 'bg-white';
-      if (r < 100 && g < 100 && b < 100) return 'bg-black';
-      if (r > 150 && g < 100 && b < 100) return 'bg-red-700';
-      if (r < 100 && g > 150 && b > 200) return 'bg-sky-500';
-      return 'bg-slate-500';
-}
+   private hexToTailwind(hex: string | undefined, fallback = '#2b5d2c'): string {
+      if (hex && /^#[0-9a-fA-F]{3,6}$/.test(hex.trim())) {
+         const clean = hex.trim().toLowerCase();
+         if (clean.length === 4) {
+            return `#${clean[1]}${clean[1]}${clean[2]}${clean[2]}${clean[3]}${clean[3]}`;
+         }
+         return clean;
+      }
+      return fallback;
+   }
 
   private addContinentalCompetitions(deferHydration = false): Club[] {
       const createdStaticClubs: Club[] = [];
+      const hasComp = (id: string) => this.competitions.some(c => c.id === id);
+
       // UEFA Champions League
       this.competitions.push(
          { id: 'UCL', name: 'UEFA Champions League', country: 'Europa', type: 'CONTINENTAL_ELITE', tier: 1, continent: 'Europa', confederation: 'UEFA', defaultPrizePool: 20000000, squadRegistrationLimit: 25, seasonStartMonth: 7, seasonEndMonth: 4 },
          { id: 'UEL', name: 'UEFA Europa League', country: 'Europa', type: 'CONTINENTAL_SMALL', tier: 2, continent: 'Europa', confederation: 'UEFA', defaultPrizePool: 8000000, squadRegistrationLimit: 25, seasonStartMonth: 7, seasonEndMonth: 4 },
          { id: 'UECL', name: 'UEFA Conference League', country: 'Europa', type: 'CONTINENTAL_SMALL', tier: 3, continent: 'Europa', confederation: 'UEFA', defaultPrizePool: 4000000, squadRegistrationLimit: 25, seasonStartMonth: 7, seasonEndMonth: 4 },
       );
-       // Copa Libertadores + Sudamericana already exist in base
-       // FIFA World Cup
-       this.competitions.push(
-          { id: 'WC_Q', name: 'Clasificación Mundial', country: 'Global', type: 'GLOBAL', tier: 1, continent: 'Global', confederation: 'FIFA', defaultPrizePool: 0, seasonStartMonth: 0, seasonEndMonth: 11 },
-       );
+      // FIFA World Cup
+      this.competitions.push(
+         { id: 'WC_Q', name: 'Clasificación Mundial', country: 'Global', type: 'GLOBAL', tier: 1, continent: 'Global', confederation: 'FIFA', defaultPrizePool: 0, seasonStartMonth: 0, seasonEndMonth: 11 },
+      );
 
-       // National team competitions
-       this.competitions.push(
-          { id: 'COPA', name: 'Copa América', country: 'América del Sur', type: 'CONTINENTAL_ELITE', tier: 1, continent: 'América del Sur', confederation: 'CONMEBOL', defaultPrizePool: 10000000, seasonStartMonth: 5, seasonEndMonth: 7 },
-          { id: 'EURO', name: 'UEFA Euro', country: 'Europa', type: 'CONTINENTAL_ELITE', tier: 1, continent: 'Europa', confederation: 'UEFA', defaultPrizePool: 15000000, seasonStartMonth: 5, seasonEndMonth: 7 },
-          { id: 'AFCON', name: 'Africa Cup of Nations', country: 'África', type: 'CONTINENTAL_ELITE', tier: 1, continent: 'África', confederation: 'CAF', defaultPrizePool: 5000000, seasonStartMonth: 0, seasonEndMonth: 1 },
-          { id: 'FRIENDLY', name: 'Amistosos de Pretemporada', country: 'Global', type: 'FRIENDLY', tier: 0, continent: 'Global', confederation: 'FIFA', defaultPrizePool: 0 },
-       );
+      // National team competitions
+      this.competitions.push(
+         { id: 'COPA', name: 'Copa América', country: 'América del Sur', type: 'CONTINENTAL_ELITE', tier: 1, continent: 'América del Sur', confederation: 'CONMEBOL', defaultPrizePool: 10000000, seasonStartMonth: 5, seasonEndMonth: 7 },
+         { id: 'EURO', name: 'UEFA Euro', country: 'Europa', type: 'CONTINENTAL_ELITE', tier: 1, continent: 'Europa', confederation: 'UEFA', defaultPrizePool: 15000000, seasonStartMonth: 5, seasonEndMonth: 7 },
+         { id: 'AFCON', name: 'Africa Cup of Nations', country: 'África', type: 'CONTINENTAL_ELITE', tier: 1, continent: 'África', confederation: 'CAF', defaultPrizePool: 5000000, seasonStartMonth: 0, seasonEndMonth: 1 },
+         { id: 'FRIENDLY', name: 'Amistosos de Pretemporada', country: 'Global', type: 'FRIENDLY', tier: 0, continent: 'Global', confederation: 'FIFA', defaultPrizePool: 0 },
+      );
 
-       // Domestic cups
-       this.competitions.push(
-          { id: 'C_ARG', name: 'Copa Argentina', country: 'Argentina', type: 'CUP', tier: 1, continent: 'América del Sur', confederation: 'CONMEBOL', defaultPrizePool: 2000000, seasonStartMonth: 1, seasonEndMonth: 10 },
-          { id: 'COPA_REY', name: 'Copa del Rey', country: 'España', type: 'CUP', tier: 2, continent: 'Europa', confederation: 'UEFA', defaultPrizePool: 3000000, seasonStartMonth: 7, seasonEndMonth: 4 },
-          { id: 'FA_CUP', name: 'FA Cup', country: 'Inglaterra', type: 'CUP', tier: 2, continent: 'Europa', confederation: 'UEFA', defaultPrizePool: 3500000, seasonStartMonth: 7, seasonEndMonth: 4 },
-          { id: 'DFB_POKAL', name: 'DFB Pokal', country: 'Alemania', type: 'CUP', tier: 2, continent: 'Europa', confederation: 'UEFA', defaultPrizePool: 2500000, seasonStartMonth: 7, seasonEndMonth: 4 },
-          { id: 'COPA_ITALIA', name: 'Coppa Italia', country: 'Italia', type: 'CUP', tier: 2, continent: 'Europa', confederation: 'UEFA', defaultPrizePool: 2500000, seasonStartMonth: 7, seasonEndMonth: 4 },
-          { id: 'COPA_FRANCE', name: 'Coupe de France', country: 'Francia', type: 'CUP', tier: 2, continent: 'Europa', confederation: 'UEFA', defaultPrizePool: 2000000 },
-          { id: 'COPA_LIB', name: 'Copa Libertadores', country: 'Sudamérica', type: 'CONTINENTAL_ELITE', tier: 1, continent: 'América del Sur', confederation: 'CONMEBOL', defaultPrizePool: 8000000 },
-          { id: 'COPA_SUD', name: 'Copa Sudamericana', country: 'Sudamérica', type: 'CONTINENTAL_SMALL', tier: 2, continent: 'América del Sur', confederation: 'CONMEBOL', defaultPrizePool: 3000000 },
-       );
-       // AFC leagues (generated dynamically from static data)
-       this.competitions.push(
-          { id: 'L_KOR_1', name: 'K League 1', country: 'Corea del Sur', type: 'LEAGUE', tier: 1, continent: 'Asia', confederation: 'AFC', defaultPrizePool: 1500000, seasonStartMonth: 1, seasonEndMonth: 10 },
-          { id: 'L_CHN_1', name: 'Chinese Super League', country: 'China', type: 'LEAGUE', tier: 1, continent: 'Asia', confederation: 'AFC', defaultPrizePool: 2000000, seasonStartMonth: 2, seasonEndMonth: 10 },
-          { id: 'L_AUS_1', name: 'A-League', country: 'Australia', type: 'LEAGUE', tier: 1, continent: 'Oceanía', confederation: 'AFC', defaultPrizePool: 800000, seasonStartMonth: 9, seasonEndMonth: 4 },
-       );
-       try { createdStaticClubs.push(...this.loadRealClubs(KOR_K_LEAGUE, 'L_KOR_1', deferHydration)); } catch (e) { console.warn('[WorldManager] Failed to load K League 1:', e); }
-       try { createdStaticClubs.push(...this.loadRealClubs(CHN_SUPER_LEAGUE, 'L_CHN_1', deferHydration)); } catch (e) { console.warn('[WorldManager] Failed to load Chinese Super League:', e); }
-       try { createdStaticClubs.push(...this.loadRealClubs(AUS_A_LEAGUE, 'L_AUS_1', deferHydration)); } catch (e) { console.warn('[WorldManager] Failed to load A-League:', e); }
-       // CAF leagues
-       this.competitions.push(
-          { id: 'L_EGY_1', name: 'Egyptian Premier League', country: 'Egipto', type: 'LEAGUE', tier: 1, continent: 'África', confederation: 'CAF', defaultPrizePool: 1000000, seasonStartMonth: 8, seasonEndMonth: 4 },
-          { id: 'L_MAR_1', name: 'Botola Pro', country: 'Marruecos', type: 'LEAGUE', tier: 1, continent: 'África', confederation: 'CAF', defaultPrizePool: 800000, seasonStartMonth: 8, seasonEndMonth: 5 },
-          { id: 'L_RSA_1', name: 'DStv Premiership', country: 'Sudáfrica', type: 'LEAGUE', tier: 1, continent: 'África', confederation: 'CAF', defaultPrizePool: 900000, seasonStartMonth: 7, seasonEndMonth: 4 },
-       );
-       try { createdStaticClubs.push(...this.loadRealClubs(EGY_PREMIER, 'L_EGY_1', deferHydration)); } catch (e) { console.warn('[WorldManager] Failed to load Egyptian PL:', e); }
-       try { createdStaticClubs.push(...this.loadRealClubs(MAR_BOTOLA, 'L_MAR_1', deferHydration)); } catch (e) { console.warn('[WorldManager] Failed to load Botola Pro:', e); }
-       try { createdStaticClubs.push(...this.loadRealClubs(RSA_PSL, 'L_RSA_1', deferHydration)); } catch (e) { console.warn('[WorldManager] Failed to load DStv Premiership:', e); }
-       // Primera División Argentina: completa la Zona B (los 15 restantes de los 30 reales de la LPF 2026)
-       try { createdStaticClubs.push(...this.loadRealClubs(ARG_PRIMERA_ZONA_B, 'L_ARG_1', deferHydration)); } catch (e) { console.warn('[WorldManager] Failed to load Argentine Primera Zona B:', e); }
-       // Init team cohesion for all clubs
-       this.clubs.forEach(c => { if (!c.teamCohesion) c.teamCohesion = 40 + randomInt(0, 30); });
-       // Init dynamic reputations for all leagues
-       this.competitions.filter(c => c.type === 'LEAGUE').forEach(c => {
-         if (!c.dynamicReputation) c.dynamicReputation = this.getBaseLeagueRep(c);
-         c.marketMultiplier = 0.5 + (c.dynamicReputation / 100) * 1.5;
-       });
-       return createdStaticClubs;
+      // Domestic cups & CONMEBOL continental cups
+      this.competitions.push(
+         { id: 'C_ARG', name: 'Copa Argentina', country: 'Argentina', type: 'CUP', tier: 1, continent: 'América del Sur', confederation: 'CONMEBOL', defaultPrizePool: 2000000, seasonStartMonth: 1, seasonEndMonth: 10 },
+         { id: 'COPA_REY', name: 'Copa del Rey', country: 'España', type: 'CUP', tier: 2, continent: 'Europa', confederation: 'UEFA', defaultPrizePool: 3000000, seasonStartMonth: 7, seasonEndMonth: 4 },
+         { id: 'FA_CUP', name: 'FA Cup', country: 'Inglaterra', type: 'CUP', tier: 2, continent: 'Europa', confederation: 'UEFA', defaultPrizePool: 3500000, seasonStartMonth: 7, seasonEndMonth: 4 },
+         { id: 'DFB_POKAL', name: 'DFB Pokal', country: 'Alemania', type: 'CUP', tier: 2, continent: 'Europa', confederation: 'UEFA', defaultPrizePool: 2500000, seasonStartMonth: 7, seasonEndMonth: 4 },
+         { id: 'COPA_ITALIA', name: 'Coppa Italia', country: 'Italia', type: 'CUP', tier: 2, continent: 'Europa', confederation: 'UEFA', defaultPrizePool: 2500000, seasonStartMonth: 7, seasonEndMonth: 4 },
+         { id: 'COPA_FRANCE', name: 'Coupe de France', country: 'Francia', type: 'CUP', tier: 2, continent: 'Europa', confederation: 'UEFA', defaultPrizePool: 2000000 },
+         { id: 'COPA_LIB', name: 'Copa Libertadores', country: 'Sudamérica', type: 'CONTINENTAL_ELITE', tier: 1, continent: 'América del Sur', confederation: 'CONMEBOL', defaultPrizePool: 8000000 },
+         { id: 'COPA_SUD', name: 'Copa Sudamericana', country: 'Sudamérica', type: 'CONTINENTAL_SMALL', tier: 2, continent: 'América del Sur', confederation: 'CONMEBOL', defaultPrizePool: 3000000 },
+      );
+
+      // Only add static leagues that are NOT present in open-football-database (prevents any club/league duplication)
+      if (!hasComp('L_KOR_1')) {
+         this.competitions.push({ id: 'L_KOR_1', name: 'K League 1', country: 'Corea del Sur', type: 'LEAGUE', tier: 1, continent: 'Asia', confederation: 'AFC', defaultPrizePool: 1500000, seasonStartMonth: 1, seasonEndMonth: 10 });
+         try { createdStaticClubs.push(...this.loadRealClubs(KOR_K_LEAGUE, 'L_KOR_1', deferHydration)); } catch (e) { console.warn('[WorldManager] Failed to load K League 1:', e); }
+      }
+      if (!hasComp('L_ECU_1')) {
+         this.competitions.push({ id: 'L_ECU_1', name: 'LigaPro Serie A', country: 'Ecuador', type: 'LEAGUE', tier: 1, continent: 'América del Sur', confederation: 'CONMEBOL', defaultPrizePool: 1200000, seasonStartMonth: 1, seasonEndMonth: 11 });
+         try { createdStaticClubs.push(...this.loadRealClubs(ECU_LIGA_PRO, 'L_ECU_1', deferHydration)); } catch (e) { console.warn('[WorldManager] Failed to load LigaPro Ecuador:', e); }
+      }
+      if (!hasComp('L_BOL_1')) {
+         this.competitions.push({ id: 'L_BOL_1', name: 'División Profesional', country: 'Bolivia', type: 'LEAGUE', tier: 1, continent: 'América del Sur', confederation: 'CONMEBOL', defaultPrizePool: 900000, seasonStartMonth: 1, seasonEndMonth: 11 });
+         try { createdStaticClubs.push(...this.loadRealClubs(BOL_DIVISION, 'L_BOL_1', deferHydration)); } catch (e) { console.warn('[WorldManager] Failed to load División Profesional Bolivia:', e); }
+      }
+
+      // Init team cohesion for static clubs
+      this.clubs.forEach(c => { if (!c.teamCohesion) c.teamCohesion = 40 + randomInt(0, 30); });
+      return createdStaticClubs;
     }
 
   loadRealClubs(definitions: RealClubDef[], leagueId: string, deferHydration = false): Club[] {
@@ -1050,8 +1279,9 @@ getClub(id: string) {
       'L_MEX_1': 60, 'L_USA_1': 55, 'L_USA_2': 50,
       'L_JPN_1': 52, 'L_SAU_1': 48, 'L_KOR_1': 45, 'L_CHN_1': 38,
       'L_AUS_1': 32, 'L_EGY_1': 40, 'L_MAR_1': 35, 'L_RSA_1': 34,
+      'L_ECU_1': 44, 'L_BOL_1': 30,
     };
-    return map[league.id] || 30;
+    return map[league.id] || league.dynamicReputation || (league.tier === 1 ? 42 : league.tier === 2 ? 28 : 18);
   }
 
   getLeagueTier(rep: number): 'ELITE' | 'PRESTIGE' | 'DEVELOPING' | 'EMERGING' | 'LOCAL' {

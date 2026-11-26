@@ -30,8 +30,8 @@ export const FitnessCoachDialog: React.FC = () => {
   const coach = clubId ? getFitnessCoach(clubId) : null;
   const coachName = coach?.name || 'El Preparador Físico';
   const iniciales = coachName.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
-  const clubPrimary = club?.primaryColor || 'bg-[#3a4a3a]';
-  const clubBorder = club?.primaryColor ? club.primaryColor.replace('bg-', 'border-') : 'border-[#3a4a3a]';
+  const clubPrimary = club?.primaryColor || '#3a4a3a';
+  const clubBorder = clubPrimary;
 
   const report = useMemo(() => {
     const raw = club ? generateFitnessReport(club) : null;

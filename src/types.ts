@@ -256,6 +256,7 @@ export interface Club {
   reputation: number;
   stadium: string;
   stadiumCapacity: number;
+  presidentName?: string;
   honours: { name: string; year: number }[];
   trainingFacilities: number;
   youthFacilities: number;

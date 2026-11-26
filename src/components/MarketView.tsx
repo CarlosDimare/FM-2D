@@ -86,6 +86,10 @@ export const MarketView: React.FC<MarketViewProps> = ({ onSelectPlayer, userClub
   const worldTick = useWorldStore(s => s._tick);
 
   useEffect(() => {
+    world.ensureAllPlayersLoaded();
+  }, []);
+
+  useEffect(() => {
     if (marketMode === 'STAFF') {
       world.ensureFreeAgentStaffPool(44);
     }
@@ -114,7 +118,7 @@ export const MarketView: React.FC<MarketViewProps> = ({ onSelectPlayer, userClub
       const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase());
       return isListed && matchesFilter && matchesSearch;
     }).sort(doSort);
-  }, [filter, search, sortKey, sortDesc]);
+  }, [filter, search, sortKey, sortDesc, worldTick]);
 
   const marketStaff = useMemo(() => {
     const q = staffSearch.trim().toLowerCase();
@@ -147,7 +151,7 @@ export const MarketView: React.FC<MarketViewProps> = ({ onSelectPlayer, userClub
         return staffSortDesc ? -res : res;
       })
       .slice(0, 250);
-  }, [userClubId, staffStatusFilter, staffRoleFilter, staffSearch, staffSortKey, staffSortDesc]);
+  }, [userClubId, staffStatusFilter, staffRoleFilter, staffSearch, staffSortKey, staffSortDesc, worldTick]);
 
   const directorTrigger = useMemo(() => checkSportingDirectorTrigger({
     currentView: 'MARKET',

@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Player, Position, POSITION_FULL_NAMES } from '../../types';
 import { world } from '../../services/worldManager';
 import { LineupPlayerAdvice } from '../../services/staffAdviceService';
+import { getClubHexPalette } from '../ClubBannerChrome';
 
 // Mismas coordenadas (t/l %) que TacticsView para que el once coincida con la pizarra
 const SLOT_COORDS: Record<number, { t: number; l: number }> = {
@@ -68,6 +69,8 @@ export const LineupPitch: React.FC<LineupPitchProps> = ({ clubId, clubColor, xi,
           const coords = SLOT_COORDS[slot];
           if (!p || !coords) return null;
           const isHover = hoverId === playerId;
+          const isGk = p.positions.includes(Position.GK);
+          const pal = getClubHexPalette(clubColor, '#2b5d2c', '#f8fafc');
           return (
             <button
               key={playerId}
@@ -80,7 +83,8 @@ export const LineupPitch: React.FC<LineupPitchProps> = ({ clubId, clubColor, xi,
               style={{ top: `${coords.t}%`, left: `${coords.l}%` }}
             >
               <div
-                className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full border-2 flex flex-col items-center justify-center font-black text-[11px] sm:text-sm shadow-lg transition-all cursor-pointer hover:scale-110 ${isHover ? 'ring-4 ring-yellow-400 scale-110' : ''} ${p.positions.includes(Position.GK) ? 'bg-yellow-400 text-black border-yellow-600' : `${clubColor} text-white border-white/60`}`}
+                style={isGk ? undefined : { backgroundColor: pal.primary, color: pal.isLightPrimary ? '#0f172a' : '#ffffff' }}
+                className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full border-2 flex flex-col items-center justify-center font-black text-[11px] sm:text-sm shadow-lg transition-all cursor-pointer hover:scale-110 ${isHover ? 'ring-4 ring-yellow-400 scale-110' : ''} ${isGk ? 'bg-yellow-400 text-black border-yellow-600' : 'border-white/60'}`}
               >
                 {getDorsal(p, players)}
               </div>

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { tailwindClassToHex } from '../../services/matchEngineBridge';
 
 export interface ProgressiveOptionData {
   id: string;
@@ -18,9 +19,10 @@ interface ProgressiveOptionsProps {
 }
 
 export const ProgressiveOptions: React.FC<ProgressiveOptionsProps> = ({
-  opciones, seleccionada, delayMs = 180, color = 'border-[#3a4a3a]', onSelect, renderExtra,
+  opciones, seleccionada, delayMs = 180, color = '#3a4a3a', onSelect, renderExtra,
 }) => {
   const [visible, setVisible] = useState<Set<number>>(new Set());
+  const activeBorderHex = tailwindClassToHex(color, '#3a4a3a');
 
   useEffect(() => {
     setVisible(new Set());
@@ -41,8 +43,12 @@ export const ProgressiveOptions: React.FC<ProgressiveOptionsProps> = ({
       {opciones.map((op, i) => (
         <div
           key={op.id}
-          className={`relative flex-1 min-w-[180px] text-left p-3.5 sm:p-4 rounded-sm border-2 bg-white transition-all hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0 cursor-pointer animate-fade-up ${seleccionada === op.id ? `${color} shadow-md` : 'border-[#a0b0a0]'}`}
-          style={{ animationDelay: visible.has(i) ? `${i * delayMs}ms` : '0ms', opacity: visible.has(i) ? 1 : 0 }}
+          className={`relative flex-1 min-w-[180px] text-left p-3.5 sm:p-4 rounded-sm border-2 bg-white transition-all hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0 cursor-pointer animate-fade-up ${seleccionada === op.id ? 'shadow-md' : 'border-[#a0b0a0]'}`}
+          style={{
+            animationDelay: visible.has(i) ? `${i * delayMs}ms` : '0ms',
+            opacity: visible.has(i) ? 1 : 0,
+            borderColor: seleccionada === op.id ? activeBorderHex : undefined,
+          }}
           onClick={() => onSelect(op.id)}
         >
           <div className="text-xl mb-1">{op.icono}</div>
