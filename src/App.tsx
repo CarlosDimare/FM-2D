@@ -715,40 +715,62 @@ const App: React.FC = () => {
     setCurrentDate(nextDay);
     setSimProgress(80);
     setSimProgressDetail(`Procesando ${nextDay.toLocaleDateString('es-ES')}…`);
-    if (nextDay.getDay() === 1 || nextDay.getDate() === 1) {
-      await yieldToPaint();
-    }
+    await yieldToPaint();
 
     console.time('  🔄 ciclo diario');
     LifecycleManager.checkBirthdays(nextDay);
     LifecycleManager.recoverDailyFitness();
     LifecycleManager.processMonthlyFinances(nextDay);
     world.checkRenewalTriggers(nextDay, userClub?.id);
+    await yieldToPaint();
+
+    setSimProgress(83);
+    setSimProgressDetail('Procesando mercado y fichajes…');
     world.processTransferDecisions(nextDay);
     world.processAIActivity(nextDay);
     world.processDailyContracts(nextDay, userClub?.id);
+    await yieldToPaint();
+
+    setSimProgress(84);
+    setSimProgressDetail('Actualizando ojeadores…');
     world.processDailyScouting(nextDay, userClub?.id);
+    await yieldToPaint();
+
+    setSimProgress(85);
+    setSimProgressDetail('Generando noticias y prensa…');
     world.generateGeneralNews(nextDay);
+    await yieldToPaint();
+
+    setSimProgress(86);
+    setSimProgressDetail('Actualizando mercado de fichajes…');
     world.processLightMarketActivity(nextDay);
+    await yieldToPaint();
+
+    setSimProgress(87);
+    setSimProgressDetail('Procesando juveniles y cantera…');
     world.processQuarterlyYouthIntake(nextDay);
+    await yieldToPaint();
+
     // ── Semanal (lunes): plantillas mínimas, resumen de clasificación y despidos ──
-      if (nextDay.getDay() === 1) {
-        setSimProgress(88);
-        setSimProgressDetail('Actualizando tablas, mercado y noticias…');
-        world.ensureMinimumSquadSizes();
-        world.generateStandingsNews(nextDay, fixtures);
-        world.simulateCoachChanges(nextDay, fixtures);
-      }
+    if (nextDay.getDay() === 1) {
+      setSimProgress(89);
+      setSimProgressDetail('Actualizando tablas, mercado y noticias…');
+      world.ensureMinimumSquadSizes();
+      world.generateStandingsNews(nextDay, fixtures);
+      world.simulateCoachChanges(nextDay, fixtures);
+      await yieldToPaint();
+    }
     if (nextDay.getMonth() === 7 && nextDay.getDate() === 1) {
       world.generateYouthIntake(nextDay.getFullYear());
       if (userClub) world.addInboxMessage('SQUAD', 'Cosecha de cantera', `Los juveniles de ${userClub.name} se han incorporado al club. Revisa los nuevos talentos en el equipo sub-20.`, nextDay);
     }
     if (nextDay.getDate() === 1) {
-      setSimProgress(92);
+      setSimProgress(93);
       setSimProgressDetail('Recalculando valores y finanzas mensuales…');
       world.recalculateAllPlayerValues();
       // Recompute team cohesion for user's club + DEEP league clubs
       if (userClub) world.computeTeamCohesion(userClub.id);
+      await yieldToPaint();
     }
 
     // Monthly chronicle generation
@@ -787,19 +809,25 @@ const App: React.FC = () => {
 
     // ── Pilar C: Personality & Drama ──────────────────────────────────
     if (userClub) {
+      setSimProgress(96);
+      setSimProgressDetail('Actualizando dinámica de vestuario y promesas…');
       world.checkDressingRoomConflicts(userClub.id, nextDay);
       world.checkTransferRequestMotives(userClub.id, nextDay);
       world.generateNarrativeEvents(userClub.id, nextDay);
       evaluatePlayerPromisesDaily(userClub.id, nextDay);
+      await yieldToPaint();
     }
     console.timeEnd('  🔄 ciclo diario');
 
+    setSimProgress(98);
+    setSimProgressDetail('Actualizando competiciones y calendario…');
     const newCupFixtures = LifecycleManager.processCompetitionProgress(fixtures, nextDay);
     let allFixtures = fixtures;
     if (newCupFixtures.length > 0) {
       allFixtures = [...fixtures, ...newCupFixtures];
       setFixtures(allFixtures);
     }
+    await yieldToPaint();
 
     if (activeManagedTeamId) {
       const next = updateNextFixture(allFixtures, nextDay, activeManagedTeamId);
