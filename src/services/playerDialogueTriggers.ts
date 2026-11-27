@@ -16,7 +16,7 @@ const DAY_MS = 1000 * 60 * 60 * 24;
 const MAX_PENDING_DIALOGUES_PER_CLUB = 2;
 
 function resolveSimDate(date?: Date): Date {
-  return date || useGameStore.getState().currentDate || new Date(2008, 7, 16);
+  return date || useGameStore.getState().currentDate || new Date(2008, 6, 20);
 }
 
 export function getDaysSinceLastDialogue(playerId: string, simDate?: Date): number | null {

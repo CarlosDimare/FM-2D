@@ -231,7 +231,7 @@ export const StaffChatPanel: React.FC<StaffChatPanelProps> = ({
           </>
         )}
         <span>·</span>
-        <span className="font-mono font-bold text-slate-800">£{staff.salary.toLocaleString()}/sem</span>
+        <span className="font-mono font-bold text-slate-800">£{staff.salary.toLocaleString()}/mes</span>
       </div>
 
       {/* Scrollable Chat History */}

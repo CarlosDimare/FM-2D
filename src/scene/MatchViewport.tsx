@@ -957,7 +957,7 @@ export const MatchViewport: React.FC<MatchViewportProps> = ({
       // Ball Ground Shadow (separates with ball.y height so 3D loft/headers are crystal clear!)
       const bx = toPxX(b.x);
       const bz = toPxY(b.z);
-      const baseBallR = Math.max(2.35 / Math.max(1, camZoom), 0.21 * scale);
+      const baseBallR = Math.max(3.525 / Math.max(1, camZoom), 0.315 * scale);
       const heightRatio = Math.min(1.8, Math.max(0, b.y) * 0.16);
       const shadowShift = Math.max(0.8, b.y * 0.48 * scale);
       const shadowR = baseBallR * Math.max(0.62, 1 - b.y * 0.06);
@@ -975,7 +975,7 @@ export const MatchViewport: React.FC<MatchViewportProps> = ({
       );
       ctx!.fill();
 
-      // Ball 2D Circle (proportional to 7.32m goal cage under zoom, subtle visual loft)
+      // Ball 2D Circle (50% larger classic white-and-black paneled soccer ball)
       const liftPx = Math.min(11, b.y * scale * 0.20);
       const visualX = isPortrait ? bx + liftPx : bx;
       const visualY = isPortrait ? bz : bz - liftPx;
@@ -985,28 +985,75 @@ export const MatchViewport: React.FC<MatchViewportProps> = ({
       ctx!.save();
       ctx!.beginPath();
       ctx!.arc(visualX, visualY, ballR, 0, Math.PI * 2);
-      ctx!.fillStyle = '#ffffff';
+
+      // Subtle spherical shading on white base
+      const grad = ctx!.createRadialGradient(
+        visualX - ballR * 0.28,
+        visualY - ballR * 0.28,
+        ballR * 0.08,
+        visualX,
+        visualY,
+        ballR
+      );
+      grad.addColorStop(0, '#ffffff');
+      grad.addColorStop(0.7, '#f1f5f9');
+      grad.addColorStop(1, '#cbd5e1');
+      ctx!.fillStyle = grad;
       ctx!.fill();
 
-      // Classic black panel markings rotating smoothly
+      // Classic black pentagons + seam lines rotating smoothly inside clipped sphere
       ctx!.clip();
-      ctx!.fillStyle = '#111827';
-      for (let k = 0; k < 3; k++) {
-        const ang = ballSpinAngle + (k * Math.PI * 2) / 3;
+      ctx!.translate(visualX, visualY);
+      ctx!.rotate(ballSpinAngle);
+
+      // 5 seam lines connecting center pentagon vertices to outer panels
+      ctx!.strokeStyle = '#334155';
+      ctx!.lineWidth = Math.max(0.6, ballR * 0.11);
+      const innerR = ballR * 0.36;
+      for (let k = 0; k < 5; k++) {
+        const ang = (k * Math.PI * 2) / 5 - Math.PI / 2;
         ctx!.beginPath();
-        ctx!.arc(
-          visualX + Math.cos(ang) * ballR * 0.62,
-          visualY + Math.sin(ang) * ballR * 0.62,
-          ballR * 0.28,
-          0,
-          Math.PI * 2
-        );
+        ctx!.moveTo(Math.cos(ang) * innerR * 0.85, Math.sin(ang) * innerR * 0.85);
+        ctx!.lineTo(Math.cos(ang) * ballR * 0.95, Math.sin(ang) * ballR * 0.95);
+        ctx!.stroke();
+      }
+
+      // Center black pentagon
+      ctx!.fillStyle = '#111827';
+      ctx!.beginPath();
+      for (let k = 0; k < 5; k++) {
+        const ang = (k * Math.PI * 2) / 5 - Math.PI / 2;
+        const px = Math.cos(ang) * innerR;
+        const py = Math.sin(ang) * innerR;
+        if (k === 0) ctx!.moveTo(px, py);
+        else ctx!.lineTo(px, py);
+      }
+      ctx!.closePath();
+      ctx!.fill();
+
+      // 5 perimeter black pentagon panels ("gajos")
+      const outerDist = ballR * 0.92;
+      const outerPatchR = ballR * 0.32;
+      for (let k = 0; k < 5; k++) {
+        const baseAng = (k * Math.PI * 2) / 5 - Math.PI / 2;
+        const cx = Math.cos(baseAng) * outerDist;
+        const cy = Math.sin(baseAng) * outerDist;
+        ctx!.beginPath();
+        for (let v = 0; v < 5; v++) {
+          const va = baseAng + (v * Math.PI * 2) / 5;
+          const px = cx + Math.cos(va) * outerPatchR;
+          const py = cy + Math.sin(va) * outerPatchR;
+          if (v === 0) ctx!.moveTo(px, py);
+          else ctx!.lineTo(px, py);
+        }
+        ctx!.closePath();
         ctx!.fill();
       }
+
       ctx!.restore();
 
       ctx!.strokeStyle = '#090d12';
-      ctx!.lineWidth = Math.max(0.85, 1.25 / Math.max(1, camZoom * 0.65));
+      ctx!.lineWidth = Math.max(0.95, 1.35 / Math.max(1, camZoom * 0.65));
       ctx!.beginPath();
       ctx!.arc(visualX, visualY, ballR, 0, Math.PI * 2);
       ctx!.stroke();

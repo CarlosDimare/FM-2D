@@ -6,6 +6,7 @@ import { LifecycleManager } from '../services/lifecycleManager';
 import { LeagueEngine } from '../services/leagueEngine';
 import { ChampionsLeagueManager } from '../services/championsLeague';
 import { NationalTeamManager } from '../services/nationalTeamManager';
+import { DOMESTIC_CUP_IDS, generateInitialDomesticCupFixtures } from '../services/domesticCupFormats';
 
 interface GameStore {
   fixtures: Fixture[];
@@ -43,8 +44,8 @@ interface GameStore {
 export const useGameStore = create<GameStore>((set, get) => ({
   fixtures: [],
   nextFixture: null,
-  currentDate: new Date(2008, 7, 16),
-  seasonEndDate: new Date(2009, 6, 10),
+  currentDate: new Date(2025, 6, 20),
+  seasonEndDate: new Date(2026, 6, 10),
   managerHistory: {
     totalGames: 0, totalWins: 0, totalDraws: 0, totalLosses: 0,
     goalsFor: 0, goalsAgainst: 0, currentStreak: null, streakCount: 0,
@@ -54,7 +55,15 @@ export const useGameStore = create<GameStore>((set, get) => ({
   darkMode: false,
   deepSimLeagues: [],
 
-  setFixtures: (fixtures) => { world.bumpFixturesVersion(); set({ fixtures }); },
+  setFixtures: (fixtures) => {
+    const sorted = [...fixtures].sort((a, b) => {
+      const ta = a.date instanceof Date ? a.date.getTime() : new Date(a.date).getTime();
+      const tb = b.date instanceof Date ? b.date.getTime() : new Date(b.date).getTime();
+      return ta - tb;
+    });
+    world.bumpFixturesVersion();
+    set({ fixtures: sorted });
+  },
   setNextFixture: (nextFixture) => set({ nextFixture }),
   setCurrentDate: (currentDate) => set({ currentDate }),
   setSeasonEndDate: (seasonEndDate) => set({ seasonEndDate }),
@@ -66,8 +75,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
     set({
       fixtures: [],
       nextFixture: null,
-      currentDate: new Date(2008, 7, 16),
-      seasonEndDate: new Date(2009, 6, 10),
+      currentDate: new Date(2025, 6, 20),
+      seasonEndDate: new Date(2026, 6, 10),
       managerHistory: {
         totalGames: 0,
         totalWins: 0,
@@ -145,26 +154,32 @@ export const useGameStore = create<GameStore>((set, get) => ({
       set({ deepSimLeagues: deepLeagueIds });
     }
 
+    // Reservar una ventana de pretemporada (~24 días desde startFrom) antes del inicio oficial de ligas y copas
+    const leagueStart = new Date(startFrom);
+    leagueStart.setDate(leagueStart.getDate() + 24);
+    while (leagueStart.getDay() !== 6 && leagueStart.getDay() !== 0) {
+      leagueStart.setDate(leagueStart.getDate() + 1);
+    }
+
     world.competitions.filter(c => c.type === 'LEAGUE').forEach(l => {
       const clubs = clubsByLeague[l.id] || [];
       if (deepLeagueIds.includes(l.id)) world.ensureDeepSquads(l.id);
       const depth = deepLeagueIds.includes(l.id) ? 'DEEP' : 'LIGHT';
       const squadTypes = depth === 'DEEP' ? (['SENIOR', 'RESERVE', 'U20'] as const) : (['SENIOR'] as const);
       squadTypes.forEach(st => {
-        allFixtures.push(...LeagueEngine.generateFixturesForLeague(world.clubs, l.id, startFrom, st, clubsByLeague));
+        allFixtures.push(...LeagueEngine.generateFixturesForLeague(world.clubs, l.id, leagueStart, st, clubsByLeague));
       });
     });
 
-    const cupDate = new Date(startFrom);
-    cupDate.setMonth(startFrom.getMonth() + 1);
-    while (cupDate.getDay() !== 3) cupDate.setDate(cupDate.getDate() + 1);
-
-    const copaArg = world.competitions.find(c => c.id === 'C_ARG');
-    if (copaArg) {
-      const clubs = world.getClubsByLeague('L_ARG_1').concat(world.getClubsByLeague('L_ARG_2'));
-      const top32 = clubs.sort(() => Math.random() - 0.5).slice(0, 32);
-      allFixtures.push(...Scheduler.generateCupRound(copaArg.id, top32, cupDate, 'ROUND_OF_32'));
-    }
+    // Domestic Cups (C_ARG, COPA_REY, COPA_ITALIA, FA_CUP, EFL_CUP, DFB_POKAL, COPA_FRANCE)
+    DOMESTIC_CUP_IDS.forEach(cupId => {
+      const comp = world.competitions.find(c => c.id === cupId);
+      if (comp) {
+        allFixtures.push(
+          ...generateInitialDomesticCupFixtures(cupId, world.clubs, world.competitions, leagueStart, clubId)
+        );
+      }
+    });
 
     const libertadores = world.competitions.find(c => c.id === 'COPA_LIB' || c.id === 'CONT_LIB');
     const sudamericana = world.competitions.find(c => c.id === 'COPA_SUD' || c.id === 'CONT_SUD');
@@ -281,7 +296,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
 
     // ─── UEFA Champions League ─────────────────────────────────────────────
-    const uclStart = new Date(startFrom);
+    const uclStart = new Date(leagueStart);
     uclStart.setMonth(uclStart.getMonth() + 1); // September
     while (uclStart.getDay() !== 2 && uclStart.getDay() !== 3) uclStart.setDate(uclStart.getDate() + 1);
 
@@ -300,7 +315,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
 
     // ─── UEFA Europa League ────────────────────────────────────────────────
-    const uelStart = new Date(startFrom);
+    const uelStart = new Date(leagueStart);
     uelStart.setMonth(uelStart.getMonth() + 1);
     while (uelStart.getDay() !== 3) uelStart.setDate(uelStart.getDate() + 1);
     const uclUsedIds = new Set(uclPool.slice(0, 32).map(c => c.id));
@@ -314,61 +329,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       allFixtures.push(...Scheduler.generateContinentalGroups('UEL', uelClubs, uelStart));
     }
 
-    // ─── Domestic Cups ─────────────────────────────────────────────────────
-    const domesticCupDate = new Date(startFrom);
-    domesticCupDate.setMonth(startFrom.getMonth() + 3);
-    while (domesticCupDate.getDay() !== 3) domesticCupDate.setDate(domesticCupDate.getDate() + 1);
-
-    // Copa del Rey (all Spanish clubs)
-    const copaRey = world.competitions.find(c => c.id === 'COPA_REY');
-    if (copaRey) {
-      const espClubs = [...world.getClubsByLeague('L_ESP_1'), ...world.getClubsByLeague('L_ESP_2')];
-      if (espClubs.length >= 32) {
-        allFixtures.push(...Scheduler.generateCupRound(copaRey.id, espClubs.slice(0, 32), domesticCupDate, 'ROUND_OF_32'));
-      } else if (espClubs.length >= 16) {
-        allFixtures.push(...Scheduler.generateCupRound(copaRey.id, espClubs.slice(0, 16), domesticCupDate, 'ROUND_OF_16'));
-      }
-    }
-
-    // FA Cup (all English clubs)
-    const faCup = world.competitions.find(c => c.id === 'FA_CUP');
-    if (faCup) {
-      const engClubs = [...world.getClubsByLeague('L_ENG_1'), ...world.getClubsByLeague('L_ENG_2')];
-      if (engClubs.length >= 32) {
-        allFixtures.push(...Scheduler.generateCupRound(faCup.id, engClubs.slice(0, 32), domesticCupDate, 'ROUND_OF_32'));
-      } else if (engClubs.length >= 16) {
-        allFixtures.push(...Scheduler.generateCupRound(faCup.id, engClubs.slice(0, 16), domesticCupDate, 'ROUND_OF_16'));
-      }
-    }
-
-    // DFB Pokal (all German clubs)
-    const dfbPokal = world.competitions.find(c => c.id === 'DFB_POKAL');
-    if (dfbPokal) {
-      const deuClubs = [...world.getClubsByLeague('L_DEU_1'), ...world.getClubsByLeague('L_DEU_2')];
-      if (deuClubs.length >= 32) {
-        allFixtures.push(...Scheduler.generateCupRound(dfbPokal.id, deuClubs.slice(0, 32), domesticCupDate, 'ROUND_OF_32'));
-      } else if (deuClubs.length >= 16) {
-        allFixtures.push(...Scheduler.generateCupRound(dfbPokal.id, deuClubs.slice(0, 16), domesticCupDate, 'ROUND_OF_16'));
-      }
-    }
-
-    // Coppa Italia (all Italian clubs)
-    const coppaItalia = world.competitions.find(c => c.id === 'COPA_ITALIA');
-    if (coppaItalia) {
-      const itaClubs = [...world.getClubsByLeague('L_ITA_1'), ...world.getClubsByLeague('L_ITA_2')];
-      if (itaClubs.length >= 32) {
-        allFixtures.push(...Scheduler.generateCupRound(coppaItalia.id, itaClubs.slice(0, 32), domesticCupDate, 'ROUND_OF_32'));
-      }
-    }
-
-    // Coupe de France (all French clubs)
-    const coupeDeFrance = world.competitions.find(c => c.id === 'COPA_FRANCE');
-    if (coupeDeFrance) {
-      const fraClubs = [...world.getClubsByLeague('L_FRA_1'), ...world.getClubsByLeague('L_FRA_2')];
-      if (fraClubs.length >= 32) {
-        allFixtures.push(...Scheduler.generateCupRound(coupeDeFrance.id, fraClubs.slice(0, 32), domesticCupDate, 'ROUND_OF_32'));
-      }
-    }
+    // Domestic European cups are initialized above via generateInitialDomesticCupFixtures.
 
     // ─── National Team Fixtures ────────────────────────────────────────────
     const wcqDate = new Date(startFrom);
@@ -390,7 +351,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (clubId) {
       const userClub = world.getClub(clubId);
       if (userClub) {
-        const friendlyFixtures = world.generatePreseasonFriendlies(clubId, startFrom);
+        const friendlyFixtures = world.generatePreseasonFriendlies(clubId, startFrom, leagueStart);
         allFixtures.push(...friendlyFixtures);
         if (friendlyFixtures.length > 0) {
           const total = allFixtures.length;
@@ -422,12 +383,17 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   updateNextFixture: (allFixtures, date, clubId) => {
-    const next = allFixtures.find(f =>
-      !f.played &&
-      f.date.getTime() >= date.getTime() &&
-      (f.homeTeamId === clubId || f.awayTeamId === clubId) &&
-      f.squadType === 'SENIOR'
-    );
+    const dayStart = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+    let next: Fixture | undefined;
+    for (const f of allFixtures) {
+      if (f.played || f.squadType !== 'SENIOR') continue;
+      if (f.homeTeamId !== clubId && f.awayTeamId !== clubId) continue;
+      const ft = f.date instanceof Date ? f.date.getTime() : new Date(f.date).getTime();
+      if (ft < dayStart) continue;
+      if (!next || ft < (next.date instanceof Date ? next.date.getTime() : new Date(next.date).getTime())) {
+        next = f;
+      }
+    }
     set({ nextFixture: next || null });
     return next || null;
   },

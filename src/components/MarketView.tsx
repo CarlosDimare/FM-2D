@@ -2,17 +2,25 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Player, SquadType, Staff, StaffRole, STAFF_ATTRIBUTE_LABELS } from '../types';
 import { world } from '../services/worldManager';
 import { useDialogueStore } from '../stores/dialogueStore';
-import { notifyClubs, useWorldStore } from '../stores/worldStore';
+import { notifyAll, notifyClubs, useWorldStore } from '../stores/worldStore';
 import { openClubSquad } from '../stores/uiStore';
+import { showToast } from '../stores/feedbackStore';
 import { getAttributeColor } from '../constants';
 import { getFlagUrl } from '../data/static';
 import { Search, ArrowDownUp, HandCoins, FolderOpen, Users, Briefcase, UserPlus, CheckCircle2, AlertCircle, MessageCircle } from 'lucide-react';
 import { FMBox, FMButton, FMModal } from './FMUI';
 import { TransferOfferModal } from './TransferOfferModal';
+import { ContractNegotiationModal } from './ContractNegotiationModal';
 import { DialogueAvatar } from './dialogs/DialogueAvatar';
 import { checkSportingDirectorTrigger } from '../services/dialogueTriggers';
 import { getSportingDirector } from '../services/staffAdviceService';
 import { generateStaffProfileText } from './StaffView';
+
+const formatMoney = (v: number): string => {
+  if (v >= 1_000_000) return `£${(v / 1_000_000).toFixed(1)}M`;
+  if (v >= 1_000) return `£${Math.round(v / 1_000)}k`;
+  return `£${Math.round(v)}`;
+};
 
 interface MarketViewProps {
   onSelectPlayer: (player: Player) => void;
@@ -69,6 +77,7 @@ export const MarketView: React.FC<MarketViewProps> = ({ onSelectPlayer, userClub
   const [sortKey, setSortKey] = useState<'CA' | 'VALUE' | 'SALARY' | 'AGE' | 'NAME'>('CA');
   const [sortDesc, setSortDesc] = useState(true);
   const [offerPlayer, setOfferPlayer] = useState<Player | null>(null);
+  const [freeAgentPlayer, setFreeAgentPlayer] = useState<Player | null>(null);
 
   // ── Staff Market state ──
   const [staffStatusFilter, setStaffStatusFilter] = useState<'ALL' | 'FREE' | 'EMPLOYED'>('ALL');
@@ -208,7 +217,7 @@ export const MarketView: React.FC<MarketViewProps> = ({ onSelectPlayer, userClub
     ? world.getStaffByClub(userClubId).find(s => s.role === targetRole)
     : undefined;
   const candidatePrevClub = selectedCandidate?.clubId ? world.getClub(selectedCandidate.clubId) : undefined;
-  const hireCompensation = candidatePrevClub ? Math.round(selectedCandidate!.salary * 12) : 0;
+  const hireCompensation = candidatePrevClub ? Math.round(selectedCandidate!.salary * 3) : 0;
 
   return (
     <div className="p-2 md:p-4 h-full flex flex-col gap-2.5 bg-[#d4dcd4] overflow-y-auto" style={{ fontFamily: 'Verdana, sans-serif' }}>
@@ -396,11 +405,11 @@ export const MarketView: React.FC<MarketViewProps> = ({ onSelectPlayer, userClub
                 </span>
                 <span className="text-slate-300">|</span>
                 <span>
-                  Masa staff: <strong className="font-mono text-slate-900">£{staffBudget.currentWeeklyWage.toLocaleString()} / £{staffBudget.maxWeeklyWage.toLocaleString()}</strong> sem
+                  Masa staff: <strong className="font-mono text-slate-900">£{staffBudget.currentWeeklyWage.toLocaleString()} / £{staffBudget.maxWeeklyWage.toLocaleString()}</strong> mes
                 </span>
                 <span className="text-slate-300 hidden sm:inline">|</span>
                 <span className="hidden sm:inline text-emerald-800">
-                  Libre: <strong className="font-mono">£{staffBudget.remainingWeeklyWage.toLocaleString()}/sem</strong>
+                  Libre: <strong className="font-mono">£{staffBudget.remainingWeeklyWage.toLocaleString()}/mes</strong>
                 </span>
               </div>
             </div>
@@ -478,7 +487,7 @@ export const MarketView: React.FC<MarketViewProps> = ({ onSelectPlayer, userClub
                         )}
                       </td>
                       <td className="px-1.5 sm:px-2 py-1.5 text-right font-mono tabular-nums font-bold text-slate-900 text-[10px] sm:text-[11px] whitespace-nowrap">
-                        £{(p.value / 1000000).toFixed(1)}M
+                        {filter === 'FREE' ? formatMoney(p.salary) + '/m' : formatMoney(p.value)}
                       </td>
                       <td className="px-1 sm:px-2 py-1.5 text-center">
                         {filter !== 'FREE' ? (
@@ -491,7 +500,14 @@ export const MarketView: React.FC<MarketViewProps> = ({ onSelectPlayer, userClub
                             <HandCoins size={10} /> Ofertar
                           </button>
                         ) : (
-                          <span className="text-[8px] text-slate-400 italic font-bold uppercase">Libre</span>
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); setFreeAgentPlayer(p); }}
+                            className="mx-auto px-1.5 sm:px-2 py-1 rounded-[2px] text-[8px] sm:text-[8.5px] font-black uppercase tracking-tight border bg-[#2b5d2c] text-white border-[#133014] hover:brightness-110 transition-all inline-flex items-center justify-center gap-1 cursor-pointer whitespace-nowrap"
+                            title={`Negociar contrato con ${p.name}`}
+                          >
+                            <UserPlus size={10} /> Fichar
+                          </button>
                         )}
                       </td>
                     </tr>
@@ -626,7 +642,22 @@ export const MarketView: React.FC<MarketViewProps> = ({ onSelectPlayer, userClub
           userClubId={userClubId}
           currentDate={currentDate}
           onClose={() => setOfferPlayer(null)}
-          onOfferMade={() => setOfferPlayer(null)}
+          onOfferMade={() => { notifyAll(); }}
+        />
+      )}
+
+      {freeAgentPlayer && (
+        <ContractNegotiationModal
+          player={freeAgentPlayer}
+          userClubId={userClubId}
+          currentDate={currentDate}
+          mode="FREE_AGENT"
+          onClose={() => setFreeAgentPlayer(null)}
+          onRenewed={() => {
+            showToast(`¡${freeAgentPlayer.name} firmó contrato con tu club!`, 'success');
+            setFreeAgentPlayer(null);
+            notifyAll();
+          }}
         />
       )}
 
@@ -754,7 +785,7 @@ export const MarketView: React.FC<MarketViewProps> = ({ onSelectPlayer, userClub
                   </select>
                 </div>
                 <div>
-                  <label className="text-[9px] font-black uppercase text-slate-600 block mb-1">Sueldo semanal (£)</label>
+                  <label className="text-[9px] font-black uppercase text-slate-600 block mb-1">Sueldo mensual (£)</label>
                   <input
                     type="number"
                     min={1000}
@@ -824,7 +855,7 @@ export const MarketView: React.FC<MarketViewProps> = ({ onSelectPlayer, userClub
                   Cupo de empleados:{' '}
                   <strong className="font-mono text-slate-900">{staffBudget.currentCount}/{staffBudget.maxCount}</strong>
                   {' · '}Disponible en masa salarial de staff:{' '}
-                  <strong className="font-mono text-slate-900">£{staffBudget.remainingWeeklyWage.toLocaleString()}/sem</strong>
+                  <strong className="font-mono text-slate-900">£{staffBudget.remainingWeeklyWage.toLocaleString()}/mes</strong>
                 </div>
                 {isTargetCollaborative ? (
                   <div className="text-emerald-800">

@@ -344,7 +344,7 @@ export interface Competition {
 
 export type LeagueTier = 'ELITE' | 'PRESTIGE' | 'DEVELOPING' | 'EMERGING' | 'LOCAL';
 
-export type MatchStage = 'REGULAR' | 'GROUP' | 'ROUND_OF_32' | 'ROUND_OF_16' | 'QUARTER_FINAL' | 'SEMI_FINAL' | 'FINAL';
+export type MatchStage = 'REGULAR' | 'GROUP' | 'ROUND_OF_64' | 'ROUND_OF_32' | 'ROUND_OF_16' | 'QUARTER_FINAL' | 'SEMI_FINAL' | 'FINAL';
 
 export interface FixtureMatchReportGoal {
   minute: number;
@@ -421,6 +421,8 @@ export interface Fixture {
   stage: MatchStage;
   groupId?: number;
   isNeutral?: boolean;
+  leg?: 1 | 2;
+  tieId?: string;
   matchReport?: FixtureMatchReport;
 }
 

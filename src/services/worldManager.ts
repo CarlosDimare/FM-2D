@@ -10,6 +10,15 @@ import { generatePlayer, generateRandomPlayer, getPlayerTag } from "./playerGene
 import { useGameStore } from "../stores/gameStore";
 import { loadConvertedClubs, loadConvertedLeagues, loadConvertedStaff, loadPlayersManifest, loadLeaguePlayerChunk, PlayersManifest, PlayerTuple } from "../data/convertedDataLoader";
 import { buildClubPoolIndex, ClubPoolIndex, populatePlayerPastHistory, populateStaffPastHistory } from "./careerHistoryGenerator";
+import {
+  calibrateClubReputation,
+  calibrateClubInitialFinances,
+  computeClubFinancialProjection,
+  computeRealisticPlayerSalary,
+  computeRealisticPlayerValue,
+  computeRealisticStaffSalary,
+  getCountryEconomy,
+} from "./economyCalibration";
 
 // ─── Perfil táctico de los entrenadores generados ───────────────────────────
 const COACH_STYLES = ['CONTROL', 'ATTACK', 'DEFENSE', 'COUNTER', 'BALANCED'] as const;
@@ -77,6 +86,7 @@ export class WorldManager {
   private loadingLeaguePromises = new Map<string, Promise<void>>();
   private seenPlayerIds = new Set<string>();
   private staticClubIds = new Set<string>();
+  private calibratedClubIds = new Set<string>();
   private realPlayersByShortCache: Map<string, RealPlayerDef[]> | null = null;
 
   constructor() { this.initWorld(); }
@@ -128,6 +138,7 @@ export class WorldManager {
       this.loadingLeaguePromises.clear();
       this.seenPlayerIds.clear();
       this.staticClubIds.clear();
+      this.calibratedClubIds.clear();
 
       // Base competitions (only W_CLUB)
       this.competitions = [
@@ -244,12 +255,28 @@ export class WorldManager {
          this.staticClubIds.add(sc.id);
       }
 
+      // Ensure base league reputations are calibrated cleanly BEFORE club calibration
+      const compById = new Map<string, Competition>();
+      for (const comp of this.competitions) {
+         if (comp.type === 'LEAGUE') {
+            comp.dynamicReputation = this.getBaseLeagueRep(comp);
+            comp.marketMultiplier = 0.5 + (comp.dynamicReputation / 100) * 1.5;
+         }
+         compById.set(comp.id, comp);
+      }
+
       // 3. Load all converted clubs preserving real hex primary/secondary colors and president names
       for (const c of CONVERTED_CLUBS) {
          const clubId = String(c.id);
-         const rep = c.reputation || 4000;
+         const comp = compById.get(c.competitionId);
+         const leagueRep = (comp?.dynamicReputation ? comp.dynamicReputation * 100 : 3500);
+         const rep = calibrateClubReputation(c.reputation || 3000, leagueRep, comp?.tier || 1);
          const avgAtt = Number(c.average_attendance || 0);
          const fallbackCap = rep >= 8000 ? 50000 : rep >= 7000 ? 30000 : rep >= 6000 ? 20000 : rep >= 5000 ? 12000 : 8000;
+         const econ = getCountryEconomy(c.country);
+         const repScale = Math.pow(Math.max(1500, rep) / 5000, 3.35) * (0.42 + econ * 0.58);
+         const estTransfer = Math.max(80_000, Math.min(180_000_000, Math.round((3_200_000 * repScale * (comp?.tier === 1 ? 1.15 : comp?.tier === 2 ? 0.65 : 0.45)) / 5_000) * 5_000));
+         const estWage = Math.max(50_000, Math.round((760_000 * repScale * 0.85) / 1_000) * 1_000);
          const club: Club = {
             id: clubId,
             name: c.name,
@@ -260,12 +287,12 @@ export class WorldManager {
             secondaryColor: this.hexToTailwind(c.secondaryColor, c.primaryColor === '#ffffff' ? '#0f172a' : '#f8fafc'),
             presidentName: c.presidentName || undefined,
             finances: {
-               balance: rep * 2500,
-               transferBudget: rep * 800,
-               wageBudget: rep * 80,
-               monthlyIncome: rep * 200,
+               balance: Math.max(250_000, Math.round((estTransfer * 1.45) / 5_000) * 5_000),
+               transferBudget: estTransfer,
+               wageBudget: estWage,
+               monthlyIncome: Math.round(760_000 * repScale * 0.22),
                monthlyExpenses: 0,
-               scoutingBudget: rep * 100,
+               scoutingBudget: Math.max(15_000, Math.round((estTransfer * 0.08) / 1_000) * 1_000),
                monthlyHistory: [],
             },
             reputation: rep,
@@ -286,14 +313,6 @@ export class WorldManager {
          };
          this.clubs.push(club);
          this.clubByIdCache.set(club.id, club);
-      }
-
-      // Ensure base league reputations are calibrated cleanly
-      for (const comp of this.competitions) {
-         if (comp.type === 'LEAGUE') {
-            comp.dynamicReputation = this.getBaseLeagueRep(comp);
-            comp.marketMultiplier = 0.5 + (comp.dynamicReputation / 100) * 1.5;
-         }
       }
 
       // 4. Hydrate O(1) indices + real converted staff (~19.5k records across all clubs + free agents)
@@ -351,8 +370,13 @@ export class WorldManager {
                motivation: clamp20(skill + ((i % 4) - 1)),
                manManagement: isDirector || isTreasurer ? clamp20(skill + 3) : clamp20(skill + 1),
             },
-            salary: Math.round((2800 + skill * 550) * econ),
-            contractExpiry: new Date(2010, 5, 30),
+            salary: computeRealisticStaffSalary({
+               skill,
+               role,
+               clubRep: club?.reputation || 3500,
+               country: club?.country || nat,
+            }),
+            contractExpiry: new Date(2028, 5, 30),
             history: [],
             personality: personalities[i % personalities.length],
             morale: 72,
@@ -401,6 +425,10 @@ export class WorldManager {
       const club = this.clubByIdCache.get(clubId);
       if (!club) return null;
 
+      const age = WorldManager.ageFromBirthDate(birthDateStr);
+      // Descartar exjugadores/técnicos colados en datasets históricos (nacidos 1958-1981)
+      if (age >= 45 || (age >= 41 && ca <= 55)) return null;
+
       this.seenPlayerIds.add(id);
 
       const posPool = manifest.pos;
@@ -420,7 +448,6 @@ export class WorldManager {
       const loy = isDefaultPerson4 ? (5 + (idHash % 14)) : rawLoy;
       const amb = isDefaultPerson4 ? (6 + ((idHash >>> 4) % 13)) : rawAmb;
       const pro = isDefaultPerson4 ? (6 + ((idHash >>> 8) % 13)) : rawPro;
-      const age = WorldManager.ageFromBirthDate(birthDateStr);
       const squad: SquadType = manifest.squads[squadIdx] || (age <= 19 ? 'U20' : age <= 22 && ca < 115 ? 'RESERVE' : 'SENIOR');
       const fullName = `${firstName} ${lastName}`.trim() || lastName || firstName || 'Jugador';
       const nationality = manifest.nats[natIdx] || club.country || 'Argentina';
@@ -487,6 +514,15 @@ export class WorldManager {
          clubsPlayedFor: Array.from(clubsPlayedForSet),
       };
 
+      const league = this.competitions.find(c => c.id === club.leagueId);
+      const leagueRep = league?.dynamicReputation ? league.dynamicReputation * 100 : 3500;
+      const realValue = value > 0
+         ? value
+         : computeRealisticPlayerValue({ ca, pa, age, clubRep: club.reputation, leagueRep, country: club.country });
+      const realSalary = salary > 0
+         ? salary
+         : computeRealisticPlayerSalary({ ca, age, squad, clubRep: club.reputation, leagueRep, country: club.country });
+
       const player: Player = {
          id,
          name: fullName,
@@ -524,8 +560,8 @@ export class WorldManager {
          },
          currentAbility: ca,
          potentialAbility: pa,
-         value,
-         salary,
+         value: realValue,
+         salary: realSalary,
          contractExpiry: new Date(contractExpiry || '2027-06-30'),
          fitness: 85 + randomInt(0, 15),
          morale: 60 + randomInt(0, 30),
@@ -543,7 +579,7 @@ export class WorldManager {
          injuryProneness: randomInt(1, 15),
          isTransferListed: transferStatus === 'TRANSFERABLE',
          transferStatus,
-         releaseClause: Math.round(value * 1.5),
+         releaseClause: Math.round(realValue * 2.2),
          height: height || 178,
          weight: weight || 74,
          birthDate: new Date(birthDateStr || '2000-01-01'),
@@ -658,11 +694,16 @@ export class WorldManager {
             if (genAtStart !== this.loadGeneration || this.loadedPlayerLeagues.has(leagueId)) return;
 
             const leagueClubs = this.getClubsByLeague(leagueId);
+            const leagueComp = this.competitions.find(c => c.id === leagueId);
             for (const club of leagueClubs) {
                if (this.staticClubIds.has(club.id)) {
                   this.injectStaticPlayersForClub(club);
                }
                this.ensureMinimumSeniorSquad(club.id, 18);
+               if (!this.calibratedClubIds.has(club.id)) {
+                  calibrateClubInitialFinances(club, this.getPlayersByClub(club.id), this.getStaffByClub(club.id), leagueComp);
+                  this.calibratedClubIds.add(club.id);
+               }
                this.updateClubMonthlyExpenses(club.id);
             }
             this.loadedPlayerLeagues.add(leagueId);
@@ -802,9 +843,10 @@ export class WorldManager {
          { id: 'C_ARG', name: 'Copa Argentina', country: 'Argentina', type: 'CUP', tier: 1, continent: 'América del Sur', confederation: 'CONMEBOL', defaultPrizePool: 2000000, seasonStartMonth: 1, seasonEndMonth: 10 },
          { id: 'COPA_REY', name: 'Copa del Rey', country: 'España', type: 'CUP', tier: 2, continent: 'Europa', confederation: 'UEFA', defaultPrizePool: 3000000, seasonStartMonth: 7, seasonEndMonth: 4 },
          { id: 'FA_CUP', name: 'FA Cup', country: 'Inglaterra', type: 'CUP', tier: 2, continent: 'Europa', confederation: 'UEFA', defaultPrizePool: 3500000, seasonStartMonth: 7, seasonEndMonth: 4 },
-         { id: 'DFB_POKAL', name: 'DFB Pokal', country: 'Alemania', type: 'CUP', tier: 2, continent: 'Europa', confederation: 'UEFA', defaultPrizePool: 2500000, seasonStartMonth: 7, seasonEndMonth: 4 },
+         { id: 'EFL_CUP', name: 'Carabao Cup (EFL Cup)', country: 'Inglaterra', type: 'CUP', tier: 2, continent: 'Europa', confederation: 'UEFA', defaultPrizePool: 2200000, seasonStartMonth: 7, seasonEndMonth: 2 },
+         { id: 'DFB_POKAL', name: 'DFB-Pokal', country: 'Alemania', type: 'CUP', tier: 2, continent: 'Europa', confederation: 'UEFA', defaultPrizePool: 2500000, seasonStartMonth: 7, seasonEndMonth: 4 },
          { id: 'COPA_ITALIA', name: 'Coppa Italia', country: 'Italia', type: 'CUP', tier: 2, continent: 'Europa', confederation: 'UEFA', defaultPrizePool: 2500000, seasonStartMonth: 7, seasonEndMonth: 4 },
-         { id: 'COPA_FRANCE', name: 'Coupe de France', country: 'Francia', type: 'CUP', tier: 2, continent: 'Europa', confederation: 'UEFA', defaultPrizePool: 2000000 },
+         { id: 'COPA_FRANCE', name: 'Coupe de France', country: 'Francia', type: 'CUP', tier: 2, continent: 'Europa', confederation: 'UEFA', defaultPrizePool: 2000000, seasonStartMonth: 7, seasonEndMonth: 4 },
          { id: 'COPA_LIB', name: 'Copa Libertadores', country: 'Sudamérica', type: 'CONTINENTAL_ELITE', tier: 1, continent: 'América del Sur', confederation: 'CONMEBOL', defaultPrizePool: 8000000 },
          { id: 'COPA_SUD', name: 'Copa Sudamericana', country: 'Sudamérica', type: 'CONTINENTAL_SMALL', tier: 2, continent: 'América del Sur', confederation: 'CONMEBOL', defaultPrizePool: 3000000 },
       );
@@ -871,6 +913,9 @@ export class WorldManager {
           this.injectRealPlayers(club);
           this.generateSquadsForClub(club.id);
           this.generateStaffForClub(club.id);
+          const comp = this.competitions.find(c => c.id === leagueId);
+          calibrateClubInitialFinances(club, this.getPlayersByClub(club.id), this.getStaffByClub(club.id), comp);
+          this.calibratedClubIds.add(club.id);
           this.updateClubMonthlyExpenses(club.id);
         }
      });
@@ -889,11 +934,16 @@ export class WorldManager {
     club.teamCohesion = Math.max(0, Math.min(100, Math.round(avgFamiliarity * 0.6 + stabilityBonus * 0.4 + randomInt(-3, 3))));
   }
 
-getClub(id: string) {
-    const cached = this.clubByIdCache.get(id);
+  getClub(id: string | number) {
+    if (!id) return undefined;
+    const sId = String(id);
+    const cached = this.clubByIdCache.get(sId);
     if (cached) return cached;
-    const club = this.clubs.find(c => c.id === id);
-    if (club) this.clubByIdCache.set(id, club);
+    let club = this.clubs.find(c => String(c.id) === sId);
+    if (!club) {
+      club = this.clubs.find(c => c.name.toLowerCase() === sId.toLowerCase() || c.shortName.toLowerCase() === sId.toLowerCase());
+    }
+    if (club) this.clubByIdCache.set(sId, club);
     return club;
   }
   private ensurePlayerIndices() {
@@ -1082,8 +1132,8 @@ getClub(id: string) {
     if (!club) return;
     const players = this.getPlayersByClub(clubId);
     const staff = this.getStaffByClub(clubId);
-    const totalSalaries = players.reduce((sum, p) => sum + p.salary, 0) + staff.reduce((sum, s) => sum + s.salary, 0);
-    club.finances.monthlyExpenses = totalSalaries + (club.reputation * 10);
+    const proj = computeClubFinancialProjection(club, players, staff, club.finances.monthlyIncome);
+    club.finances.monthlyExpenses = proj.totalMonthlyExpenses;
   }
 
   generateRandomHonours() {
@@ -1180,40 +1230,32 @@ getClub(id: string) {
   generateStaffForClub(clubId: string) {
     const roles: StaffRole[] = ['HEAD_COACH', 'ASSISTANT_MANAGER', 'PHYSIO', 'FITNESS_COACH', 'RESERVE_MANAGER', 'YOUTH_MANAGER', 'SCOUT', 'SPORTING_DIRECTOR', 'TREASURER'];
     const club = this.getClub(clubId);
-    const countryEconomy: Record<string, number> = {
-      'Argentina': 0.6, 'Brasil': 0.8, 'Uruguay': 0.6, 'Chile': 0.7, 'Colombia': 0.65,
-      'Inglaterra': 2.0, 'España': 1.8, 'Italia': 1.7, 'Alemania': 1.9, 'Francia': 1.8,
-      'Portugal': 1.2, 'Países Bajos': 1.5, 'Bélgica': 1.3, 'Turquía': 1.0, 'Rusia': 0.9,
-      'Croacia': 0.75, 'Grecia': 0.7, 'Austria': 1.5, 'Suiza': 1.6, 'Dinamarca': 1.3,
-      'Suecia': 1.1, 'Noruega': 1.2, 'Polonia': 0.8, 'Ucrania': 0.6,
-      'Estados Unidos': 2.2, 'México': 0.7, 'Japón': 1.6, 'China': 1.4, 'Arabia Saudita': 1.8,
-      'Egipto': 0.7, 'Marruecos': 0.65, 'Sudáfrica': 0.8, 'Nigeria': 0.55,
-      'Ghana': 0.5, 'Camerún': 0.45, 'Costa de Marfil': 0.45, 'Túnez': 0.6,
-      'Senegal': 0.5,
-      'Corea del Sur': 1.3, 'Australia': 1.2,
-    };
-    const economyMult = club ? (countryEconomy[club.country] || 0.8) : 0.8;
 
     roles.forEach(role => {
       const isTacticalStaff = ['HEAD_COACH', 'ASSISTANT_MANAGER', 'RESERVE_MANAGER', 'YOUTH_MANAGER'].includes(role);
       const coachStyle = isTacticalStaff ? COACH_STYLES[randomInt(0, COACH_STYLES.length - 1)] : undefined;
       const coachFormation = isTacticalStaff ? COACH_FORMATIONS[randomInt(0, COACH_FORMATIONS.length - 1)] : undefined;
+      const coaching = role === 'SPORTING_DIRECTOR' || role === 'TREASURER' ? weightedRandom(4, 10) : weightedRandom(8, 20);
+      const judgingAbility = role === 'SCOUT' || role === 'SPORTING_DIRECTOR' || role === 'TREASURER' ? weightedRandom(12, 20) : weightedRandom(8, 20);
+      const tacticalKnowledge = role === 'TREASURER' ? weightedRandom(4, 10) : weightedRandom(10, 20);
+      const manManagement = role === 'SPORTING_DIRECTOR' || role === 'TREASURER' ? weightedRandom(12, 20) : weightedRandom(8, 20);
+      const skill = Math.round((coaching + judgingAbility + tacticalKnowledge + manManagement) / 4);
       const s: Staff = {
         id: generateUUID(), name: `${STAFF_NAMES.names[randomInt(0, STAFF_NAMES.names.length-1)]} ${STAFF_NAMES.surnames[randomInt(0, STAFF_NAMES.surnames.length-1)]}`,
         age: randomInt(35, 65), nationality: club?.country || "Argentina", role: role, clubId: clubId,
         attributes: {
-          coaching: role === 'SPORTING_DIRECTOR' || role === 'TREASURER' ? weightedRandom(4, 10) : weightedRandom(8, 20),
-          judgingAbility: role === 'SCOUT' || role === 'SPORTING_DIRECTOR' || role === 'TREASURER' ? weightedRandom(12, 20) : weightedRandom(8, 20),
+          coaching,
+          judgingAbility,
           judgingPotential: role === 'SCOUT' || role === 'SPORTING_DIRECTOR' ? weightedRandom(12, 20) : weightedRandom(8, 20),
-          tacticalKnowledge: role === 'TREASURER' ? weightedRandom(4, 10) : weightedRandom(10, 20),
+          tacticalKnowledge,
           adaptability: weightedRandom(5, 20),
           medical: role === 'PHYSIO' ? 18 : 5,
           physiotherapy: role === 'PHYSIO' ? 18 : 5,
           motivation: weightedRandom(8, 20),
-          manManagement: role === 'SPORTING_DIRECTOR' || role === 'TREASURER' ? weightedRandom(12, 20) : weightedRandom(8, 20),
+          manManagement,
         },
-        salary: Math.round(randomInt(3000, 15000) * economyMult),
-        contractExpiry: new Date(2010, 5, 30), history: [],
+        salary: computeRealisticStaffSalary({ skill, role, clubRep: club?.reputation || 3500, country: club?.country || 'Argentina' }),
+        contractExpiry: new Date(2028, 5, 30), history: [],
         personality: ['LEADER', 'PASSIONATE', 'CALM', 'DISCIPLINARIAN', 'VISIONARY'][randomInt(0, 4)],
         morale: 70,
         reputation: 50,
@@ -1236,6 +1278,9 @@ getClub(id: string) {
     if (existing) return existing;
     const club = this.getClub(clubId);
     if (!club) return null;
+    const judgingAbility = weightedRandom(13, 19);
+    const manManagement = weightedRandom(13, 19);
+    const skill = Math.round((judgingAbility + manManagement) / 2);
     const s: Staff = {
       id: generateUUID(),
       name: `${STAFF_NAMES.names[randomInt(0, STAFF_NAMES.names.length - 1)]} ${STAFF_NAMES.surnames[randomInt(0, STAFF_NAMES.surnames.length - 1)]}`,
@@ -1245,17 +1290,17 @@ getClub(id: string) {
       clubId,
       attributes: {
         coaching: 5,
-        judgingAbility: weightedRandom(13, 19),
+        judgingAbility,
         judgingPotential: weightedRandom(10, 16),
         tacticalKnowledge: 6,
         adaptability: weightedRandom(10, 18),
         medical: 4,
         physiotherapy: 4,
         motivation: weightedRandom(10, 16),
-        manManagement: weightedRandom(13, 19),
+        manManagement,
       },
-      salary: Math.round(randomInt(4000, 10000)),
-      contractExpiry: new Date(2010, 5, 30),
+      salary: computeRealisticStaffSalary({ skill, role: 'TREASURER', clubRep: club.reputation, country: club.country }),
+      contractExpiry: new Date(2028, 5, 30),
       history: [],
       personality: 'CALM',
       morale: 75,
@@ -1271,7 +1316,7 @@ getClub(id: string) {
     return s;
   }
 
-  createRandomPlayer(clubId: string, primaryPos: Position, minAge = 16, maxAge = 36, baseYear = 2008): Player {
+  createRandomPlayer(clubId: string, primaryPos: Position, minAge = 16, maxAge = 36, baseYear = 2008, squadType: SquadType = 'SENIOR'): Player {
     const club = this.getClub(clubId);
     let nat = club ? (Math.random() < 0.9 ? club.country : NATIONS[randomInt(0, NATIONS.length - 1)]) : "Argentina";
     const normalizeKey = (str: string) => str.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -1285,9 +1330,9 @@ getClub(id: string) {
         lastName = NAMES_DB.lastNames[randomInt(0, NAMES_DB.lastNames.length - 1)];
     }
     const age = randomInt(minAge, maxAge);
-    const rep = club ? club.reputation : 5000;
-    // Calibrate against convertedClubs/convertedPlayers:
-    // rep 9600 (RMA/MCI) ~ CA 164, rep 8500 (Boca/Flamengo) ~ CA 142, rep 7800 (Al-Ahly) ~ CA 127, rep 5000 ~ CA 86.
+    const rep = club ? club.reputation : 3500;
+    const comp = club ? this.competitions.find(c => c.id === club.leagueId) : undefined;
+    const leagueRep = comp?.dynamicReputation ? comp.dynamicReputation * 100 : rep;
     const repNorm = Math.max(0.05, Math.min(1.0, (rep - 2000) / 8000));
     const baseClubCA = 60 + Math.pow(repNorm, 1.5) * 112;
     const rawCa = baseClubCA + randomInt(-18, 12);
@@ -1296,12 +1341,13 @@ getClub(id: string) {
     const pa = Math.min(200, ca + randomInt(0, age <= 21 ? 55 : 25));
     const qualityFactor = Math.max(0.32, Math.min(1.45, ca / 150));
     const player = generatePlayer(clubId, primaryPos, nat, `${firstName} ${lastName}`, age, { qualityFactor });
+    player.squad = squadType;
     player.currentAbility = ca;
     player.potentialAbility = pa;
     player.reputation = ca * 42;
-    player.value = Math.round(ca * ca * 2000);
-    player.salary = Math.round(ca * 2000 / 12);
-    player.releaseClause = Math.round(player.value * 3);
+    player.value = computeRealisticPlayerValue({ ca, pa, age, clubRep: rep, leagueRep, country: club?.country || nat });
+    player.salary = computeRealisticPlayerSalary({ ca, age, squad: squadType, clubRep: rep, leagueRep, country: club?.country || nat });
+    player.releaseClause = Math.round(player.value * 2.2);
     player.agent = age >= 22 && Math.random() < 0.15 ? { name: `Agente ${lastName}`, commission: Math.round(5 + Math.random() * 10) } : undefined;
     player.personality = this.assignPlayerPersonality(
       player.leadership,
@@ -1930,12 +1976,9 @@ Días desde la lesión: ${i.daysSinceInjury}`;
    * Generate 3-5 preseason friendly fixtures for a club before its league starts.
    * Opponents are clubs of similar reputation from different leagues.
    */
-  generatePreseasonFriendlies(clubId: string, seasonStart: Date): Fixture[] {
+  generatePreseasonFriendlies(clubId: string, seasonStart: Date, leagueStartDate?: Date): Fixture[] {
     const club = this.getClub(clubId);
     if (!club) return [];
-
-    const league = this.competitions.find(c => c.id === club.leagueId);
-    const leagueStartMonth = league?.seasonStartMonth ?? 0;
 
     const count = 3 + randomInt(0, 2); // 3-5 friendlies
     const fixtures: Fixture[] = [];
@@ -1963,16 +2006,31 @@ Días desde la lesión: ${i.daysSinceInjury}`;
 
     if (candidates.length === 0) return [];
 
-    // Space friendlies across 3 weeks before season starts
-    const firstFriendlyDate = new Date(seasonStart);
-    firstFriendlyDate.setDate(firstFriendlyDate.getDate() - 21);
+    // Programar amistosos HACIA ADELANTE desde el inicio de pretemporada, siempre antes del debut oficial
+    const startMidnight = new Date(seasonStart.getFullYear(), seasonStart.getMonth(), seasonStart.getDate(), 15, 0, 0, 0);
+    const defaultLeagueStart = new Date(startMidnight);
+    defaultLeagueStart.setDate(defaultLeagueStart.getDate() + 24);
+    const leagueFloor = leagueStartDate
+      ? new Date(leagueStartDate.getFullYear(), leagueStartDate.getMonth(), leagueStartDate.getDate(), 15, 0, 0, 0)
+      : defaultLeagueStart;
 
-    // Pick count opponents
+    const latestAllowedDate = new Date(leagueFloor);
+    latestAllowedDate.setDate(latestAllowedDate.getDate() - 3); // Al menos 3 días de descanso antes de la Fecha 1
+
+    const availableSpanDays = Math.max(
+      9,
+      Math.floor((latestAllowedDate.getTime() - startMidnight.getTime()) / 86_400_000)
+    );
+    const firstOffset = 3; // Arranca 3 días después de asumir para permitir revisar plantel/táctica
+    const usableSpan = Math.max(3, availableSpanDays - firstOffset);
     const selected = candidates.slice(0, Math.min(count, candidates.length));
+    const step = selected.length > 1 ? Math.max(3, Math.floor(usableSpan / (selected.length - 1))) : 4;
 
     for (let i = 0; i < selected.length; i++) {
-      const matchDate = new Date(firstFriendlyDate);
-      matchDate.setDate(matchDate.getDate() + i * 4 + randomInt(0, 2)); // every ~4 days
+      const matchDate = new Date(startMidnight);
+      const dayOffset = Math.min(availableSpanDays, firstOffset + i * Math.min(step, 4));
+      matchDate.setDate(matchDate.getDate() + dayOffset);
+      if (matchDate.getTime() > latestAllowedDate.getTime()) break;
 
       const isHome = i % 2 === 0; // alternate home/away
       fixtures.push({
@@ -1987,11 +2045,16 @@ Días desde la lesión: ${i.daysSinceInjury}`;
       });
     }
 
-    // Notify user
+    if (fixtures.length === 0) return [];
+
+    // Notify user on the opening day of preseason
     this.addInboxMessage('COMPETITION',
       'Pretemporada: amistosos programados',
-      `Se han programado ${fixtures.length} partidos amistosos de pretemporada para ${club.name}. Los rivales son:\n${selected.map((c, i) => `${i + 1}. ${c.name} (${c.country}) — ${fixtures[i].date.toLocaleDateString('es-ES')} (${fixtures[i].homeTeamId === clubId ? 'Local' : 'Visitante'})`).join('\n')}\n\nLos amistosos no afectan la tabla ni generan sanciones. Sirven para ganar forma física, probar tácticas y mejorar la química del equipo.`,
-      fixtures[0].date);
+      `Se han programado ${fixtures.length} partidos amistosos de pretemporada para ${club.name} antes del inicio oficial de la liga. Los rivales son:\n${fixtures.map((f, i) => {
+        const opp = selected[i];
+        return `${i + 1}. ${opp.name} (${opp.country}) — ${f.date.toLocaleDateString('es-AR')} (${f.homeTeamId === clubId ? 'Local' : 'Visitante'})`;
+      }).join('\n')}\n\nLos amistosos no afectan la tabla ni generan sanciones. Sirven para ganar forma física, probar tácticas y mejorar la química del equipo.`,
+      new Date(seasonStart));
 
     return fixtures;
   }
@@ -2182,27 +2245,476 @@ Días desde la lesión: ${i.daysSinceInjury}`;
     this.tactics.push({ id: generateUUID(), name, positions, settings, arrows: {}, individualSettings: {} });
   }
 
-  makeTransferOffer(playerId: string, fromClubId: string, amount: number, type: 'PURCHASE' | 'LOAN' | 'LOAN_TO_BUY', date: Date, wageShare = 100) {
+  setPlayerTransferStatus(playerId: string, status: 'NONE' | 'TRANSFERABLE' | 'LOANABLE'): { ok: boolean; status: 'NONE' | 'TRANSFERABLE' | 'LOANABLE' } {
+    const p = this.getPlayer(playerId);
+    if (!p) return { ok: false, status: 'NONE' };
+    p.transferStatus = status;
+    p.isTransferListed = status === 'TRANSFERABLE';
+    if (status === 'TRANSFERABLE' && p.transferRequestReason) {
+      p.morale = Math.min(100, p.morale + 5);
+    }
+    return { ok: true, status };
+  }
+
+  evaluateTransferViability(
+    playerId: string,
+    buyerClubId: string,
+    type: 'PURCHASE' | 'LOAN' | 'LOAN_TO_BUY',
+    offerAmount?: number,
+    wageShare = 100
+  ): {
+    allowed: boolean;
+    clubLikelyToAccept: boolean;
+    playerWilling: boolean;
+    interestLevel: 'HIGH' | 'MEDIUM' | 'LOW' | 'NONE';
+    askingPrice: number;
+    expectedSalary: number;
+    projectedMonthlyWage: number;
+    remainingWageRoom: number;
+    reasons: string[];
+  } {
     const player = this.getPlayer(playerId);
-    if (!player) return;
-    if (player.releaseClause && amount >= player.releaseClause) {
-      const offer: TransferOffer = { id: generateUUID(), playerId, fromClubId, toClubId: player.clubId, amount, wageShare, type, status: 'ACCEPTED', date, responseDate: date, isViewed: false };
+    const buyer = this.getClub(buyerClubId);
+    const reasons: string[] = [];
+
+    if (!player || !buyer) {
+      return {
+        allowed: false,
+        clubLikelyToAccept: false,
+        playerWilling: false,
+        interestLevel: 'NONE',
+        askingPrice: 0,
+        expectedSalary: 0,
+        projectedMonthlyWage: 0,
+        remainingWageRoom: 0,
+        reasons: ['Jugador o club no encontrado.'],
+      };
+    }
+
+    if (player.clubId === buyerClubId) {
+      reasons.push('El jugador ya pertenece a tu plantel.');
+    }
+    if (player.clubId === 'FREE_AGENT') {
+      reasons.push('Es agente libre: negocia su contrato directamente sin oferta de traspaso.');
+    }
+    if (player.loanDetails && (type === 'LOAN' || type === 'LOAN_TO_BUY')) {
+      reasons.push('El futbolista ya se encuentra a préstamo esta temporada.');
+    }
+
+    const seller = player.clubId !== 'FREE_AGENT' ? this.getClub(player.clubId) : undefined;
+    const buyerLeague = this.competitions.find(c => c.id === buyer.leagueId);
+    const sellerLeague = seller ? this.competitions.find(c => c.id === seller.leagueId) : undefined;
+    const buyerLeagueRep = buyerLeague?.dynamicReputation ? buyerLeague.dynamicReputation * 100 : buyer.reputation;
+    const sellerLeagueRep = sellerLeague?.dynamicReputation ? sellerLeague.dynamicReputation * 100 : (seller?.reputation || 3500);
+
+    const buyerAppeal = buyer.reputation * 0.65 + buyerLeagueRep * 0.35;
+    const sellerAppeal = seller ? seller.reputation * 0.65 + sellerLeagueRep * 0.35 : buyerAppeal;
+
+    // Salario esperado y masa salarial mensual
+    const buyerPlayers = this.getPlayersByClub(buyerClubId);
+    const buyerStaff = this.getStaffByClub(buyerClubId);
+    const currentPayroll = buyerPlayers.reduce((s, p) => s + p.salary, 0) + buyerStaff.reduce((s, st) => s + st.salary, 0);
+    const remainingWageRoom = Math.round(buyer.finances.wageBudget - currentPayroll);
+    const expectedSalary = type === 'PURCHASE'
+      ? this.getRequestedSalary(player, buyer)
+      : Math.max(500, Math.round(player.salary * (wageShare / 100)));
+    const projectedMonthlyWage = currentPayroll + expectedSalary;
+
+    const checkAmount = type === 'PURCHASE' ? Math.max(0, offerAmount ?? player.value) : 0;
+
+    // 1. Validación financiera del comprador
+    let economicOk = true;
+    if (type === 'PURCHASE') {
+      if (buyer.finances.transferBudget < checkAmount) {
+        economicOk = false;
+        reasons.push(`Presupuesto de fichajes insuficiente (disponible: £${buyer.finances.transferBudget.toLocaleString()}).`);
+      }
+      const debtFloor = -Math.max(500_000, buyer.reputation * 400);
+      if (buyer.finances.balance < debtFloor) {
+        economicOk = false;
+        reasons.push('La tesorería está en déficit crítico y la directiva bloqueó compras.');
+      }
+    }
+    if (projectedMonthlyWage > buyer.finances.wageBudget * 1.05) {
+      economicOk = false;
+      reasons.push(`Supera el tope salarial mensual (margen libre: £${Math.max(0, remainingWageRoom).toLocaleString()}/mes).`);
+    }
+
+    // 2. Precio pretendido por el club vendedor
+    let askingPrice = player.value;
+    if (player.transferStatus === 'TRANSFERABLE' || player.isTransferListed) {
+      askingPrice = Math.round(player.value * 0.85);
+    } else if (player.isUnhappyWithContract || player.transferRequestReason) {
+      askingPrice = Math.round(player.value * 0.82);
+    } else if (seller && this.wouldDropBelowMinimums(seller.id, player)) {
+      askingPrice = Math.round(player.value * 1.55);
+    } else if (player.isStarter) {
+      askingPrice = Math.round(player.value * 1.25);
+    } else {
+      askingPrice = Math.round(player.value * 1.08);
+    }
+    if (player.releaseClause) {
+      askingPrice = Math.min(askingPrice, player.releaseClause);
+    }
+    askingPrice = Math.max(10_000, askingPrice);
+
+    // 3. Voluntad del jugador (prestigio de club + liga + nivel deportivo + edad + lealtad)
+    const maxPurchaseCA = Math.round(78 + (buyerAppeal / 9500) * 114);
+    const maxLoanCA = maxPurchaseCA + 12;
+    const ceiling = type === 'PURCHASE' ? maxPurchaseCA : maxLoanCA;
+    const caOverCeiling = player.currentAbility - ceiling;
+    const appealGap = sellerAppeal - buyerAppeal;
+
+    let interestLevel: 'HIGH' | 'MEDIUM' | 'LOW' | 'NONE' = 'MEDIUM';
+    let playerWilling = true;
+
+    if (caOverCeiling > 6) {
+      playerWilling = false;
+      interestLevel = 'NONE';
+      reasons.push(`${player.name} compite en la élite (nivel ${player.currentAbility}) y descarta bajar a un proyecto de menor jerarquía deportiva.`);
+    } else if (
+      type === 'PURCHASE' &&
+      player.currentAbility >= 140 &&
+      appealGap >= 2400 &&
+      player.age < 32 &&
+      player.transferStatus === 'NONE'
+    ) {
+      playerWilling = false;
+      interestLevel = 'NONE';
+      reasons.push(`${player.name} juega en ${seller?.name || 'un club superior'} (${sellerLeague?.name || 'liga top'}) y no aceptará bajar de categoría.`);
+    } else if (buyerAppeal >= sellerAppeal + 700) {
+      interestLevel = 'HIGH';
+    } else if (caOverCeiling > 0 || (appealGap > 1100 && player.transferStatus === 'NONE')) {
+      interestLevel = 'LOW';
+      reasons.push(`Desconfía del salto deportivo hacia ${buyer.name}; pedirá condiciones exigentes.`);
+    } else if (player.loyalty >= 17 && buyer.reputation < (seller?.reputation || 0) + 500 && !player.isUnhappyWithContract && player.transferStatus === 'NONE') {
+      interestLevel = 'LOW';
+      reasons.push(`${player.name} tiene alta lealtad hacia ${seller?.shortName || 'su club'}.`);
+    } else if (player.transferStatus === 'TRANSFERABLE' || player.transferStatus === 'LOANABLE' || player.isUnhappyWithContract) {
+      interestLevel = 'HIGH';
+    }
+
+    const sellerShortDepth = seller ? this.wouldDropBelowMinimums(seller.id, player) : false;
+    const clubLikelyToAccept =
+      type === 'PURCHASE'
+        ? !sellerShortDepth && checkAmount >= askingPrice * 0.92
+        : (player.transferStatus === 'LOANABLE' || (!player.isStarter && player.age <= 24)) && wageShare >= 50;
+
+    if (type === 'PURCHASE' && sellerShortDepth) {
+      reasons.push(`${seller?.shortName || 'El club vendedor'} tiene pocos recambios en esa posición y pondrá trabas.`);
+    }
+
+    const allowed =
+      player.clubId !== buyerClubId &&
+      player.clubId !== 'FREE_AGENT' &&
+      !(player.loanDetails && (type === 'LOAN' || type === 'LOAN_TO_BUY')) &&
+      economicOk &&
+      playerWilling;
+
+    return {
+      allowed,
+      clubLikelyToAccept,
+      playerWilling,
+      interestLevel,
+      askingPrice,
+      expectedSalary,
+      projectedMonthlyWage,
+      remainingWageRoom,
+      reasons,
+    };
+  }
+
+  makeTransferOffer(
+    playerId: string,
+    fromClubId: string,
+    amount: number,
+    type: 'PURCHASE' | 'LOAN' | 'LOAN_TO_BUY',
+    date: Date,
+    wageShare = 100
+  ): { ok: boolean; message: string; offer?: TransferOffer } {
+    const player = this.getPlayer(playerId);
+    if (!player) return { ok: false, message: 'Jugador no encontrado.' };
+
+    const check = this.evaluateTransferViability(playerId, fromClubId, type, amount, wageShare);
+    if (!check.allowed) {
+      return {
+        ok: false,
+        message: check.reasons[0] || 'La operación no cumple con los requisitos deportivos o económicos.',
+      };
+    }
+
+    const duplicate = this.offers.find(
+      o =>
+        o.playerId === playerId &&
+        o.fromClubId === fromClubId &&
+        (o.status === 'PENDING' || o.status === 'COUNTER_OFFER' || o.status === 'ACCEPTED')
+    );
+    if (duplicate) {
+      return { ok: false, message: `Ya existe una negociación activa por ${player.name}.` };
+    }
+
+    let finalAmount = type === 'PURCHASE' ? Math.max(1000, Math.round(amount)) : 0;
+    const userClub = this.getUserClub();
+    const isUserBuyer = userClub?.id === fromClubId;
+
+    if (type === 'PURCHASE' && player.releaseClause && finalAmount >= player.releaseClause && check.interestLevel !== 'NONE') {
+      const offer: TransferOffer = { id: generateUUID(), playerId, fromClubId, toClubId: player.clubId, amount: finalAmount, wageShare, type, status: 'ACCEPTED', date, responseDate: date, isViewed: false };
       this.offers.push(offer);
-      this.addInboxMessage('MARKET', `Cláusula activada: ${player.name}`, `${this.getClub(fromClubId)?.name} ha pagado la cláusula de rescisión de ${player.name}: $${amount.toLocaleString()}.`, date, playerId, 'IMPORTANT');
-      return;
+      if (isUserBuyer || player.clubId === userClub?.id) {
+        this.addInboxMessage('MARKET', `Cláusula activada: ${player.name}`, `${this.getClub(fromClubId)?.name} igualó la cláusula de rescisión de ${player.name} (£${finalAmount.toLocaleString()}). Ahora resta negociar el contrato personal.`, date, playerId, 'IMPORTANT');
+      }
+      return { ok: true, message: 'Cláusula activada. Negocia el contrato personal en Centro de Fichajes.', offer };
     }
-    if (player.agent && Math.random() < 0.4) {
-      const commission = Math.round(amount * player.agent.commission / 100);
-      amount += commission;
-      this.addInboxMessage('FINANCE', `Comisión del agente: ${player.name}`, `El agente ${player.agent.name} exige una comisión del ${player.agent.commission}% ($${commission.toLocaleString()}) sobre el traspaso.`, date, playerId, 'IMPORTANT');
+
+    if (type === 'PURCHASE' && player.agent && Math.random() < 0.35) {
+      const commission = Math.round(finalAmount * (player.agent.commission / 100) * 0.5);
+      finalAmount += commission;
+      if (isUserBuyer) {
+        this.addInboxMessage('FINANCE', `Comisión del agente: ${player.name}`, `El agente ${player.agent.name} sumó una comisión de £${commission.toLocaleString()} sobre la operación.`, date, playerId, 'INFO');
+      }
     }
-    const offer: TransferOffer = { id: generateUUID(), playerId, fromClubId, toClubId: player.clubId, amount, wageShare, type, status: 'PENDING', date, responseDate: date, isViewed: false };
+
+    const offer: TransferOffer = { id: generateUUID(), playerId, fromClubId, toClubId: player.clubId, amount: finalAmount, wageShare, type, status: 'PENDING', date, responseDate: date, isViewed: false };
     this.offers.push(offer);
+
+    if (userClub && player.clubId === userClub.id) {
+      const buyerName = this.getClub(fromClubId)?.name || 'Un club interesado';
+      this.addInboxMessage(
+        'MARKET',
+        `Oferta recibida por ${player.name}`,
+        type === 'PURCHASE'
+          ? `${buyerName} ofrece £${finalAmount.toLocaleString()} por el pase de ${player.name}. Revisa el Centro de Fichajes para aceptar, contraofertar o rechazar.`
+          : `${buyerName} solicita la cesión de ${player.name} asumiendo el ${wageShare}% de su sueldo mensual.`,
+        date,
+        playerId,
+        'IMPORTANT',
+        true
+      );
+    }
+
+    return { ok: true, message: 'Oferta enviada al club propietario.', offer };
   }
 
   acceptCounterOffer(offerId: string, date: Date) {
     const o = this.offers.find(offer => offer.id === offerId);
-    if (o) { o.status = 'ACCEPTED'; o.amount = o.counterAmount || o.amount; o.responseDate = date; }
+    if (!o) return;
+    const agreedAmount = o.counterAmount || o.amount;
+    const buyer = this.getClub(o.fromClubId);
+    if (buyer && o.type === 'PURCHASE' && buyer.finances.transferBudget < agreedAmount) {
+      return;
+    }
+    o.status = 'ACCEPTED';
+    o.amount = agreedAmount;
+    o.responseDate = date;
+  }
+
+  respondToIncomingOffer(
+    offerId: string,
+    action: 'ACCEPT' | 'REJECT' | 'COUNTER',
+    counterAmount?: number,
+    date: Date = new Date()
+  ): { ok: boolean; message: string } {
+    const offer = this.offers.find(o => o.id === offerId);
+    if (!offer) return { ok: false, message: 'Oferta no encontrada.' };
+    const player = this.getPlayer(offer.playerId);
+    const buyer = this.getClub(offer.fromClubId);
+    const seller = this.getClub(offer.toClubId);
+    if (!player || !buyer || !seller) {
+      offer.status = 'REJECTED';
+      return { ok: false, message: 'Datos de la negociación inválidos.' };
+    }
+
+    if (action === 'REJECT') {
+      offer.status = 'REJECTED';
+      offer.responseDate = date;
+      return { ok: true, message: `Rechazaste la propuesta de ${buyer.shortName} por ${player.name}.` };
+    }
+
+    if (action === 'ACCEPT') {
+      if (offer.type === 'PURCHASE' && buyer.finances.transferBudget < offer.amount) {
+        offer.status = 'REJECTED';
+        offer.responseDate = date;
+        return { ok: false, message: `${buyer.name} ya no dispone de presupuesto suficiente para cerrar la compra.` };
+      }
+      this.completeTransfer(offer);
+      return { ok: true, message: `¡Venta/cesión cerrada! ${player.name} parte hacia ${buyer.name}.` };
+    }
+
+    // COUNTER
+    const targetAmount = Math.max(10_000, Math.round(counterAmount || offer.amount * 1.2));
+    offer.counterAmount = targetAmount;
+    offer.responseDate = date;
+
+    const willingnessCeiling = Math.min(buyer.finances.transferBudget, Math.round(player.value * 1.45));
+    if (targetAmount <= willingnessCeiling && (targetAmount <= offer.amount * 1.28 || Math.random() < 0.65)) {
+      offer.amount = targetAmount;
+      this.completeTransfer(offer);
+      this.addInboxMessage(
+        'MARKET',
+        `Contraoferta aceptada: ${player.name}`,
+        `${buyer.name} aceptó tu pedido de £${targetAmount.toLocaleString()} y se cerró la transferencia de ${player.name}.`,
+        date,
+        player.id,
+        'IMPORTANT'
+      );
+      return { ok: true, message: `¡${buyer.name} aceptó £${targetAmount.toLocaleString()} y cerró el fichaje!` };
+    }
+
+    offer.status = 'REJECTED';
+    return {
+      ok: true,
+      message: `${buyer.name} consideró excesiva la contraoferta de £${targetAmount.toLocaleString()} y se retiró de la negociación.`,
+    };
+  }
+
+  completeTransferWithContract(
+    offer: TransferOffer,
+    agreedSalary: number,
+    contractYears: number,
+    date: Date
+  ): { ok: boolean; message: string } {
+    const p = this.getPlayer(offer.playerId);
+    const newClub = this.getClub(offer.fromClubId);
+    const oldClub = this.getClub(offer.toClubId);
+    if (!p || !newClub) return { ok: false, message: 'No se pudo completar la operación.' };
+
+    if (offer.type === 'PURCHASE' && newClub.finances.transferBudget < offer.amount) {
+      return { ok: false, message: 'Presupuesto de fichajes insuficiente para cerrar el traspaso.' };
+    }
+
+    const otherSalaries =
+      this.getPlayersByClub(newClub.id).reduce((s, pl) => s + pl.salary, 0) +
+      this.getStaffByClub(newClub.id).reduce((s, st) => s + st.salary, 0);
+    if (otherSalaries + agreedSalary > newClub.finances.wageBudget * 1.05) {
+      return { ok: false, message: 'El sueldo ofrecido supera el tope salarial mensual disponible.' };
+    }
+
+    if (oldClub && offer.type === 'PURCHASE') {
+      oldClub.finances.balance += offer.amount;
+      oldClub.finances.transferBudget += Math.round(offer.amount * 0.7);
+    }
+    if (offer.type === 'PURCHASE') {
+      newClub.finances.balance -= offer.amount;
+      newClub.finances.transferBudget = Math.max(0, newClub.finances.transferBudget - offer.amount);
+      const signingBonus = Math.min(Math.round(offer.amount * 0.04), Math.round(agreedSalary * 1.5));
+      if (signingBonus > 0) {
+        newClub.finances.balance -= signingBonus;
+        this.addInboxMessage('FINANCE', `Prima de fichaje: ${p.name}`, `Se abonó una prima única de £${signingBonus.toLocaleString()} por la firma de ${p.name}.`, date, p.id, 'INFO');
+      }
+    }
+
+    const newComp = this.competitions.find(c => c.id === newClub.leagueId);
+    const leagueRep = newComp?.dynamicReputation ? newComp.dynamicReputation * 100 : newClub.reputation;
+
+    p.clubId = newClub.id;
+    p.squad = p.age <= 19 && p.currentAbility < 95 ? 'U20' : 'SENIOR';
+    p.isStarter = false;
+    p.tacticalPosition = undefined;
+    p.isTransferListed = false;
+    p.transferStatus = 'NONE';
+    p.salary = Math.max(500, Math.round(agreedSalary));
+    p.contractExpiry = new Date(date.getFullYear() + Math.max(1, contractYears), 5, 30);
+    p.isUnhappyWithContract = false;
+    p.requestedSalary = undefined;
+    p.negotiationAttempts = 0;
+    p.value = computeRealisticPlayerValue({
+      ca: p.currentAbility,
+      pa: p.potentialAbility,
+      age: p.age,
+      clubRep: newClub.reputation,
+      leagueRep,
+      country: newClub.country,
+    });
+    p.releaseClause = Math.round(p.value * 2.2);
+
+    if (oldClub) {
+      this.invalidateClubCache(oldClub.id);
+      this.updateClubMonthlyExpenses(oldClub.id);
+    }
+    this.invalidateClubCache(newClub.id);
+    this.updateClubMonthlyExpenses(newClub.id);
+
+    offer.status = 'COMPLETED';
+    offer.responseDate = date;
+
+    const userClubHere = this.getUserClub();
+    if (userClubHere && (offer.fromClubId === userClubHere.id || offer.toClubId === userClubHere.id)) {
+      this.addInboxMessage('MARKET', `Fichaje oficial: ${p.name}`, `${p.name} firmó por ${contractYears} año${contractYears > 1 ? 's' : ''} con ${newClub.name} (£${p.salary.toLocaleString()}/mes) tras acordarse el pase en £${offer.amount.toLocaleString()}.`, date, p.id, 'IMPORTANT', true);
+      sendTransferNotification(p.name, newClub.name);
+      this.addSeasonPage('SIGNING', `Fichaje: ${p.name}`, `${newClub.name} incorporó a ${p.name} desde ${oldClub?.name || 'otro club'} por £${offer.amount.toLocaleString()}.`, date, offer.amount > 500_000 ? 'HIGH' : 'MEDIUM');
+    }
+    if (oldClub) {
+      this.generateTransferNews(p, oldClub, newClub, offer.amount, date);
+    }
+
+    return { ok: true, message: `¡${p.name} ya es nuevo jugador de ${newClub.name}!` };
+  }
+
+  signFreeAgent(
+    playerId: string,
+    clubId: string,
+    agreedSalary: number,
+    contractYears: number,
+    date: Date
+  ): { ok: boolean; message: string } {
+    const p = this.getPlayer(playerId);
+    const club = this.getClub(clubId);
+    if (!p || !club || p.clubId !== 'FREE_AGENT') {
+      return { ok: false, message: 'El jugador ya no está libre o no se encontró el club.' };
+    }
+
+    const currentPayroll =
+      this.getPlayersByClub(club.id).reduce((s, pl) => s + pl.salary, 0) +
+      this.getStaffByClub(club.id).reduce((s, st) => s + st.salary, 0);
+    if (currentPayroll + agreedSalary > club.finances.wageBudget * 1.05) {
+      return { ok: false, message: 'Superas el tope salarial mensual del club.' };
+    }
+
+    const comp = this.competitions.find(c => c.id === club.leagueId);
+    const leagueRep = comp?.dynamicReputation ? comp.dynamicReputation * 100 : club.reputation;
+
+    p.clubId = club.id;
+    p.squad = 'SENIOR';
+    p.isStarter = false;
+    p.tacticalPosition = undefined;
+    p.isTransferListed = false;
+    p.transferStatus = 'NONE';
+    p.salary = Math.max(500, Math.round(agreedSalary));
+    p.contractExpiry = new Date(date.getFullYear() + Math.max(1, contractYears), 5, 30);
+    p.isUnhappyWithContract = false;
+    p.requestedSalary = undefined;
+    p.negotiationAttempts = 0;
+    p.value = computeRealisticPlayerValue({
+      ca: p.currentAbility,
+      pa: p.potentialAbility,
+      age: p.age,
+      clubRep: club.reputation,
+      leagueRep,
+      country: club.country,
+    });
+    p.releaseClause = Math.round(p.value * 2.2);
+
+    this.invalidateClubCache(club.id);
+    this.updateClubMonthlyExpenses(club.id);
+
+    const isUser = club.id === this.getUserClub()?.id;
+    if (isUser) {
+      this.addInboxMessage('MARKET', `Agente libre fichado: ${p.name}`, `${p.name} llegó libre a ${club.name} por ${contractYears} temporada${contractYears > 1 ? 's' : ''} (£${p.salary.toLocaleString()}/mes).`, date, p.id, 'IMPORTANT', true);
+      sendTransferNotification(p.name, club.name);
+      this.addSeasonPage('SIGNING', `Fichaje libre: ${p.name}`, `${club.name} incorporó en condición de libre a ${p.name}.`, date, 'MEDIUM');
+    }
+    this.publishNews(isUser ? 'TU_CLUB' : 'MERCADO', {
+      date,
+      type: 'HEADLINE',
+      headline: `${p.name} refuerza a ${club.shortName} como agente libre`,
+      subheadline: `Contrato por ${contractYears} año${contractYears > 1 ? 's' : ''} a coste cero`,
+      body: `${club.name} acordó la llegada de ${p.name} sin costo de traspaso. El vínculo rige hasta ${p.contractExpiry.getFullYear()}.`,
+      clubId: club.id,
+      playerId: p.id,
+      isUserClubNews: isUser,
+    });
+
+    return { ok: true, message: `¡${p.name} firmó contrato como agente libre en ${club.name}!` };
   }
 
   completeTransfer(offer: TransferOffer) {
@@ -2213,46 +2725,74 @@ Días desde la lesión: ${i.daysSinceInjury}`;
           return;
         }
         const oldClub = this.getClub(p.clubId); const newClub = this.getClub(offer.fromClubId);
-        if (oldClub && offer.type === 'PURCHASE') oldClub.finances.balance += offer.amount;
+        if (oldClub && offer.type === 'PURCHASE') {
+          oldClub.finances.balance += offer.amount;
+          oldClub.finances.transferBudget += Math.round(offer.amount * 0.7);
+        }
         if (newClub && offer.type === 'PURCHASE') {
           newClub.finances.balance -= offer.amount;
-          newClub.finances.transferBudget -= offer.amount;
-          const signingBonus = Math.round(offer.amount * 0.08 + (p.currentAbility * 200));
-          newClub.finances.balance -= signingBonus;
-          newClub.finances.monthlyExpenses += signingBonus;
-          this.addInboxMessage('FINANCE',
-            `Prima de fichaje: ${p.name}`,
-            `Se ha pagado una prima de fichaje de $${signingBonus.toLocaleString()} por la incorporación de ${p.name}.`,
-            offer.date, p.id, 'IMPORTANT');
+          newClub.finances.transferBudget = Math.max(0, newClub.finances.transferBudget - offer.amount);
+          const signingBonus = Math.min(Math.round(offer.amount * 0.04), Math.round(p.salary * 1.5));
+          if (signingBonus > 0) {
+            newClub.finances.balance -= signingBonus;
+            if (newClub.id === this.getUserClub()?.id) {
+              this.addInboxMessage('FINANCE',
+                `Prima de fichaje: ${p.name}`,
+                `Se abonó una prima única de £${signingBonus.toLocaleString()} por la incorporación de ${p.name}.`,
+                offer.date, p.id, 'INFO');
+            }
+          }
         }
         p.clubId = offer.fromClubId; p.isStarter = false; p.tacticalPosition = undefined;
-        this.invalidateClubCache(offer.fromClubId);
-        this.invalidateClubCache(offer.toClubId);
         p.isTransferListed = false;
+        p.transferStatus = 'NONE';
         if (newClub) {
-          const salaryFactor = 0.8 + Math.random() * 0.6;
-          p.salary = Math.round(p.salary * salaryFactor);
+          const newComp = this.competitions.find(c => c.id === newClub.leagueId);
+          const leagueRep = newComp?.dynamicReputation ? newComp.dynamicReputation * 100 : newClub.reputation;
+          p.salary = computeRealisticPlayerSalary({
+            ca: p.currentAbility,
+            age: p.age,
+            squad: p.squad,
+            clubRep: newClub.reputation,
+            leagueRep,
+            country: newClub.country,
+          });
+          p.value = computeRealisticPlayerValue({
+            ca: p.currentAbility,
+            pa: p.potentialAbility,
+            age: p.age,
+            clubRep: newClub.reputation,
+            leagueRep,
+            country: newClub.country,
+          });
+          p.releaseClause = Math.round(p.value * 2.2);
           p.contractExpiry = new Date(offer.date.getFullYear() + 3 + Math.floor(Math.random() * 2), 5, 30);
         }
+        this.invalidateClubCache(offer.fromClubId);
+        this.invalidateClubCache(offer.toClubId);
+        this.updateClubMonthlyExpenses(offer.fromClubId);
+        if (oldClub) this.updateClubMonthlyExpenses(oldClub.id);
         p.isUnhappyWithContract = false;
         p.requestedSalary = undefined;
         offer.status = 'COMPLETED';
-        // Notificación solo si el traspaso involucra al club del usuario; la noticia del diario la emite processTransferDecisions.
         const userClubHere = this.getUserClub();
         if (userClubHere && (offer.fromClubId === userClubHere.id || offer.toClubId === userClubHere.id)) {
-          this.addInboxMessage('MARKET', `Traspaso completado: ${p.name}`, `${p.name} se ha unido a ${newClub?.name || 'nuevo club'} por $${offer.amount.toLocaleString()}.`, offer.date, p.id, 'IMPORTANT', true);
+          this.addInboxMessage('MARKET', `Traspaso completado: ${p.name}`, `${p.name} se ha unido a ${newClub?.name || 'nuevo club'} por £${offer.amount.toLocaleString()}.`, offer.date, p.id, 'IMPORTANT', true);
           sendTransferNotification(p.name, newClub?.name || 'nuevo club');
-          const isUserBuyer = offer.toClubId === userClubHere.id;
-          const clubName = this.getClub(isUserBuyer ? offer.toClubId : offer.fromClubId)?.name || 'Mi club';
+          const isUserBuyer = offer.fromClubId === userClubHere.id;
+          const clubName = this.getClub(isUserBuyer ? offer.fromClubId : offer.toClubId)?.name || 'Mi club';
           this.addSeasonPage(
             isUserBuyer ? 'SIGNING' : 'NEWS',
             isUserBuyer ? `Fichaje: ${p.name}` : `Salida: ${p.name}`,
             isUserBuyer
-              ? `${clubName} ha cerrado el fichaje de ${p.name} procedente de ${oldClub?.name || 'otro club'} por $${offer.amount.toLocaleString()}.`
-              : `${p.name} ha dejado ${clubName} rumbo a ${newClub?.name || 'otro club'} a cambio de $${offer.amount.toLocaleString()}.`,
+              ? `${clubName} cerró el fichaje de ${p.name} procedente de ${oldClub?.name || 'otro club'} por £${offer.amount.toLocaleString()}.`
+              : `${p.name} dejó ${clubName} rumbo a ${newClub?.name || 'otro club'} por £${offer.amount.toLocaleString()}.`,
             offer.date,
             offer.amount > 500000 ? 'HIGH' : 'MEDIUM'
           );
+          if (!isUserBuyer) {
+            this.updateManagerProfileBiggestSale(p.name, offer.amount);
+          }
         }
     }
   }
@@ -2261,11 +2801,15 @@ Días desde la lesión: ${i.daysSinceInjury}`;
     const club = this.getClub(homeClubId);
     if (!club) return;
     const comp = this.competitions.find(c => c.id === competitionId);
-    const attendance = Math.round(club.stadiumCapacity * (0.5 + (club.reputation / 10000) * 0.4 + Math.random() * 0.1));
-    let ticketPrice = 15;
-    if (comp?.type === 'CONTINENTAL_ELITE') ticketPrice = 40;
-    else if (comp?.type === 'CONTINENTAL_SMALL') ticketPrice = 25;
-    else if (comp?.type === 'CUP') ticketPrice = 20;
+    const econ = getCountryEconomy(club.country);
+    const attendance = Math.round(club.stadiumCapacity * (0.45 + (club.reputation / 10000) * 0.42 + Math.random() * 0.1));
+    const baseTicket = (6 + (club.reputation / 9500) * 28) * (0.6 + econ * 0.4);
+    const compMult =
+      comp?.type === 'CONTINENTAL_ELITE' ? 1.85 :
+      comp?.type === 'CONTINENTAL_SMALL' ? 1.35 :
+      comp?.type === 'CUP' ? 1.15 :
+      comp?.type === 'FRIENDLY' ? 0.55 : 1.0;
+    const ticketPrice = Math.max(5, Math.min(80, Math.round(baseTicket * compMult)));
     const income = Math.round(attendance * ticketPrice);
     club.finances.balance += income;
     club.finances.monthlyIncome += income;
@@ -2295,8 +2839,10 @@ Días desde la lesión: ${i.daysSinceInjury}`;
       p.clubId = 'FREE_AGENT'; 
       p.isStarter = false; 
       p.tacticalPosition = undefined; 
-      p.isTransferListed = false; 
+      p.isTransferListed = false;
+      p.transferStatus = 'NONE';
       this.invalidateClubCache(oldClubId);
+      if (oldClub) this.updateClubMonthlyExpenses(oldClubId);
       if (oldClub && (oldClub.id === userClub?.id || p.currentAbility >= 145)) {
         const dt = this.managerProfile?.fullName;
         this.publishNews(oldClub.id === userClub?.id ? 'TU_CLUB' : 'MERCADO', {
@@ -2314,14 +2860,28 @@ Días desde la lesión: ${i.daysSinceInjury}`;
   }
 
   createHumanManager(clubId: string, name: string) {
-    const manager: Staff = { id: generateUUID(), name, age: 35, nationality: "Argentina", role: 'HEAD_COACH', clubId, attributes: { coaching: 12, judgingAbility: 12, judgingPotential: 11, tacticalKnowledge: 10, adaptability: 10, medical: 2, physiotherapy: 2, motivation: 14, manManagement: 13 }, salary: 12000, contractExpiry: new Date(2009, 5, 30), history: [], personality: 'LEADER', morale: 100, reputation: 55, relationships: {}, pressReputation: 50, boardRelationship: 65 };
+    const club = this.getClub(clubId);
+    const salary = computeRealisticStaffSalary({
+      skill: 13,
+      role: 'HEAD_COACH',
+      clubRep: club?.reputation || 3500,
+      country: club?.country || 'Argentina',
+    });
+    const manager: Staff = { id: generateUUID(), name, age: 35, nationality: club?.country || "Argentina", role: 'HEAD_COACH', clubId, attributes: { coaching: 12, judgingAbility: 12, judgingPotential: 11, tacticalKnowledge: 10, adaptability: 10, medical: 2, physiotherapy: 2, motivation: 14, manManagement: 13 }, salary, contractExpiry: new Date(2028, 5, 30), history: [], personality: 'LEADER', morale: 100, reputation: 55, relationships: {}, pressReputation: 50, boardRelationship: 65 };
     this.staff = this.staff.filter(s => s.clubId !== clubId || s.role !== 'HEAD_COACH');
     this.staff.unshift(manager);
     this.markStaffDirty();
+    this.updateClubMonthlyExpenses(clubId);
   }
 
   replaceHeadCoach(managerData: RealManager, clubId: string, fired: boolean) {
     const fullName = `${managerData.name} ${managerData.surname}`;
+    const club = this.getClub(clubId);
+    const avgSkill = Math.round(
+      ((managerData.attributes.coaching || 12) +
+        (managerData.attributes.tacticalKnowledge || 12) +
+        (managerData.attributes.manManagement || 12)) / 3
+    );
     const manager: Staff = {
       id: managerData.id,
       name: fullName,
@@ -2330,7 +2890,12 @@ Días desde la lesión: ${i.daysSinceInjury}`;
       role: 'HEAD_COACH',
       clubId,
       attributes: { ...managerData.attributes },
-      salary: fired ? 10000 : 15000, // Reduced salary if fired
+      salary: computeRealisticStaffSalary({
+        skill: fired ? Math.max(8, avgSkill - 2) : avgSkill,
+        role: 'HEAD_COACH',
+        clubRep: club?.reputation || 3500,
+        country: club?.country || managerData.nationality,
+      }),
       contractExpiry: new Date(new Date().getFullYear() + 2, 5, 30), // 2-year contract
       history: [...managerData.history],
       personality: managerData.personality,
@@ -2507,64 +3072,95 @@ Días desde la lesión: ${i.daysSinceInjury}`;
   }
 
   getRequestedSalary(player: Player, club: Club) {
-    const base = player.salary;
-    const repFactor = (10000 + club.reputation) / 10000;
-    const abilityFactor = player.currentAbility / 100;
-    return Math.round(base * 1.3 * repFactor * abilityFactor / 100) * 100;
+    const comp = this.competitions.find(c => c.id === club.leagueId);
+    const leagueRep = comp?.dynamicReputation ? comp.dynamicReputation * 100 : club.reputation;
+    const marketSalary = computeRealisticPlayerSalary({
+      ca: player.currentAbility,
+      age: player.age,
+      squad: player.squad,
+      clubRep: club.reputation,
+      leagueRep,
+      country: club.country,
+    });
+    const isSameClub = player.clubId === club.id;
+    let rawTarget: number;
+    if (isSameClub) {
+      const loyaltyDisc = player.loyalty >= 15 ? 0.94 : 1.0;
+      const unhappyPrem = player.isUnhappyWithContract ? 1.12 : 1.05;
+      rawTarget = Math.max(player.salary * unhappyPrem, marketSalary * 1.02) * loyaltyDisc;
+    } else if (player.clubId === 'FREE_AGENT') {
+      rawTarget = Math.max(marketSalary * 0.95, player.salary * 0.85);
+    } else {
+      const seller = this.getClub(player.clubId);
+      const steppingUp = !seller || club.reputation >= seller.reputation;
+      rawTarget = steppingUp
+        ? Math.max(marketSalary * 1.08, player.salary * 1.12)
+        : Math.max(marketSalary * 1.02, player.salary * 0.9);
+    }
+    const step = rawTarget >= 20_000 ? 500 : 100;
+    return Math.max(800, Math.round(rawTarget / step) * step);
   }
 
-  submitContractOffer(player: Player, salary: number, years: number, date: Date) {
-    const club = this.getClub(player.clubId);
-    const requested = this.getRequestedSalary(player, club!);
+  submitContractOffer(player: Player, salary: number, years: number, date: Date, targetClub?: Club) {
+    const club = targetClub || this.getClub(player.clubId);
+    if (!club) return 'REJECTED';
+    const requested = this.getRequestedSalary(player, club);
     const userClub = this.getUserClub();
-    const isUser = Boolean(userClub && club && club.id === userClub.id);
+    const isUser = Boolean(userClub && club.id === userClub.id);
+    const isRenewal = player.clubId === club.id;
     player.negotiationAttempts++;
     if (salary >= requested) {
-      player.salary = salary;
-      player.contractExpiry = new Date(date.getFullYear() + years, date.getMonth(), date.getDate());
-      player.isUnhappyWithContract = false;
-      player.requestedSalary = undefined;
-      player.negotiationAttempts = 0;
-      if (club && (isUser || player.currentAbility >= 145)) {
-        this.publishNews(isUser ? 'TU_CLUB' : 'MERCADO', {
-          date,
-          type: 'PRAISE',
-          headline: `${player.name} renueva con ${club.shortName}`,
-          subheadline: `Nuevo vínculo por ${years} año${years > 1 ? 's' : ''}`,
-          body: `${player.name} aceptó la propuesta de ${club.name} y extendió su contrato por ${years} temporada${years > 1 ? 's' : ''} a razón de £${salary.toLocaleString()}/sem.`,
-          clubId: club.id,
-          playerId: player.id,
-          isUserClubNews: isUser,
-        });
-      }
-      return 'ACCEPTED';
-    }
-    if (salary >= requested * 0.85) {
-      const acceptChance = player.loyalty / 20 + 0.1;
-      if (Math.random() < acceptChance) {
+      if (isRenewal) {
         player.salary = salary;
         player.contractExpiry = new Date(date.getFullYear() + years, date.getMonth(), date.getDate());
         player.isUnhappyWithContract = false;
         player.requestedSalary = undefined;
         player.negotiationAttempts = 0;
-        if (club && (isUser || player.currentAbility >= 145)) {
+        this.updateClubMonthlyExpenses(club.id);
+        if (isUser || player.currentAbility >= 145) {
           this.publishNews(isUser ? 'TU_CLUB' : 'MERCADO', {
             date,
             type: 'PRAISE',
-            headline: `Acuerdo cerrado: ${player.name} sigue en ${club.shortName}`,
-            subheadline: `Contrato firmado hasta ${player.contractExpiry.getFullYear()}`,
-            body: `Tras negociar con la directiva de ${club.name}, ${player.name} aceptó renovar por ${years} año${years > 1 ? 's' : ''} (£${salary.toLocaleString()}/sem).`,
+            headline: `${player.name} renueva con ${club.shortName}`,
+            subheadline: `Nuevo vínculo por ${years} año${years > 1 ? 's' : ''}`,
+            body: `${player.name} aceptó la propuesta de ${club.name} y extendió su contrato por ${years} temporada${years > 1 ? 's' : ''} a razón de £${salary.toLocaleString()}/mes.`,
             clubId: club.id,
             playerId: player.id,
             isUserClubNews: isUser,
           });
+        }
+      }
+      return 'ACCEPTED';
+    }
+    if (salary >= requested * 0.88) {
+      const acceptChance = (isRenewal ? player.loyalty / 20 : 0.35) + 0.15;
+      if (Math.random() < acceptChance) {
+        if (isRenewal) {
+          player.salary = salary;
+          player.contractExpiry = new Date(date.getFullYear() + years, date.getMonth(), date.getDate());
+          player.isUnhappyWithContract = false;
+          player.requestedSalary = undefined;
+          player.negotiationAttempts = 0;
+          this.updateClubMonthlyExpenses(club.id);
+          if (isUser || player.currentAbility >= 145) {
+            this.publishNews(isUser ? 'TU_CLUB' : 'MERCADO', {
+              date,
+              type: 'PRAISE',
+              headline: `Acuerdo cerrado: ${player.name} sigue en ${club.shortName}`,
+              subheadline: `Contrato firmado hasta ${player.contractExpiry.getFullYear()}`,
+              body: `Tras negociar con la directiva de ${club.name}, ${player.name} aceptó renovar por ${years} año${years > 1 ? 's' : ''} (£${salary.toLocaleString()}/mes).`,
+              clubId: club.id,
+              playerId: player.id,
+              isUserClubNews: isUser,
+            });
+          }
         }
         return 'ACCEPTED';
       }
     }
     if (player.negotiationAttempts >= 3) {
       player.negotiationAttempts = 0;
-      if (club && isUser) {
+      if (isUser && isRenewal) {
         this.publishNews('TU_CLUB', {
           date,
           type: 'CRITICISM',
@@ -2583,16 +3179,42 @@ Días desde la lesión: ${i.daysSinceInjury}`;
 
   processAIActivity(date: Date) {
     this.processPendingOffers(date);
+    const userClub = this.getUserClub();
+
+    // Demanda activa de la IA por jugadores declarados transferibles/cedibles o figuras del usuario
+    if (userClub && Math.random() < 0.35) {
+      const userMarketPlayers = this.getPlayersByClub(userClub.id).filter(
+        p => !p.loanDetails && (p.transferStatus === 'TRANSFERABLE' || p.transferStatus === 'LOANABLE' || (p.squad === 'SENIOR' && p.currentAbility >= 115 && Math.random() < 0.12))
+      );
+      if (userMarketPlayers.length > 0) {
+        const target = userMarketPlayers[randomInt(0, userMarketPlayers.length - 1)];
+        const isLoanTarget = target.transferStatus === 'LOANABLE';
+        const interestedBuyers = this.clubs
+          .filter(c => c.id !== userClub.id && (isLoanTarget ? true : c.finances.transferBudget >= target.value * 0.7))
+          .sort((a, b) => Math.abs(a.reputation - userClub.reputation) - Math.abs(b.reputation - userClub.reputation))
+          .slice(0, 18);
+
+        for (const buyer of interestedBuyers) {
+          if (Math.random() > 0.35) continue;
+          const offerType: 'PURCHASE' | 'LOAN' = isLoanTarget ? 'LOAN' : 'PURCHASE';
+          const offerAmount = offerType === 'PURCHASE'
+            ? Math.round(target.value * (target.transferStatus === 'TRANSFERABLE' ? (0.78 + Math.random() * 0.24) : (0.95 + Math.random() * 0.25)))
+            : 0;
+          const res = this.makeTransferOffer(target.id, buyer.id, offerAmount, offerType, date, isLoanTarget ? 60 : 100);
+          if (res.ok) break;
+        }
+      }
+    }
+
     if (Math.random() > 0.15) return;
     const allClubs = this.clubs;
     const deepIds = new Set(useGameStore.getState().deepSimLeagues);
 
-    // Pools de candidatos: una sola pasada sobre el mundo (~41k) en lugar de un scan por club (~658 scans)
+    // Pools de candidatos: una sola pasada sobre el mundo en lugar de un scan por club
     const byPosition = new Map<Position, Player[]>();
     const youthPool: Player[] = [];
     const loanPool: Player[] = [];
     for (const p of this.players) {
-      // Pool de cesiones: replica el filtro original (cualquier plantel, incl. agentes libres)
       if (p.age < 25 && p.currentAbility < 140 && !p.loanDetails &&
           (p.transferStatus === 'LOANABLE' || p.isTransferListed)) loanPool.push(p);
       if (p.clubId === 'FREE_AGENT' || p.squad !== 'SENIOR') continue;
@@ -2602,7 +3224,7 @@ Días desde la lesión: ${i.daysSinceInjury}`;
       }
       if (p.age >= 16 && p.age <= 22 && p.potentialAbility >= 140) youthPool.push(p);
     }
-    // Conteos por club para las fases de cesiones (evita scans de 658×658 por llamada)
+
     const u20Counts = new Map<string, number>();
     const clubPosCoverage = new Map<string, Set<Position>>();
     for (const c of allClubs) {
@@ -2617,215 +3239,116 @@ Días desde la lesión: ${i.daysSinceInjury}`;
       clubPosCoverage.set(c.id, covered);
     }
 
-    // Cross-league: DEEP clubs can make offers to any DEEP league club, not just same-league
-    if (Math.random() < 0.2) {
-      const deepClubs = allClubs.filter(c => deepIds.has(c.leagueId) && c.finances.transferBudget > 20000);
+    // Cross-league: DEEP clubs can make offers to any DEEP league club
+    if (Math.random() < 0.22) {
+      const deepClubs = allClubs.filter(c => deepIds.has(c.leagueId) && c.finances.transferBudget > 40000);
       if (deepClubs.length >= 2) {
         const buyer = deepClubs[Math.floor(Math.random() * deepClubs.length)];
         const targets = this.players.filter(p =>
           p.clubId !== buyer.id && deepIds.has(this.getClub(p.clubId)?.leagueId || '') &&
           (p.isTransferListed || p.transferStatus === 'TRANSFERABLE') &&
-          p.value <= buyer.finances.transferBudget * 0.4
+          p.value <= buyer.finances.transferBudget * 0.65
         );
         if (targets.length > 0) {
           const target = targets[Math.floor(Math.random() * targets.length)];
-          this.makeTransferOffer(target.id, buyer.id, Math.round(target.value * (0.8 + Math.random() * 0.4)), 'PURCHASE', date);
-        }
-      }
-    }
-    // Talent migration: young stars (U23, PA>150) prefer rising leagues
-    if (Math.random() < 0.08) {
-      const youngStars = this.players.filter(p => p.age <= 23 && p.potentialAbility > 150 && p.clubId !== 'FREE_AGENT');
-      if (youngStars.length > 0) {
-        const star = youngStars[Math.floor(Math.random() * youngStars.length)];
-        const starClub = this.getClub(star.clubId);
-        const starLeague = this.competitions.find(c => c.id === starClub?.leagueId);
-        const risingLeagues = this.competitions.filter(c =>
-          c.type === 'LEAGUE' && c.id !== starClub?.leagueId &&
-          (c.dynamicReputation || 30) > (starLeague?.dynamicReputation || 30) + 10
-        );
-        if (risingLeagues.length > 0) {
-          const targetLeague = risingLeagues[Math.floor(Math.random() * risingLeagues.length)];
-          const targetClubs = this.clubs.filter(c => c.leagueId === targetLeague.id && c.finances.transferBudget > star.value * 0.5);
-          if (targetClubs.length > 0) {
-            const buyer = targetClubs[Math.floor(Math.random() * targetClubs.length)];
-            this.makeTransferOffer(star.id, buyer.id, Math.round(star.value * 1.2), 'PURCHASE', date);
-          }
+          this.makeTransferOffer(target.id, buyer.id, Math.round(target.value * (0.82 + Math.random() * 0.3)), 'PURCHASE', date);
         }
       }
     }
 
-    // AI sell phase: list surplus players
+    // AI sell phase (solo clubes IA, nunca toca la lista del usuario)
     allClubs.forEach(club => {
+      if (userClub && club.id === userClub.id) return;
       const seniorPlayers = this.getPlayersByClub(club.id).filter(p => p.squad === 'SENIOR');
       const surplus: Player[] = [];
       const gkList = seniorPlayers.filter(p => p.positions.includes(Position.GK));
-      if (gkList.length > 2) surplus.push(...gkList.slice(2));
+      if (gkList.length > 3) surplus.push(...gkList.slice(3));
       const defList = seniorPlayers.filter(p => ['SW','DC','DR','DL'].some(pos => p.positions.includes(pos as Position)));
-      if (defList.length > 6) surplus.push(...defList.slice(6));
+      if (defList.length > 7) surplus.push(...defList.slice(7));
       const midList = seniorPlayers.filter(p => ['DM','MC','ML','MR','AM'].some(pos => p.positions.includes(pos as Position)));
-      if (midList.length > 6) surplus.push(...midList.slice(6));
+      if (midList.length > 7) surplus.push(...midList.slice(7));
       const fwdList = seniorPlayers.filter(p => p.positions.includes(Position.ST));
-      if (fwdList.length > 3) surplus.push(...fwdList.slice(3));
-      surplus.forEach(p => { p.isTransferListed = true; });
+      if (fwdList.length > 4) surplus.push(...fwdList.slice(4));
+      surplus.forEach(p => {
+        p.isTransferListed = true;
+        if (p.transferStatus === 'NONE') p.transferStatus = 'TRANSFERABLE';
+      });
     });
 
-    // AI buy phase
+    // AI buy phase (con validación económica y de prestigio real)
     allClubs.forEach(club => {
-      if (club.finances.transferBudget < 5000) return;
+      if (userClub && club.id === userClub.id) return;
+      if (club.finances.transferBudget < 30_000) return;
       const needPositions = this.getPlayersByClub(club.id).filter(p => p.squad === 'SENIOR' && !p.injury);
       const weakPositions: Position[] = [];
-      const gkCount = needPositions.filter(p => p.positions.includes(Position.GK)).length;
-      if (gkCount < 2) weakPositions.push(Position.GK);
-      const defCount = needPositions.filter(p => ['SW','DC','DR','DL'].some(pos => p.positions.includes(pos as Position))).length;
-      if (defCount < 5) { weakPositions.push(Position.DC); weakPositions.push(Position.DR); }
-      const midCount = needPositions.filter(p => ['DM','MC','ML','MR','AM'].some(pos => p.positions.includes(pos as Position))).length;
-      if (midCount < 4) weakPositions.push(Position.MC);
-      const fwdCount = needPositions.filter(p => p.positions.includes(Position.ST)).length;
-      if (fwdCount < 2) weakPositions.push(Position.ST);
+      if (needPositions.filter(p => p.positions.includes(Position.GK)).length < 2) weakPositions.push(Position.GK);
+      if (needPositions.filter(p => ['SW','DC','DR','DL'].some(pos => p.positions.includes(pos as Position))).length < 5) weakPositions.push(Position.DC, Position.DR);
+      if (needPositions.filter(p => ['DM','MC','ML','MR','AM'].some(pos => p.positions.includes(pos as Position))).length < 4) weakPositions.push(Position.MC);
+      if (needPositions.filter(p => p.positions.includes(Position.ST)).length < 2) weakPositions.push(Position.ST);
       if (weakPositions.length === 0) return;
       const targetPos = weakPositions[randomInt(0, weakPositions.length - 1)];
       const candidates = (byPosition.get(targetPos) || []).filter(p =>
         p.clubId !== club.id &&
-        Math.abs(p.currentAbility - club.reputation / 100) < 20
+        p.value <= club.finances.transferBudget * 0.85 &&
+        Math.abs(p.currentAbility - (55 + (club.reputation / 10000) * 115)) < 24
       );
       if (candidates.length === 0) return;
-      const target = candidates[randomInt(0, candidates.length - 1)];
-      const maxOffer = Math.min(target.value, club.finances.transferBudget);
-      if (maxOffer < 1000) return;
-      if (target.releaseClause && target.releaseClause <= club.finances.transferBudget && Math.random() < 0.4) {
-        const offer: TransferOffer = {
-          id: generateUUID(), playerId: target.id,
-          fromClubId: club.id, toClubId: target.clubId,
-          amount: target.releaseClause, wageShare: 100, type: 'PURCHASE',
-          status: 'ACCEPTED', date, responseDate: date, isViewed: false
-        };
-        this.offers.push(offer);
-      } else {
-        const amount = Math.round(maxOffer * (0.5 + Math.random() * 0.4));
-        const offer: TransferOffer = {
-          id: generateUUID(), playerId: target.id,
-          fromClubId: club.id, toClubId: target.clubId,
-          amount, wageShare: 100, type: 'PURCHASE',
-          status: 'PENDING', date, responseDate: date, isViewed: false
-        };
-        this.offers.push(offer);
-      }
+      const target = candidates[randomInt(0, Math.min(8, candidates.length - 1))];
+      const amount = Math.round(Math.min(target.value * (0.85 + Math.random() * 0.3), club.finances.transferBudget));
+      if (amount < 15_000) return;
+      this.makeTransferOffer(target.id, club.id, amount, 'PURCHASE', date);
     });
 
     // AI long-term buy phase: sign young talents with high potential
-    allClubs.filter(c => c.finances.transferBudget >= 10000).forEach(club => {
-      if (Math.random() > 0.15) return;
+    allClubs.filter(c => (!userClub || c.id !== userClub.id) && c.finances.transferBudget >= 50_000).forEach(club => {
+      if (Math.random() > 0.12) return;
       const youngTalents = youthPool.filter(p =>
         p.clubId !== club.id &&
-        p.currentAbility < club.reputation / 80
+        p.value <= club.finances.transferBudget * 0.8
       );
       if (youngTalents.length === 0) return;
       const target = youngTalents[randomInt(0, Math.min(4, youngTalents.length - 1))];
-      const maxOffer = Math.min(target.value * 1.5, club.finances.transferBudget);
-      if (maxOffer < 5000) return;
-      const amount = Math.round(maxOffer * (0.6 + Math.random() * 0.3));
-      const offer: TransferOffer = {
-        id: generateUUID(), playerId: target.id,
-        fromClubId: club.id, toClubId: target.clubId,
-        amount, wageShare: 100, type: 'PURCHASE',
-        status: 'PENDING', date, responseDate: date, isViewed: false
-      };
-      this.offers.push(offer);
+      const amount = Math.round(Math.min(target.value * 1.15, club.finances.transferBudget));
+      if (amount < 20_000) return;
+      this.makeTransferOffer(target.id, club.id, amount, 'PURCHASE', date);
     });
 
-    // AI sell old players phase: transfer-list players over 32 with declining trend
+    // AI sell old players phase: transfer-list players over 32 with declining trend (solo clubes IA)
     allClubs.forEach(club => {
+      if (userClub && club.id === userClub.id) return;
       const oldPlayers = this.getPlayersByClub(club.id).filter(p =>
         p.age >= 32 && p.developmentTrend === 'DECLINING' && !p.isTransferListed
       );
-      oldPlayers.forEach(p => { p.isTransferListed = true; });
-    });
-
-    // AI loan phase: clubs loan out surplus young players
-    allClubs.forEach(club => {
-      const youngSurplus = this.getPlayersByClub(club.id).filter(p =>
-        p.age < 23 && p.squad === 'SENIOR' && p.currentAbility < 130 &&
-        !p.isTransferListed && !p.loanDetails && p.transferStatus !== 'NONE'
-      );
-      youngSurplus.slice(0, 2).forEach(p => {
-        const loanCandidates = this.clubs.filter(c =>
-          c.id !== club.id &&
-          !p.positions.some(pos => clubPosCoverage.get(c.id)?.has(pos))
-        );
-        if (loanCandidates.length > 0 && Math.random() < 0.3) {
-          const toClub = loanCandidates[randomInt(0, loanCandidates.length - 1)];
-          const offer: TransferOffer = {
-            id: generateUUID(), playerId: p.id,
-            fromClubId: toClub.id, toClubId: club.id,
-            amount: 0, wageShare: 50, type: 'LOAN',
-            status: 'PENDING', date, responseDate: date, isViewed: false
-          };
-          this.offers.push(offer);
-        }
+      oldPlayers.forEach(p => {
+        p.isTransferListed = true;
+        if (p.transferStatus === 'NONE') p.transferStatus = 'TRANSFERABLE';
       });
     });
 
     // AI loan request for weak positions
     allClubs.forEach(club => {
+      if (userClub && club.id === userClub.id) return;
       const needPositions = this.getPlayersByClub(club.id).filter(p => p.squad === 'SENIOR' && !p.injury);
       const weakPositions: Position[] = [];
       if (needPositions.filter(p => p.positions.includes(Position.GK)).length < 2) weakPositions.push(Position.GK);
       if (needPositions.filter(p => ['DC','DR','DL'].some(pos => p.positions.includes(pos as Position))).length < 4) weakPositions.push(Position.DC);
       if (needPositions.filter(p => ['DM','MC','ML','MR','AM'].some(pos => p.positions.includes(pos as Position))).length < 3) weakPositions.push(Position.MC);
       if (needPositions.filter(p => p.positions.includes(Position.ST)).length < 2) weakPositions.push(Position.ST);
-      if (weakPositions.length === 0 || club.finances.transferBudget < 2000) return;
+      if (weakPositions.length === 0) return;
       const targetPos = weakPositions[randomInt(0, weakPositions.length - 1)];
       const loanCandidates = loanPool.filter(p =>
         p.clubId !== club.id && p.positions.includes(targetPos)
       );
       if (loanCandidates.length === 0) return;
       const target = loanCandidates[randomInt(0, loanCandidates.length - 1)];
-      const offer: TransferOffer = {
-        id: generateUUID(), playerId: target.id,
-        fromClubId: club.id, toClubId: target.clubId,
-        amount: 0, wageShare: 50, type: 'LOAN',
-        status: 'PENDING', date, responseDate: date, isViewed: false
-      };
-      this.offers.push(offer);
-    });
-
-    // AI Youth Loan System: loan out promising U20 players for development
-    allClubs.forEach(club => {
-      const candidates = this.getPlayersByClub(club.id).filter(p =>
-        p.squad === 'U20' &&
-        p.age >= 17 &&
-        p.age <= 20 &&
-        !p.injury &&
-        !p.loanDetails &&
-        (p.currentAbility >= 80 || p.potentialAbility >= 120)
-      );
-      if (candidates.length === 0) return;
-      const target = candidates[Math.floor(Math.random() * candidates.length)];
-      const destinations = allClubs.filter(c => c.id !== club.id && (u20Counts.get(c.id) || 0) < 5);
-      if (destinations.length === 0) return;
-      const toClub = destinations[Math.floor(Math.random() * destinations.length)];
-      const offer: TransferOffer = {
-        id: generateUUID(),
-        playerId: target.id,
-        fromClubId: club.id,
-        toClubId: toClub.id,
-        amount: 0,
-        wageShare: 70,
-        type: 'LOAN',
-        status: 'PENDING',
-        date,
-        responseDate: date,
-        isViewed: false
-      };
-      this.offers.push(offer);
+      this.makeTransferOffer(target.id, club.id, 0, 'LOAN', date, 60);
     });
   }
 
   processLightMarketActivity(date: Date) {
     if (Math.random() > 0.03) return;
     const deepIds = new Set(useGameStore.getState().deepSimLeagues);
-    const lightClubs = this.clubs.filter(c => !deepIds.has(c.leagueId) && c.finances.transferBudget > 5000);
+    const lightClubs = this.clubs.filter(c => !deepIds.has(c.leagueId) && c.finances.transferBudget > 40_000);
     if (lightClubs.length < 2) return;
 
     const buyer = lightClubs[randomInt(0, lightClubs.length - 1)];
@@ -2837,13 +3360,13 @@ Días desde la lesión: ${i.daysSinceInjury}`;
       const sameCountry = sellerClub.country === buyer.country;
       const sameConfederation = buyerLeague?.confederation &&
         this.competitions.find(c => c.id === sellerClub.leagueId)?.confederation === buyerLeague.confederation;
-      return sameCountry || sameConfederation;
+      return (sameCountry || sameConfederation) && p.value <= buyer.finances.transferBudget * 0.7;
     });
 
     if (candidates.length === 0) return;
     const target = candidates[randomInt(0, Math.min(3, candidates.length - 1))];
-    const amount = Math.round(Math.min(target.value, buyer.finances.transferBudget * 0.25) * (0.6 + Math.random() * 0.3));
-    if (amount < 1000) return;
+    const amount = Math.round(Math.min(target.value * 0.95, buyer.finances.transferBudget * 0.6));
+    if (amount < 15_000) return;
 
     this.makeTransferOffer(target.id, buyer.id, amount, 'PURCHASE', date);
   }
@@ -2856,14 +3379,14 @@ Días desde la lesión: ${i.daysSinceInjury}`;
         if (p.contractExpiry < date && !p.isUnhappyWithContract) {
           p.isUnhappyWithContract = true;
           p.requestedSalary = this.getRequestedSalary(p, userClub!);
-          this.addInboxMessage('SQUAD', `${p.name} — Contrato por vencer`, `A ${p.name} le queda menos de un año de contrato. Solicita $${p.requestedSalary.toLocaleString()}/sem. Renovalo o podría buscar otros horizontes.`, date, p.id);
+          this.addInboxMessage('SQUAD', `${p.name} — Contrato por vencer`, `A ${p.name} le queda menos de un año de contrato. Solicita £${p.requestedSalary.toLocaleString()}/mes. Renovalo o podría buscar otros horizontes.`, date, p.id);
           if (userClub && p.squad === 'SENIOR') {
             this.publishNews('TU_CLUB', {
               date,
               type: 'RUMOR',
               headline: `${p.name} presiona por su contrato en ${userClub.shortName}`,
-              subheadline: `Exige £${p.requestedSalary.toLocaleString()}/sem para renovar`,
-              body: `El entorno de ${p.name} advierte que su vínculo con ${userClub.name} entró en zona crítica y espera una mejora salarial cercana a £${p.requestedSalary.toLocaleString()} semanales.`,
+              subheadline: `Exige £${p.requestedSalary.toLocaleString()}/mes para renovar`,
+              body: `El entorno de ${p.name} advierte que su vínculo con ${userClub.name} entró en zona crítica y espera una mejora salarial cercana a £${p.requestedSalary.toLocaleString()} mensuales.`,
               clubId: userClubId,
               playerId: p.id,
               isUserClubNews: true,
@@ -2928,25 +3451,81 @@ Días desde la lesión: ${i.daysSinceInjury}`;
   }
 
   processPendingOffers(date: Date) {
-    const pending = this.offers.filter(o => o.status === 'PENDING');
+    const pending = this.offers.filter(o => o.status === 'PENDING' || o.status === 'COUNTER_OFFER');
     const userClub = this.getUserClub();
     pending.forEach(offer => {
       const player = this.getPlayer(offer.playerId);
       const sellerClub = this.getClub(offer.toClubId);
       const buyerClub = this.getClub(offer.fromClubId);
-      const involvesUser = Boolean(userClub && (offer.fromClubId === userClub.id || offer.toClubId === userClub.id));
-      if (!player || !sellerClub) { offer.status = 'REJECTED'; return; }
+      const isUserSeller = Boolean(userClub && offer.toClubId === userClub.id);
+      const isUserBuyer = Boolean(userClub && offer.fromClubId === userClub.id);
+      const involvesUser = isUserSeller || isUserBuyer;
 
-      if (offer.type === 'LOAN' || offer.type === 'LOAN_TO_BUY') {
-        const hasDepth = this.getPlayersByClub(sellerClub.id).filter(p => p.positions.some(pos => player.positions.includes(pos))).length > 3;
-        const acceptChance = offer.type === 'LOAN_TO_BUY' ? (hasDepth ? 0.5 : 0.2) : (hasDepth ? 0.6 : 0.3);
-        if (Math.random() < acceptChance) {
-          offer.status = 'ACCEPTED';
+      if (!player || !sellerClub || !buyerClub || player.clubId !== sellerClub.id) {
+        offer.status = 'REJECTED';
+        offer.responseDate = date;
+        return;
+      }
+
+      // Si el usuario es quien vende, dejar que el usuario decida (expira tras 14 días sin respuesta)
+      if (isUserSeller) {
+        const daysOld = Math.floor((date.getTime() - offer.date.getTime()) / (1000 * 60 * 60 * 24));
+        if (daysOld > 14) {
+          offer.status = 'REJECTED';
           offer.responseDate = date;
+        }
+        return;
+      }
+
+      // Si había contraoferta para el usuario comprador, la dejamos en manos del usuario (expira en 10 días)
+      if (offer.status === 'COUNTER_OFFER') {
+        if (isUserBuyer) {
+          const daysOld = Math.floor((date.getTime() - offer.responseDate.getTime()) / (1000 * 60 * 60 * 24));
+          if (daysOld > 10) {
+            offer.status = 'REJECTED';
+          }
+          return;
+        }
+        // Club comprador IA evalúa la contraoferta automáticamente
+        const targetCounter = offer.counterAmount || offer.amount;
+        if (buyerClub.finances.transferBudget >= targetCounter && targetCounter <= player.value * 1.35) {
+          offer.amount = targetCounter;
+          this.completeTransfer(offer);
         } else {
           offer.status = 'REJECTED';
           offer.responseDate = date;
-          if (involvesUser && buyerClub) {
+        }
+        return;
+      }
+
+      // Validar viabilidad deportiva y financiera antes de aceptar
+      const viability = this.evaluateTransferViability(player.id, buyerClub.id, offer.type, offer.amount, offer.wageShare);
+      if (!viability.allowed) {
+        offer.status = 'REJECTED';
+        offer.responseDate = date;
+        if (isUserBuyer) {
+          this.addInboxMessage('MARKET', `Negociación frustrada: ${player.name}`, viability.reasons[0] || `${sellerClub.name} cerró la puerta por ${player.name}.`, date, player.id, 'INFO');
+        }
+        return;
+      }
+
+      if (offer.type === 'LOAN' || offer.type === 'LOAN_TO_BUY') {
+        const hasDepth = this.getPlayersByClub(sellerClub.id).filter(p => p.positions.some(pos => player.positions.includes(pos))).length > 2;
+        const wageBoost = offer.wageShare >= 80 ? 0.25 : offer.wageShare >= 50 ? 0.1 : -0.2;
+        const listedBoost = player.transferStatus === 'LOANABLE' ? 0.3 : 0;
+        const acceptChance = Math.max(0.1, Math.min(0.95, (hasDepth ? 0.45 : 0.15) + wageBoost + listedBoost));
+        if (Math.random() < acceptChance) {
+          if (isUserBuyer) {
+            offer.status = 'ACCEPTED';
+            offer.responseDate = date;
+            this.addInboxMessage('MARKET', `Cesión aceptada: ${player.name}`, `${sellerClub.name} aceptó ceder a ${player.name} (${offer.wageShare}% sueldo). Confirmalo en Centro de Fichajes.`, date, player.id, 'IMPORTANT', true);
+          } else {
+            this.completeLoan(offer);
+          }
+        } else {
+          offer.status = 'REJECTED';
+          offer.responseDate = date;
+          if (involvesUser) {
             this.publishNews('MERCADO', {
               date,
               type: 'FEATURE',
@@ -2963,42 +3542,66 @@ Días desde la lesión: ${i.daysSinceInjury}`;
       }
 
       // Check if accepting would drop seller below minimums
-      if (offer.type === 'PURCHASE' && this.wouldDropBelowMinimums(sellerClub.id, player)) {
+      if (this.wouldDropBelowMinimums(sellerClub.id, player) && offer.amount < viability.askingPrice * 1.35) {
         offer.status = 'REJECTED';
         offer.responseDate = date;
+        if (isUserBuyer) {
+          this.addInboxMessage('MARKET', `${sellerClub.shortName} rechaza por falta de recambio`, `${sellerClub.name} no quiere desprenderse de ${player.name} porque dejaría despoblado el puesto.`, date, player.id, 'INFO');
+        }
         return;
       }
 
-      const valueRatio = offer.amount / Math.max(1, player.value);
-      const repFactor = sellerClub.reputation / 5000;
-      const acceptChance = Math.min(0.95, valueRatio * 1.5 - 0.3 + repFactor * 0.2);
-      if (Math.random() < acceptChance) {
-        offer.status = 'ACCEPTED';
-        offer.responseDate = date;
-        if ((involvesUser || offer.amount >= 12_000_000) && buyerClub) {
+      const ratio = offer.amount / Math.max(1, viability.askingPrice);
+      if (ratio >= 0.96 || (ratio >= 0.88 && Math.random() < 0.72)) {
+        if (isUserBuyer) {
+          offer.status = 'ACCEPTED';
+          offer.responseDate = date;
+          this.addInboxMessage(
+            'MARKET',
+            `¡Oferta aceptada por ${player.name}!`,
+            `${sellerClub.name} aceptó £${offer.amount.toLocaleString()} por ${player.name}. Ve al Centro de Fichajes para negociar su contrato personal.`,
+            date,
+            player.id,
+            'IMPORTANT',
+            true
+          );
+        } else {
+          // Entre clubes IA, completar traspaso directamente si la operación es válida
+          this.completeTransfer(offer);
+        }
+        if (involvesUser || offer.amount >= 12_000_000) {
           this.publishNews('MERCADO', {
             date,
             type: 'HEADLINE',
             headline: `Principio de acuerdo por ${player.name}`,
             subheadline: `${sellerClub.shortName} acepta la oferta de ${buyerClub.shortName} (£${offer.amount.toLocaleString()})`,
-            body: `La directiva de ${sellerClub.name} dio luz verde a la propuesta de £${offer.amount.toLocaleString()} de ${buyerClub.name} por ${player.name}. Solo restan detalles contractuales.`,
+            body: `La directiva de ${sellerClub.name} dio luz verde a la propuesta de £${offer.amount.toLocaleString()} de ${buyerClub.name} por ${player.name}.`,
             clubId: involvesUser ? userClub!.id : buyerClub.id,
             playerId: player.id,
             isUserClubNews: involvesUser,
           });
         }
-      } else if (Math.random() < 0.3) {
-        const counterAmount = Math.round(player.value * (0.8 + Math.random() * 0.6));
+      } else if (ratio >= 0.65) {
+        const counterAmount = Math.round(viability.askingPrice / 5_000) * 5_000 || viability.askingPrice;
         offer.status = 'COUNTER_OFFER';
         offer.counterAmount = counterAmount;
         offer.responseDate = date;
-        if (involvesUser && buyerClub) {
+        if (isUserBuyer) {
+          this.addInboxMessage(
+            'MARKET',
+            `Contraoferta de ${sellerClub.shortName} por ${player.name}`,
+            `${sellerClub.name} rechazó £${offer.amount.toLocaleString()} y pide £${counterAmount.toLocaleString()} por ${player.name}.`,
+            date,
+            player.id,
+            'IMPORTANT',
+            true
+          );
           this.publishNews('MERCADO', {
             date,
             type: 'RUMOR',
             headline: `${sellerClub.shortName} pide £${counterAmount.toLocaleString()} por ${player.name}`,
             subheadline: `Contraoferta sobre la mesa para ${buyerClub.shortName}`,
-            body: `${sellerClub.name} rechazó la cifra inicial de ${buyerClub.name} (£${offer.amount.toLocaleString()}) y fijó una contraoferta de £${counterAmount.toLocaleString()} para liberar a ${player.name}.`,
+            body: `${sellerClub.name} fijó una contraoferta de £${counterAmount.toLocaleString()} para liberar a ${player.name}.`,
             clubId: userClub!.id,
             playerId: player.id,
             isUserClubNews: true,
@@ -3007,13 +3610,21 @@ Días desde la lesión: ${i.daysSinceInjury}`;
       } else {
         offer.status = 'REJECTED';
         offer.responseDate = date;
-        if (involvesUser && buyerClub) {
+        if (isUserBuyer) {
+          this.addInboxMessage(
+            'MARKET',
+            `Oferta rechazada por ${player.name}`,
+            `${sellerClub.name} consideró insuficiente la propuesta de £${offer.amount.toLocaleString()} (pretenden cerca de £${viability.askingPrice.toLocaleString()}).`,
+            date,
+            player.id,
+            'INFO'
+          );
           this.publishNews('MERCADO', {
             date,
             type: 'CRITICISM',
             headline: `${sellerClub.shortName} rechaza oferta por ${player.name}`,
             subheadline: `${buyerClub.shortName} había ofrecido £${offer.amount.toLocaleString()}`,
-            body: `${sellerClub.name} desestimó la propuesta de ${buyerClub.name} por ${player.name} al considerarla insuficiente.`,
+            body: `${sellerClub.name} desestimó la propuesta de ${buyerClub.name} por ${player.name} al considerarla muy por debajo de su tasación.`,
             clubId: userClub!.id,
             playerId: player.id,
             isUserClubNews: true,
@@ -3025,32 +3636,34 @@ Días desde la lesión: ${i.daysSinceInjury}`;
 
   private wouldDropBelowMinimums(clubId: string, playerToSell: any): boolean {
     const seniorPlayers = this.getPlayersByClub(clubId).filter(p => p.squad === 'SENIOR');
-    if (seniorPlayers.length <= 14) return true;
-    
+    if (seniorPlayers.length <= 16) return true;
     const position = playerToSell.positions[0];
     const positionDepth = seniorPlayers.filter(p => p.positions.includes(position)).length;
+    if (position === Position.GK && positionDepth <= 2) return true;
     if (positionDepth <= 2) return true;
-    
     return false;
   }
 
   completeLoan(offer: TransferOffer) {
     const p = this.getPlayer(offer.playerId);
     if (!p) return;
+    const buyer = this.getClub(offer.fromClubId);
+    const sellerId = p.clubId;
     const isLoanToBuy = offer.type === 'LOAN_TO_BUY';
-    p.loanDetails = { originalClubId: p.clubId, wageShare: offer.wageShare, loanToBuy: isLoanToBuy };
-    this.invalidateClubCache(p.clubId);
-    this.invalidateClubCache(offer.fromClubId);
+    p.loanDetails = { originalClubId: sellerId, wageShare: offer.wageShare, loanToBuy: isLoanToBuy };
     p.clubId = offer.fromClubId;
     p.isStarter = false;
+    p.tacticalPosition = undefined;
     p.isTransferListed = false;
     p.transferStatus = 'NONE';
     offer.status = 'COMPLETED';
-    const newClub = this.getClub(offer.fromClubId);
-    // Notificación solo si la cesión involucra al club del usuario
+    this.invalidateClubCache(sellerId);
+    this.invalidateClubCache(offer.fromClubId);
+    this.updateClubMonthlyExpenses(sellerId);
+    this.updateClubMonthlyExpenses(offer.fromClubId);
     const userClubHere = this.getUserClub();
     if (userClubHere && (offer.fromClubId === userClubHere.id || offer.toClubId === userClubHere.id)) {
-      this.addInboxMessage('MARKET', `Cedido: ${p.name}`, `${p.name} se marcha cedido a ${newClub?.name || 'nuevo club'}${isLoanToBuy ? ' (con opción de compra)' : ''} hasta final de temporada.`, offer.date, p.id, 'IMPORTANT');
+      this.addInboxMessage('MARKET', `Cedido: ${p.name}`, `${p.name} se marcha cedido a ${buyer?.name || 'nuevo club'}${isLoanToBuy ? ' (con opción de compra)' : ''} hasta final de temporada.`, offer.date, p.id, 'IMPORTANT');
     }
   }
 
@@ -3068,7 +3681,6 @@ Días desde la lesión: ${i.daysSinceInjury}`;
         if (wasLoanToBuy) {
           const buyingClub = this.getClub(p.clubId);
           if (buyingClub && buyingClub.id) {
-            // Notificación solo si la cesión involucra al club del usuario
             const userClubHere = this.getUserClub();
             if (userClubHere && p.clubId === userClubHere.id) {
               this.addInboxMessage('MARKET', `Opción de compra: ${p.name}`, `El préstamo de ${p.name} ha finalizado. ${buyingClub.name} puede ejercer la opción de compra pagando su valor de mercado.`, date, p.id, 'IMPORTANT');
@@ -3081,13 +3693,11 @@ Días desde la lesión: ${i.daysSinceInjury}`;
 
   // ─── Transfer Deadline Day ──────────────────────────────────────────────
   static isTransferDeadlineDay(date: Date): boolean {
-    // January 31 and August 31 are deadline days
     return (date.getMonth() === 0 && date.getDate() === 31) || 
            (date.getMonth() === 7 && date.getDate() === 31);
   }
 
   static isDeadlineWeek(date: Date): boolean {
-    // 7 days before deadline
     const deadline = new Date(date.getFullYear(), date.getMonth() === 7 ? 7 : 0, 31);
     const diff = deadline.getTime() - date.getTime();
     return diff >= 0 && diff <= 7 * 24 * 60 * 60 * 1000;
@@ -3101,103 +3711,46 @@ Días desde la lesión: ${i.daysSinceInjury}`;
 
   processDeadlineDay(date: Date) {
     if (!WorldManager.isTransferDeadlineDay(date)) return;
-
     const deepIds = new Set(useGameStore.getState().deepSimLeagues);
-    // AI clubs make last-minute offers — all DEEP league clubs get deadline activity
-    const sellingClubs = this.clubs.filter(c => 
-      c.finances.transferBudget > 5000 && deepIds.has(c.leagueId)
-    );
-    const transferablePlayers = this.players.filter(p => 
-      p.transferStatus === 'TRANSFERABLE' || p.isTransferListed
-    );
+    const buyingClubs = this.clubs.filter(c => c.finances.transferBudget > 35_000 && deepIds.has(c.leagueId));
+    const transferablePlayers = this.players.filter(p => p.transferStatus === 'TRANSFERABLE' || p.isTransferListed);
 
-    // Increased AI activity on deadline day
-    sellingClubs.forEach(club => {
-      if (Math.random() > 0.3) return; // 30% chance per club
-
-      const targets = transferablePlayers.filter(p => 
-        p.clubId !== club.id && 
-        p.value <= club.finances.transferBudget * 0.5
-      );
-
+    buyingClubs.forEach(club => {
+      if (Math.random() > 0.28) return;
+      const targets = transferablePlayers.filter(p => p.clubId !== club.id && p.value <= club.finances.transferBudget * 0.65);
       if (targets.length === 0) return;
       const target = targets[Math.floor(Math.random() * targets.length)];
-      const offerAmount = Math.round(target.value * (0.7 + Math.random() * 0.6));
-
-      const existingOffer = this.offers.find(o => 
-        o.playerId === target.id && 
-        o.fromClubId === club.id && 
-        o.status === 'PENDING'
-      );
-
-      if (!existingOffer) {
-        const offer: TransferOffer = {
-          id: generateUUID(),
-          playerId: target.id,
-          fromClubId: club.id,
-          toClubId: target.clubId,
-          amount: offerAmount,
-          wageShare: 100,
-          type: 'PURCHASE',
-          status: 'PENDING',
-          date,
-          responseDate: date,
-          isViewed: false,
-        };
-        this.offers.push(offer);
-      }
+      const offerAmount = Math.round(target.value * (0.8 + Math.random() * 0.35));
+      this.makeTransferOffer(target.id, club.id, offerAmount, 'PURCHASE', date);
     });
 
-    // Deadline day notification
-    this.addInboxMessage('MARKET', 'DÍA LÍMITE DE FICHAJES', 
-      `¡Hoy cierra el mercado de pase! Se están ultimando los traspasos.`, date, undefined, 'IMPORTANT');
-
-    // Process all pending offers immediately on deadline day
+    this.addInboxMessage('MARKET', 'DÍA LÍMITE DE FICHAJES', `¡Hoy cierra el mercado de pases! Se están ultimando las negociaciones.`, date, undefined, 'IMPORTANT');
     this.processPendingOffers(date);
   }
 
   processDeadlineWeekActivity(date: Date) {
     if (!WorldManager.isDeadlineWeek(date)) return;
     const daysLeft = WorldManager.getDaysUntilDeadline(date);
-
-    // Increased AI activity as deadline approaches — all DEEP league clubs
-    if (Math.random() > 0.4) return;
+    if (Math.random() > 0.35) return;
     const deepIds = new Set(useGameStore.getState().deepSimLeagues);
-    const clubs = this.clubs.filter(c => c.finances.transferBudget > 5000 && deepIds.has(c.leagueId));
+    const clubs = this.clubs.filter(c => c.finances.transferBudget > 35_000 && deepIds.has(c.leagueId));
     const club = clubs[Math.floor(Math.random() * clubs.length)];
     if (!club) return;
 
-    const targets = this.players.filter(p => 
+    const targets = this.players.filter(p =>
       (p.transferStatus === 'TRANSFERABLE' || p.isTransferListed) &&
       p.clubId !== club.id &&
-      p.value <= club.finances.transferBudget * 0.4
+      p.value <= club.finances.transferBudget * 0.6
     );
-
     if (targets.length === 0) return;
     const target = targets[Math.floor(Math.random() * targets.length)];
-    const offerAmount = Math.round(target.value * (0.8 + Math.random() * 0.5));
+    const offerAmount = Math.round(target.value * (0.85 + Math.random() * 0.3));
+    const res = this.makeTransferOffer(target.id, club.id, offerAmount, 'PURCHASE', date);
 
-    const offer: TransferOffer = {
-      id: generateUUID(),
-      playerId: target.id,
-      fromClubId: club.id,
-      toClubId: target.clubId,
-      amount: offerAmount,
-      wageShare: 100,
-      type: 'PURCHASE',
-      status: 'PENDING',
-      date,
-      responseDate: date,
-      isViewed: false,
-    };
-    this.offers.push(offer);
-
-    if (daysLeft <= 2) {
-      // Notificación solo si la oferta involucra al club del usuario
+    if (res.ok && daysLeft <= 2) {
       const userClubHere = this.getUserClub();
       if (userClubHere && (club.id === userClubHere.id || target.clubId === userClubHere.id)) {
-        this.addInboxMessage('MARKET', `Última oportunidad: ${target.name}`, 
-          `${club.name} ha hecho una oferta por ${target.name} - ¡Quedan ${daysLeft} días!`, date, target.id, 'IMPORTANT');
+        this.addInboxMessage('MARKET', `Última oportunidad: ${target.name}`, `${club.name} envió una oferta por ${target.name} — ¡quedan ${daysLeft} días de mercado!`, date, target.id, 'IMPORTANT');
       }
     }
   }
@@ -3694,8 +4247,10 @@ addInboxMessage(category: MessageCategory, subject: string, body: string, date: 
       const sud = this.competitions.find(c => c.id === 'COPA_SUD' || c.id === 'CONT_SUD');
       if (sud) comps.push(sud);
     }
-    const domesticCup = this.competitions.find(c => c.type === 'CUP' && c.country === club.country);
-    if (domesticCup) comps.push(domesticCup);
+    const domesticCups = this.competitions.filter(c => c.type === 'CUP' && c.country === club.country);
+    domesticCups.forEach(dc => {
+      if (!comps.some(existing => existing.id === dc.id)) comps.push(dc);
+    });
     return comps;
   }
 
@@ -4320,7 +4875,7 @@ generateYouthIntake(year: number) {
       )
     );
     const isMajorFinalOrSemi = ['SEMI_FINAL', 'FINAL'].includes(fixture.stage) &&
-      ['W_CLUB', 'UCL', 'UEL', 'COPA_LIB', 'CONT_LIB', 'COPA_SUD', 'CONT_SUD', 'WC_FINAL', 'COPA', 'EURO', 'C_ARG'].includes(fixture.competitionId);
+      ['W_CLUB', 'UCL', 'UEL', 'COPA_LIB', 'CONT_LIB', 'COPA_SUD', 'CONT_SUD', 'WC_FINAL', 'COPA', 'EURO', 'C_ARG', 'COPA_REY', 'FA_CUP', 'EFL_CUP', 'DFB_POKAL', 'COPA_ITALIA', 'COPA_FRANCE'].includes(fixture.competitionId);
     const isUserContinentalMatch = Boolean(
       userClub &&
       comp?.type.startsWith('CONTINENTAL') &&
@@ -4779,7 +5334,12 @@ generateYouthIntake(year: number) {
         motivation: weightedRandom(8, 20),
         manManagement: weightedRandom(8, 20),
       },
-      salary: Math.round(randomInt(3000, 15000)),
+      salary: computeRealisticStaffSalary({
+        skill: weightedRandom(9, 17),
+        role: 'HEAD_COACH',
+        clubRep: club?.reputation || 4000,
+        country: club?.country || 'Argentina',
+      }),
       contractExpiry: new Date(date.getFullYear() + 1, 5, 30),
       history: [],
       personality: ['LEADER', 'PASSIONATE', 'CALM', 'DISCIPLINARIAN', 'VISIONARY'][randomInt(0, 4)],
@@ -4871,18 +5431,20 @@ generateYouthIntake(year: number) {
     const currentCount = clubStaff.length;
     const currentWeeklyWage = clubStaff.reduce((sum, s) => sum + s.salary, 0);
     if (!club) {
-      return { currentCount, maxCount: 12, currentWeeklyWage, maxWeeklyWage: 60000, remainingWeeklyWage: 60000 - currentWeeklyWage };
+      return { currentCount, maxCount: 12, currentWeeklyWage, maxWeeklyWage: 60000, remainingWeeklyWage: Math.max(0, 60000 - currentWeeklyWage) };
     }
 
+    const econ = getCountryEconomy(club.country);
     const repNorm = Math.max(0.08, Math.min(1.0, (club.reputation - 1500) / 8500));
-    const balanceBonus = club.finances.balance > 30000000 ? 2 : club.finances.balance > 8000000 ? 1 : club.finances.balance < -500000 ? -2 : 0;
+    const balanceBonus = club.finances.balance > 30_000_000 ? 2 : club.finances.balance > 8_000_000 ? 1 : club.finances.balance < -500_000 ? -2 : 0;
     const maxCount = Math.max(10, Math.min(20, 11 + Math.round(repNorm * 7) + balanceBonus));
 
-    const repBaseWeeklyCap = Math.round((32000 + repNorm * 145000) * 1.15);
-    const monthlyFinancialRoom = Math.max(club.finances.wageBudget * 0.28, club.finances.monthlyIncome * 0.16);
-    const balanceCushion = club.finances.balance >= 0 ? Math.min(45000, Math.round(club.finances.balance / 180)) : 0;
-    const roomFloor = club.finances.balance >= -250000 ? currentWeeklyWage + 24000 : currentWeeklyWage;
-    const maxWeeklyWage = Math.round(Math.max(roomFloor, repBaseWeeklyCap, monthlyFinancialRoom + 35000) + balanceCushion);
+    const repBaseMonthlyCap = Math.round((25_000 + repNorm * 450_000) * econ);
+    const monthlyFinancialRoom = Math.max(club.finances.wageBudget * 0.28, club.finances.monthlyIncome * 0.18);
+    const balanceCushion = club.finances.balance >= 0 ? Math.min(120_000, Math.round(club.finances.balance / 120)) : 0;
+    const minRoom = Math.round(12_000 * econ);
+    const roomFloor = club.finances.balance >= -250_000 ? currentWeeklyWage + minRoom : currentWeeklyWage;
+    const maxWeeklyWage = Math.round(Math.max(roomFloor, repBaseMonthlyCap, monthlyFinancialRoom) + balanceCushion);
 
     return {
       currentCount,
@@ -4919,7 +5481,7 @@ generateYouthIntake(year: number) {
     if (!club || !member) return { ok: false, message: 'No se encontró al empleado.' };
     if (member.role === 'HEAD_COACH') return { ok: false, message: 'El Director Técnico principal no puede ser rescindido desde aquí.' };
 
-    const severance = Math.min(Math.round(member.salary * 4), Math.max(0, club.finances.balance));
+    const severance = Math.min(Math.round(member.salary * 2), Math.max(0, club.finances.balance));
     const eventDate = date || useGameStore.getState().currentDate || new Date();
     member.history.push({ year: eventDate.getFullYear(), clubId, role: member.role });
     member.clubId = '';
@@ -4973,11 +5535,13 @@ generateYouthIntake(year: number) {
       const style = isTactical ? COACH_STYLES[randomInt(0, COACH_STYLES.length - 1)] : undefined;
       const formation = isTactical ? COACH_FORMATIONS[randomInt(0, COACH_FORMATIONS.length - 1)] : undefined;
       const tierBoost = i % 5 === 0 ? 4 : 0;
+      const nat = nationalities[randomInt(0, nationalities.length - 1)];
+      const avgSkill = Math.min(19, 11 + tierBoost + randomInt(0, 4));
       const s: Staff = {
         id: generateUUID(),
         name: `${STAFF_NAMES.names[randomInt(0, STAFF_NAMES.names.length - 1)]} ${STAFF_NAMES.surnames[randomInt(0, STAFF_NAMES.surnames.length - 1)]}`,
         age: randomInt(32, 62),
-        nationality: nationalities[randomInt(0, nationalities.length - 1)],
+        nationality: nat,
         role,
         clubId: '',
         attributes: {
@@ -4991,8 +5555,13 @@ generateYouthIntake(year: number) {
           motivation: Math.min(20, weightedRandom(9, 18) + tierBoost),
           manManagement: Math.min(20, weightedRandom(9, 18) + tierBoost),
         },
-        salary: randomInt(2500, 14000) + tierBoost * 1500,
-        contractExpiry: new Date(2010, 5, 30),
+        salary: computeRealisticStaffSalary({
+          skill: avgSkill,
+          role,
+          clubRep: 4000 + tierBoost * 500,
+          country: nat,
+        }),
+        contractExpiry: new Date(2028, 5, 30),
         history: [],
         personality: ['LEADER', 'PASSIONATE', 'CALM', 'DISCIPLINARIAN', 'VISIONARY'][randomInt(0, 4)],
         morale: 75,
@@ -5026,7 +5595,7 @@ generateYouthIntake(year: number) {
     if (candidate.clubId === clubId) return { ok: false, message: `${candidate.name} ya forma parte de tu cuerpo técnico.` };
 
     const previousClub = candidate.clubId ? this.getClub(candidate.clubId) : undefined;
-    const compensation = previousClub ? Math.round(candidate.salary * 12) : 0;
+    const compensation = previousClub ? Math.round(candidate.salary * 3) : 0;
 
     if (club.finances.balance < compensation) {
       return {
@@ -5041,7 +5610,7 @@ generateYouthIntake(year: number) {
     if (offeredSalary < minAcceptableSalary) {
       return {
         ok: false,
-        message: `${candidate.name} rechazó la oferta salarial. Pide al menos £${minAcceptableSalary.toLocaleString()}/sem.`,
+        message: `${candidate.name} rechazó la oferta salarial. Pide al menos £${minAcceptableSalary.toLocaleString()}/mes.`,
       };
     }
 
@@ -5058,7 +5627,7 @@ generateYouthIntake(year: number) {
       : undefined;
 
     const budgetStatus = this.getClubStaffBudgetStatus(clubId);
-    const finalSalary = Math.max(1000, Math.round(offeredSalary));
+    const finalSalary = Math.max(800, Math.round(offeredSalary));
     const wageDelta = finalSalary - (outgoing?.salary || 0);
 
     if (!outgoing && budgetStatus.currentCount >= budgetStatus.maxCount) {
@@ -5071,7 +5640,7 @@ generateYouthIntake(year: number) {
     if (wageDelta > 0 && budgetStatus.currentWeeklyWage + wageDelta > budgetStatus.maxWeeklyWage) {
       return {
         ok: false,
-        message: `Presupuesto salarial del cuerpo técnico insuficiente: tope £${budgetStatus.maxWeeklyWage.toLocaleString()}/sem (disponible £${budgetStatus.remainingWeeklyWage.toLocaleString()}/sem).`,
+        message: `Presupuesto salarial del cuerpo técnico insuficiente: tope £${budgetStatus.maxWeeklyWage.toLocaleString()}/mes (disponible £${budgetStatus.remainingWeeklyWage.toLocaleString()}/mes).`,
       };
     }
 
@@ -5130,7 +5699,7 @@ generateYouthIntake(year: number) {
     this.addInboxMessage(
       'SQUAD',
       `Nuevo empleado: ${candidate.name}`,
-      `${candidate.name} se incorporó al cuerpo técnico de ${club.name} (${roleLabel}) por ${contractYears} año${contractYears > 1 ? 's' : ''} a razón de £${candidate.salary.toLocaleString()}/sem.${squadText}${compensation > 0 ? ` Indemnización abonada: £${compensation.toLocaleString()}.` : ''}`,
+      `${candidate.name} se incorporó al cuerpo técnico de ${club.name} (${roleLabel}) por ${contractYears} año${contractYears > 1 ? 's' : ''} a razón de £${candidate.salary.toLocaleString()}/mes.${squadText}${compensation > 0 ? ` Indemnización abonada: £${compensation.toLocaleString()}.` : ''}`,
       date,
       clubId,
       'INFO'
@@ -5150,6 +5719,217 @@ generateYouthIntake(year: number) {
     return {
       ok: true,
       message: `${candidate.name} fue contratado como ${roleLabel}.${outgoing ? ` ${outgoing.name} dejó el cargo.` : squadText}`,
+    };
+  }
+
+  // ─── GESTIÓN DE AMISTOSOS Y CALENDARIO DEL CLUB ───────────────────────────
+
+  private hasClubMatchNearDate(clubId: string, targetDate: Date, fixtures: Fixture[], minGapDays = 2): boolean {
+    const tDay = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate()).getTime();
+    const gapMs = minGapDays * 86_400_000;
+    for (const f of fixtures) {
+      if (f.squadType !== 'SENIOR') continue;
+      if (f.homeTeamId !== clubId && f.awayTeamId !== clubId) continue;
+      const d = f.date instanceof Date ? f.date : new Date(f.date);
+      const fDay = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+      if (Math.abs(fDay - tDay) <= gapMs) return true;
+    }
+    return false;
+  }
+
+  getAvailableFriendlyDates(clubId: string, fixtures: Fixture[], fromDate: Date, daysAhead = 120): Date[] {
+    const results: Date[] = [];
+    const base = new Date(fromDate.getFullYear(), fromDate.getMonth(), fromDate.getDate(), 15, 0, 0, 0);
+    for (let offset = 1; offset <= daysAhead; offset++) {
+      const candidate = new Date(base);
+      candidate.setDate(base.getDate() + offset);
+      // Evitar días pegados a otro partido SENIOR del club (mínimo 2 días de descanso)
+      if (!this.hasClubMatchNearDate(clubId, candidate, fixtures, 2)) {
+        results.push(candidate);
+      }
+    }
+    return results;
+  }
+
+  getAvailableFriendlyOpponents(
+    userClubId: string,
+    targetDate: Date,
+    fixtures: Fixture[],
+    searchQuery = ''
+  ): Club[] {
+    const userClub = this.getClub(userClubId);
+    if (!userClub) return [];
+    const q = searchQuery.trim().toLowerCase();
+
+    return this.clubs
+      .filter(c => {
+        if (c.id === userClubId) return false;
+        if (q && !c.name.toLowerCase().includes(q) && !c.shortName.toLowerCase().includes(q) && !c.country.toLowerCase().includes(q)) {
+          return false;
+        }
+        return !this.hasClubMatchNearDate(c.id, targetDate, fixtures, 2);
+      })
+      .sort((a, b) => {
+        const aSameCountry = a.country === userClub.country ? 0 : 1;
+        const bSameCountry = b.country === userClub.country ? 0 : 1;
+        if (aSameCountry !== bSameCountry) return aSameCountry - bSameCountry;
+        return Math.abs(a.reputation - userClub.reputation) - Math.abs(b.reputation - userClub.reputation);
+      })
+      .slice(0, 60);
+  }
+
+  scheduleFriendlyMatch(
+    userClubId: string,
+    opponentClubId: string,
+    targetDate: Date,
+    isHome: boolean
+  ): { ok: boolean; message: string; fixture?: Fixture } {
+    const userClub = this.getClub(userClubId);
+    const opponent = this.getClub(opponentClubId);
+    if (!userClub || !opponent) {
+      return { ok: false, message: 'No se encontró uno de los clubes.' };
+    }
+    if (userClubId === opponentClubId) {
+      return { ok: false, message: 'No puedes concertar un amistoso contra tu propio club.' };
+    }
+
+    const store = useGameStore.getState();
+    const currentFixtures = store.fixtures;
+
+    if (this.hasClubMatchNearDate(userClubId, targetDate, currentFixtures, 2)) {
+      return { ok: false, message: 'Tu equipo ya tiene un compromiso cercano a esa fecha.' };
+    }
+    if (this.hasClubMatchNearDate(opponentClubId, targetDate, currentFixtures, 2)) {
+      return { ok: false, message: `${opponent.shortName} no tiene disponibilidad en esa fecha.` };
+    }
+
+    const matchDate = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 15, 0, 0, 0);
+    const fixture: Fixture = {
+      id: `FRIENDLY_${generateUUID().slice(0, 8)}`,
+      competitionId: 'FRIENDLY',
+      homeTeamId: isHome ? userClubId : opponentClubId,
+      awayTeamId: isHome ? opponentClubId : userClubId,
+      date: matchDate,
+      played: false,
+      squadType: 'SENIOR',
+      stage: 'REGULAR',
+    };
+
+    const nextFixtures = [...currentFixtures, fixture];
+    store.setFixtures(nextFixtures);
+    store.updateNextFixture(nextFixtures, store.currentDate, userClubId);
+
+    return {
+      ok: true,
+      message: `Amistoso confirmado: ${isHome ? `${userClub.shortName} vs ${opponent.shortName}` : `${opponent.shortName} vs ${userClub.shortName}`} (${matchDate.toLocaleDateString()}).`,
+      fixture,
+    };
+  }
+
+  cancelFriendlyMatch(fixtureId: string, userClubId: string): { ok: boolean; message: string } {
+    const store = useGameStore.getState();
+    const target = store.fixtures.find(f => f.id === fixtureId);
+    if (!target) return { ok: false, message: 'No se encontró el partido.' };
+    if (target.competitionId !== 'FRIENDLY') {
+      return { ok: false, message: 'Solo se pueden cancelar partidos amistosos.' };
+    }
+    if (target.played) {
+      return { ok: false, message: 'El amistoso ya fue disputado.' };
+    }
+    const nextFixtures = store.fixtures.filter(f => f.id !== fixtureId);
+    store.setFixtures(nextFixtures);
+    store.updateNextFixture(nextFixtures, store.currentDate, userClubId);
+    return { ok: true, message: 'Amistoso cancelado del calendario.' };
+  }
+
+  arrangeFriendliesWithDirector(
+    userClubId: string,
+    fromDate: Date,
+    maxToAdd = 3
+  ): { ok: boolean; arranged: number; message: string } {
+    const userClub = this.getClub(userClubId);
+    if (!userClub) return { ok: false, arranged: 0, message: 'Club no encontrado.' };
+
+    const director = this.getStaffByClub(userClubId).find(
+      s => s.role === 'SPORTING_DIRECTOR' || s.role === 'ASSISTANT_MANAGER'
+    );
+    const store = useGameStore.getState();
+    const existingFriendlies = store.fixtures.filter(
+      f =>
+        !f.played &&
+        f.squadType === 'SENIOR' &&
+        f.competitionId === 'FRIENDLY' &&
+        (f.homeTeamId === userClubId || f.awayTeamId === userClubId)
+    );
+    if (existingFriendlies.length >= 6) {
+      return {
+        ok: false,
+        arranged: 0,
+        message: 'Ya tienes suficientes amistosos programados en agenda.',
+      };
+    }
+
+    const availableDates = this.getAvailableFriendlyDates(userClubId, store.fixtures, fromDate, 100);
+    if (availableDates.length === 0) {
+      return {
+        ok: false,
+        arranged: 0,
+        message: 'El calendario está completo y no hay fechas libres para amistosos.',
+      };
+    }
+
+    // Buscar fechas espaciadas al menos 5 días entre sí
+    const chosenDates: Date[] = [];
+    let lastTs = 0;
+    for (const d of availableDates) {
+      const ts = d.getTime();
+      if (chosenDates.length === 0 || ts - lastTs >= 5 * 86_400_000) {
+        chosenDates.push(d);
+        lastTs = ts;
+        if (chosenDates.length >= maxToAdd) break;
+      }
+    }
+
+    let arranged = 0;
+    const summaryLines: string[] = [];
+    const usedRivals = new Set<string>(
+      existingFriendlies.map(f => (f.homeTeamId === userClubId ? f.awayTeamId : f.homeTeamId))
+    );
+
+    chosenDates.forEach((d, idx) => {
+      const latestFixtures = useGameStore.getState().fixtures;
+      const pool = this.getAvailableFriendlyOpponents(userClubId, d, latestFixtures).filter(
+        c => !usedRivals.has(c.id)
+      );
+      if (pool.length === 0) return;
+      const rival = pool[randomInt(0, Math.min(pool.length - 1, 14))];
+      const isHome = idx % 2 === 0;
+      const res = this.scheduleFriendlyMatch(userClubId, rival.id, d, isHome);
+      if (res.ok) {
+        arranged++;
+        usedRivals.add(rival.id);
+        summaryLines.push(`${isHome ? 'Local' : 'Visitante'} vs ${rival.shortName} (${d.toLocaleDateString()})`);
+      }
+    });
+
+    if (arranged === 0) {
+      return { ok: false, arranged: 0, message: 'No se encontraron rivales disponibles en las fechas libres.' };
+    }
+
+    const who = director ? `${director.name} (${this.getStaffRoleLabel(director.role)})` : 'La Secretaría Técnica';
+    this.addInboxMessage(
+      'SQUAD',
+      `Amistosos concertados (${arranged})`,
+      `${who} cerró ${arranged} amistoso${arranged > 1 ? 's' : ''} para mantener el ritmo competitivo: ${summaryLines.join(' · ')}.`,
+      fromDate,
+      userClubId,
+      'INFO'
+    );
+
+    return {
+      ok: true,
+      arranged,
+      message: `${who} concertó ${arranged} amistoso${arranged > 1 ? 's' : ''}: ${summaryLines.join(' · ')}`,
     };
   }
 

@@ -206,10 +206,39 @@ export async function simulateDayFixtures(params: DaySimParams): Promise<void> {
         squadType: f.squadType,
         summary,
       });
-      if (
-        homeScore === awayScore &&
-        ['ROUND_OF_32', 'ROUND_OF_16', 'QUARTER_FINAL', 'SEMI_FINAL', 'FINAL'].includes(f.stage)
-      ) {
+      const isKnockoutStage = [
+        'ROUND_OF_64',
+        'ROUND_OF_32',
+        'ROUND_OF_16',
+        'QUARTER_FINAL',
+        'SEMI_FINAL',
+        'FINAL',
+      ].includes(f.stage);
+      let needsPenalties = false;
+      if (isKnockoutStage && f.leg !== 1) {
+        if (f.leg === 2) {
+          const leg1 = fixtures.find(
+            x =>
+              x.leg === 1 &&
+              (f.tieId
+                ? x.tieId === f.tieId
+                : x.competitionId === f.competitionId &&
+                  x.stage === f.stage &&
+                  x.homeTeamId === f.awayTeamId &&
+                  x.awayTeamId === f.homeTeamId)
+          );
+          if (leg1 && leg1.played) {
+            const aggHome = homeScore + (leg1.awayScore ?? 0);
+            const aggAway = awayScore + (leg1.homeScore ?? 0);
+            needsPenalties = aggHome === aggAway;
+          } else {
+            needsPenalties = homeScore === awayScore;
+          }
+        } else {
+          needsPenalties = homeScore === awayScore;
+        }
+      }
+      if (needsPenalties) {
         let ph = 0, pa = 0;
         for (let k = 0; k < 5; k++) {
           if (Math.random() < 0.74) ph++;

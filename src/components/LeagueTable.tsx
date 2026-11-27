@@ -5,7 +5,7 @@ import { world } from '../services/worldManager';
 import { FMTable, FMTableCell } from './FMUI';
 import { getFlagUrl } from '../data/static';
 import { FmClubShield } from './ClubBannerChrome';
-import { ChevronDown, ChevronRight, Trophy, Award, Calendar } from 'lucide-react';
+import { ChevronDown, ChevronRight, Trophy, Award, Calendar, Medal } from 'lucide-react';
 import { useUIStore } from '../stores/uiStore';
 import { FixtureReportModal } from './FixtureReportModal';
 
@@ -204,6 +204,7 @@ export const LeagueTable: React.FC<LeagueTableProps> = ({
 
    const stageLabel = (stage: string) => {
       if (stage === 'GROUP') return 'Zonas';
+      if (stage === 'ROUND_OF_64') return '32avos';
       if (stage === 'ROUND_OF_32') return '16avos';
       if (stage === 'ROUND_OF_16') return 'Octavos';
       if (stage === 'QUARTER_FINAL') return 'Cuartos';
@@ -325,6 +326,16 @@ export const LeagueTable: React.FC<LeagueTableProps> = ({
                         <button key={t.key} onClick={() => onSquadTypeChange(t.key as SquadType)} className={`px-2 py-1 text-[9px] font-bold uppercase transition-all rounded-[1px] cursor-pointer ${currentSquadType === t.key ? 'bg-[#2b5d2c] text-white shadow-sm' : 'text-slate-700 hover:bg-[#ccd9cc]'}`}>{t.label}</button>
                      ))}
                   </div>
+               )}
+               {allLeagues && onLeagueChange && (
+                  <button
+                     type="button"
+                     onClick={() => useUIStore.getState().setView('CUPS')}
+                     className="flex items-center gap-1.5 bg-gradient-to-b from-[#3b7a3d] via-[#2b5d2c] to-[#1a3d1b] border border-[#133014] rounded-[2px] px-2.5 py-1 text-[9px] font-black uppercase text-[#facc15] shadow-sm hover:brightness-110 transition-all cursor-pointer"
+                  >
+                     <Medal size={12} />
+                     <span>Ver Copas</span>
+                  </button>
                )}
                {allLeagues && onLeagueChange && (
                   <div className="relative">

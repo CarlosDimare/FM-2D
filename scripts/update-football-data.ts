@@ -586,7 +586,9 @@ async function main() {
         );
 
         const presName = tmId ? wikiSnapshot.presidentsByTm?.[tmId]?.name : undefined;
-        const rep = mainTeam.reputation?.home || leagueData.reputation || 4000;
+        const rawRep = mainTeam.reputation?.home || leagueData.reputation || 4000;
+        const tierFactor = leagueData.tier === 1 ? 0.68 : leagueData.tier === 2 ? 0.75 : 0.78;
+        const rep = Math.max(Math.max(1500, Math.round((leagueData.reputation || 3500) * tierFactor)), Math.min(9900, Math.round(rawRep)));
 
         clubs.push({
           id: mainTeam.id,
@@ -612,6 +614,7 @@ async function main() {
 
         const playersPath = join(clubPath, "players");
         const playerFiles = listJSONFiles(playersPath);
+        const clubRawTuples: any[] = [];
         for (const pf of playerFiles) {
           const pl = readJSON<ZOXPlayer>(join(playersPath, pf));
           if (!pl || !pl.id) continue;
@@ -621,6 +624,9 @@ async function main() {
 
           const birthDate = pl.birth_date || "2000-01-01";
           const age = calculateAge(birthDate);
+          const rawCa = Math.round(pl.current_ability || 95);
+          if (age >= 45 || (age >= 41 && rawCa <= 55)) continue;
+
           let squadIdx = 0; // 0 = SENIOR, 1 = RESERVE, 2 = U20
           if (teamType === "U18" || teamType === "U20" || age <= 19) squadIdx = 2;
           else if (teamType === "Reserve" || (age >= 20 && age <= 22 && (pl.current_ability || 0) < 115)) squadIdx = 1;
@@ -641,10 +647,8 @@ async function main() {
             clampAttr(person.ada, 11),
           ];
 
-          const ca = Math.max(40, Math.min(200, Math.round(pl.current_ability || 95)));
+          const ca = Math.max(40, Math.min(200, rawCa));
           const pa = Math.max(ca, Math.min(200, Math.round((pl.potential_ability && pl.potential_ability > 0) ? pl.potential_ability : ca + 15)));
-          const value = pl.value && pl.value > 0 ? Math.round(pl.value) : Math.round(ca * ca * 1800);
-          const salary = pl.contract?.salary && pl.contract.salary > 0 ? Math.round(pl.contract.salary) : Math.round(ca * 2200);
           const contractExpiry = pl.contract?.expiration || "2027-06-30";
 
           const historyEntries = (pl.history || []).map(h => [
@@ -656,9 +660,7 @@ async function main() {
             h.cs || 0,
           ]);
 
-          // Tuple layout:
-          // [0:id, 1:firstName, 2:lastName, 3:birthDate, 4:natIdx, 5:clubId, 6:squadIdx, 7:posIndices, 8:attrs13, 9:ca, 10:pa, 11:value, 12:salary, 13:contractExpiry, 14:height, 15:weight, 16:person4, 17:historyEntries]
-          leaguePlayers.push([
+          clubRawTuples.push([
             String(pl.id),
             (pl.first_name || "").trim(),
             (pl.last_name || "").trim(),
@@ -670,14 +672,67 @@ async function main() {
             attrs13,
             ca,
             pa,
-            value,
-            salary,
+            0,
+            0,
             contractExpiry,
             height,
             weight,
             person4,
             historyEntries,
           ]);
+        }
+
+        const gkIdx = getPosIdx("P");
+        const isGkTuple = (t: any) => (t[7] || []).includes(gkIdx);
+        const seniors = clubRawTuples.filter(t => t[6] === 0).sort((a, b) => b[9] - a[9]);
+        const reserves = clubRawTuples.filter(t => t[6] === 1).sort((a, b) => b[9] - a[9]);
+        const u20s = clubRawTuples.filter(t => t[6] === 2).sort((a, b) => (b[10] || b[9]) - (a[10] || a[9]));
+        if (seniors.length > 26) {
+          const kept: any[] = [...seniors.filter(isGkTuple).slice(0, 3)];
+          for (const t of seniors.filter(x => !isGkTuple(x))) {
+            if (kept.length < 26) kept.push(t);
+          }
+          const keptSet = new Set(kept);
+          for (const t of seniors) {
+            if (keptSet.has(t)) continue;
+            const age = calculateAge(t[3]);
+            if (age <= 20 && u20s.length < 22) { t[6] = 2; u20s.push(t); }
+            else if (reserves.length < 22) { t[6] = 1; reserves.push(t); }
+          }
+          seniors.length = 0;
+          seniors.push(...kept);
+        }
+        if (reserves.length > 22) reserves.length = 22;
+        if (u20s.length > 22) u20s.length = 22;
+
+        const econFactor = ({
+          Argentina: 0.55, Brasil: 0.85, Uruguay: 0.5, Chile: 0.6, Colombia: 0.55, México: 0.85,
+          Inglaterra: 2.0, España: 1.75, Italia: 1.65, Alemania: 1.85, Francia: 1.7, Portugal: 1.05,
+          "Países Bajos": 1.35, Bélgica: 1.15, Turquía: 0.95, Rusia: 0.9, USA: 1.8, Japón: 1.25, "Arabia Saudita": 1.75,
+        } as Record<string, number>)[countryEs] ?? 0.75;
+        const lgRep = leagueData.reputation || 3500;
+        const calcVal = (caVal: number, paVal: number, ageVal: number) => {
+          const normCa = Math.max(0, Math.min(1, (caVal - 50) / 150));
+          const baseVal = 25000 + Math.pow(normCa, 4.2) * 195000000;
+          const potB = ageVal <= 23 && paVal > caVal ? 1 + Math.min(0.65, ((paVal - caVal) / 45) * Math.max(0.15, (24 - ageVal) * 0.08)) : 1;
+          const ageF = ageVal <= 27 ? 1 : ageVal <= 30 ? 0.9 - (ageVal - 27) * 0.06 : Math.max(0.16, 0.72 - (ageVal - 30) * 0.11);
+          const mkt = Math.max(0.1, Math.min(1.22, (lgRep / 9500) * 0.48 + (rep / 9500) * 0.24 + econFactor * 0.22));
+          const raw = baseVal * potB * ageF * mkt;
+          return Math.max(15000, raw >= 1000000 ? Math.round(raw / 50000) * 50000 : raw >= 100000 ? Math.round(raw / 5000) * 5000 : Math.round(raw / 1000) * 1000);
+        };
+
+        for (const t of [...seniors, ...reserves, ...u20s]) {
+          const ageVal = calculateAge(t[3]);
+          const val = calcVal(t[9], t[10], ageVal);
+          const primeVal = calcVal(t[9], t[9], Math.min(27, Math.max(22, ageVal)));
+          const rate = t[9] >= 155 ? 0.0088 : t[9] >= 130 ? 0.0095 : 0.0105;
+          const sqMult = t[6] === 2 ? 0.42 : t[6] === 1 ? 0.65 : 1.0;
+          const minM = t[6] === 2 ? Math.max(350, Math.round(econFactor * 550)) : t[6] === 1 ? Math.max(550, Math.round(econFactor * 900)) : Math.max(850, Math.round(econFactor * 1500));
+          const rawSal = Math.max(minM, primeVal * rate * sqMult);
+          const step = rawSal >= 100000 ? 1000 : rawSal >= 10000 ? 250 : 50;
+          t[11] = val;
+          t[12] = Math.round(rawSal / step) * step;
+          leaguePlayers.push(t);
           totalPlayersCount++;
         }
       }

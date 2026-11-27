@@ -7,6 +7,8 @@ import { Scheduler } from "./scheduler";
 import { MatchSimulator } from "./engine";
 import { argentineZoneTable, argentineCombinedTable, ARG_LEAGUE_ID } from "./argentineLeague"; 
 import { generateMatchChronicle, generateTournamentChronicles } from "./chronicleService";
+import { computeClubFinancialProjection } from "./economyCalibration";
+import { getCupNextStageRules, getCupSeededEntrants } from "./domesticCupFormats";
 
 export class LifecycleManager {
 
@@ -116,47 +118,46 @@ export class LifecycleManager {
      const day = currentDate.getDate();
      if (day !== 1) return;
 
-     world.clubs.forEach(club => {
-        const playerSalaries = world.getPlayersByClub(club.id).reduce((s, p) => s + p.salary, 0);
-        const staffSalaries = world.getStaffByClub(club.id).reduce((s, st) => s + st.salary, 0);
-        const totalSalaries = playerSalaries + staffSalaries;
-        const operational = Math.round(club.reputation * 10);
+      world.clubs.forEach(club => {
+        const proj = computeClubFinancialProjection(
+          club,
+          world.getPlayersByClub(club.id),
+          world.getStaffByClub(club.id),
+          Math.max(0, club.finances.monthlyIncome || 0)
+        );
 
-        const sponsorships = Math.round(club.reputation * 80);
-        const seasonTicket = Math.round(club.stadiumCapacity * 0.35 * 12 * 0.45);
-        const merchandising = Math.round(club.reputation * 25);
-        const baseIncome = sponsorships + seasonTicket + merchandising;
+        const lastMonthIncome = proj.totalMonthlyIncome;
+        const lastMonthExpenses = proj.totalMonthlyExpenses;
 
-        club.finances.monthlyIncome = baseIncome + Math.max(0, club.finances.monthlyIncome);
-        club.finances.monthlyExpenses = totalSalaries + operational;
-
-        const lastMonthIncome = club.finances.monthlyIncome;
-        const lastMonthExpenses = club.finances.monthlyExpenses;
-
-        club.finances.balance += lastMonthIncome;
-        club.finances.balance -= lastMonthExpenses;
+        club.finances.balance += lastMonthIncome - lastMonthExpenses;
 
         const monthNames = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
         const monthLabel = `${monthNames[month]} ${currentDate.getFullYear()}`;
-        club.finances.monthlyHistory.push({ month: monthLabel, income: lastMonthIncome, expenses: lastMonthExpenses, balance: club.finances.balance });
+        club.finances.monthlyHistory.push({
+          month: monthLabel,
+          income: lastMonthIncome,
+          expenses: lastMonthExpenses,
+          balance: club.finances.balance,
+        });
         if (club.finances.monthlyHistory.length > 12) club.finances.monthlyHistory.shift();
 
         if (club.finances.balance < 0) {
-          const interest = Math.round(Math.abs(club.finances.balance) * 0.05);
+          const interest = Math.round(Math.abs(club.finances.balance) * 0.04);
           club.finances.balance -= interest;
         }
 
+        // Reinicia el acumulado mensual de taquilla y mantiene actualizada la previsión de gastos
         club.finances.monthlyIncome = 0;
-        club.finances.transferBudget += Math.round(lastMonthIncome * 0.05);
+        club.finances.monthlyExpenses = lastMonthExpenses;
 
         const monthlyNet = lastMonthIncome - lastMonthExpenses;
         if (monthlyNet > 0) {
-          club.finances.transferBudget += Math.round(monthlyNet * 0.1);
-        } else if (monthlyNet < -50000) {
-          club.finances.transferBudget = Math.max(0, club.finances.transferBudget + Math.round(monthlyNet * 0.15));
+          club.finances.transferBudget += Math.round(monthlyNet * 0.15);
+        } else if (monthlyNet < -25000) {
+          club.finances.transferBudget = Math.max(0, club.finances.transferBudget + Math.round(monthlyNet * 0.12));
         }
 
-        if (club.finances.balance < -(club.reputation * 500)) {
+        if (club.finances.balance < -Math.max(1_500_000, club.reputation * 700)) {
           this.executeTakeover(club, currentDate);
         }
       });
@@ -404,6 +405,12 @@ export class LifecycleManager {
       'CONT_LIB': 8000000,
       'CONT_SUD': 3000000,
       'C_ARG': 2000000,
+      'COPA_REY': 3000000,
+      'FA_CUP': 3500000,
+      'EFL_CUP': 2200000,
+      'DFB_POKAL': 2500000,
+      'COPA_ITALIA': 2500000,
+      'COPA_FRANCE': 2000000,
       'W_CLUB': 5000000,
     };
     summaries.forEach(summary => {
@@ -1103,49 +1110,90 @@ private static calculateUCLStandings(fixtures: Fixture[], clubIds: string[]): Le
   }
 
   private static processKnockoutStage(cup: Competition, cupFixtures: Fixture[], currentDate: Date, newFixtures: Fixture[]) {
-      const stages = ['ROUND_OF_16', 'QUARTER_FINAL', 'SEMI_FINAL', 'FINAL'];
+      const stages: MatchStage[] = ['ROUND_OF_64', 'ROUND_OF_32', 'ROUND_OF_16', 'QUARTER_FINAL', 'SEMI_FINAL', 'FINAL'];
       let currentStageIdx = -1;
       
       // Find the furthest stage that has fixtures
-      for(let i=stages.length-1; i>=0; i--) {
+      for(let i = stages.length - 1; i >= 0; i--) {
          if (cupFixtures.some(f => f.stage === stages[i])) {
             currentStageIdx = i;
             break;
          }
       }
-      
-      // If no knockout stages yet (only R32 or nothing), check if R32 is done
-      if (currentStageIdx === -1) {
-          const r32 = cupFixtures.filter(f => f.stage === 'ROUND_OF_32');
-          if (r32.length > 0 && r32.every(f => f.played)) {
-              this.generateNextRound(cup, r32, 'ROUND_OF_16', currentDate, newFixtures);
-          }
-          return;
-      }
 
-      if (currentStageIdx >= stages.length - 1) return; // Final is done
+      if (currentStageIdx === -1) return;
+      if (currentStageIdx >= stages.length - 1) return; // Final is already scheduled/done
 
       const currentStage = stages[currentStageIdx];
       const nextStage = stages[currentStageIdx + 1];
       const currentRoundMatches = cupFixtures.filter(f => f.stage === currentStage);
       
-      if (currentRoundMatches.every(f => f.played) && !cupFixtures.some(f => f.stage === nextStage) && currentRoundMatches.length > 0) {
-          this.generateNextRound(cup, currentRoundMatches, nextStage as MatchStage, currentDate, newFixtures);
+      if (currentRoundMatches.length > 0 && currentRoundMatches.every(f => f.played) && !cupFixtures.some(f => f.stage === nextStage)) {
+          this.generateNextRound(cup, cupFixtures, currentRoundMatches, nextStage, currentDate, newFixtures);
       }
   }
 
-  private static generateNextRound(cup: Competition, prevRoundMatches: Fixture[], nextStage: MatchStage, currentDate: Date, newFixtures: Fixture[]) {
+  private static generateNextRound(
+    cup: Competition,
+    allCupFixtures: Fixture[],
+    prevRoundMatches: Fixture[],
+    nextStage: MatchStage,
+    currentDate: Date,
+    newFixtures: Fixture[]
+  ) {
+      const tiesMap = new Map<string, Fixture[]>();
+      prevRoundMatches.forEach((f) => {
+        const key = f.tieId || f.id;
+        const arr = tiesMap.get(key);
+        if (arr) arr.push(f);
+        else tiesMap.set(key, [f]);
+      });
+
       const winners: Club[] = [];
-         
-      prevRoundMatches.forEach(f => {
-        const winnerId = this.resolveKnockoutTie(f);
+      tiesMap.forEach((legs) => {
+        const winnerId = legs.length >= 2 ? this.resolveTwoLeggedTie(legs) : this.resolveKnockoutTie(legs[0]);
         const wClub = world.getClub(winnerId);
         if (wClub) winners.push(wClub);
       });
 
-      if (winners.length >= 2) {
+      const seededEntrants = getCupSeededEntrants(cup.id, nextStage, allCupFixtures, world.clubs);
+      const tierByLeague = new Map<string, number>();
+      world.competitions.forEach((c) => {
+        if (c.type === 'LEAGUE') tierByLeague.set(c.id, c.tier || 1);
+      });
+      const stageRules = getCupNextStageRules(cup.id, nextStage);
+
+      let roundEntrants: Club[] = winners;
+      let preserveOrder = seededEntrants.length === 0;
+
+      if (seededEntrants.length > 0) {
+        if (winners.length === seededEntrants.length) {
+          // Coppa Italia style: pair R32 winners against Top 8 Serie A seeded entrants
+          const shuffledSeeds = [...seededEntrants].sort(() => Math.random() - 0.5);
+          roundEntrants = [];
+          for (let i = 0; i < winners.length; i++) {
+            roundEntrants.push(winners[i], shuffledSeeds[i]);
+          }
+          preserveOrder = true;
+        } else {
+          // DFB-Pokal / Coupe de France: combine play-in winners + seeded clubs and draw
+          roundEntrants = [...winners, ...seededEntrants].sort(() => Math.random() - 0.5);
+          preserveOrder = true;
+        }
+      }
+
+      if (roundEntrants.length >= 2) {
         const nextDate = this.findNextCupDate(currentDate);
-        newFixtures.push(...Scheduler.generateCupRound(cup.id, winners, nextDate, nextStage));
+        newFixtures.push(
+          ...Scheduler.generateCupRound(cup.id, roundEntrants, nextDate, nextStage, {
+            preserveOrder,
+            lowerTierHome: stageRules.lowerTierHome,
+            allNeutral: stageRules.allNeutral,
+            isNeutralStage: stageRules.isNeutralStage,
+            twoLegged: stageRules.twoLegged,
+            tierByLeague,
+          })
+        );
         
         if (world.isNewsRelevantToUser({ competitionId: cup.id }) || cup.id === 'W_CLUB' || cup.id === 'WC_FINAL') {
           const msg = nextStage === 'FINAL' ? `Definida la Gran Final de la ${cup.name}.` : `Definidos los cruces de ${nextStage} en la ${cup.name}.`;
@@ -1159,6 +1207,42 @@ private static calculateUCLStandings(fixtures: Fixture[], clubIds: string[]): Le
           });
         }
       }
+  }
+
+  private static resolveTwoLeggedTie(legs: Fixture[]): string {
+      const sorted = [...legs].sort((a, b) => (a.leg || 1) - (b.leg || 1));
+      const leg1 = sorted[0];
+      const leg2 = sorted[1];
+      if (!leg2) return this.resolveKnockoutTie(leg1);
+
+      const teamA = leg1.homeTeamId;
+      const teamB = leg1.awayTeamId;
+      const teamAOnLeg2 = leg2.homeTeamId === teamA ? (leg2.homeScore || 0) : (leg2.awayScore || 0);
+      const teamBOnLeg2 = leg2.homeTeamId === teamB ? (leg2.homeScore || 0) : (leg2.awayScore || 0);
+
+      const aggA = (leg1.homeScore || 0) + teamAOnLeg2;
+      const aggB = (leg1.awayScore || 0) + teamBOnLeg2;
+
+      if (aggA > aggB) return teamA;
+      if (aggB > aggA) return teamB;
+
+      if (leg2.penaltyHome === undefined || leg2.penaltyAway === undefined || leg2.penaltyHome === leg2.penaltyAway) {
+        let pH = 0, pA = 0;
+        while (pH === pA) {
+          for (let k = 0; k < 5; k++) {
+            if (Math.random() < 0.74) pH++;
+            if (Math.random() < 0.74) pA++;
+          }
+          if (pH === pA) {
+            if (Math.random() < 0.74) pH++;
+            if (Math.random() < 0.74) pA++;
+          }
+        }
+        leg2.penaltyHome = pH;
+        leg2.penaltyAway = pA;
+      }
+
+      return leg2.penaltyHome! > leg2.penaltyAway! ? leg2.homeTeamId : leg2.awayTeamId;
   }
 
   private static resolveKnockoutTie(fixture: Fixture): string {

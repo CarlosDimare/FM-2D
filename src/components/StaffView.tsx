@@ -923,7 +923,7 @@ export const StaffView: React.FC<StaffViewProps> = ({ staff: staffProp, club, is
           </h2>
           {staffBudget && (
             <span className="px-2 py-0.5 bg-white border border-[#a0b0a0] rounded-sm text-[8.5px] font-bold text-slate-700">
-              Cupo <strong className={staffBudget.currentCount >= staffBudget.maxCount ? 'text-red-700' : 'text-[#2b5d2c]'}>{staffBudget.currentCount}/{staffBudget.maxCount}</strong> · Masa <strong className="font-mono">£{staffBudget.currentWeeklyWage.toLocaleString()}/£{staffBudget.maxWeeklyWage.toLocaleString()}</strong> sem
+              Cupo <strong className={staffBudget.currentCount >= staffBudget.maxCount ? 'text-red-700' : 'text-[#2b5d2c]'}>{staffBudget.currentCount}/{staffBudget.maxCount}</strong> · Masa <strong className="font-mono">£{staffBudget.currentWeeklyWage.toLocaleString()}/£{staffBudget.maxWeeklyWage.toLocaleString()}</strong> mes
             </span>
           )}
         </div>

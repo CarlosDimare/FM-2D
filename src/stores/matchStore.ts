@@ -49,8 +49,8 @@ interface MatchStore {
 }
 
 export const useMatchStore = create<MatchStore>((set) => ({
-  currentDate: new Date(2008, 7, 16),
-  seasonEndDate: new Date(2009, 6, 10),
+  currentDate: new Date(2025, 6, 20),
+  seasonEndDate: new Date(2026, 6, 10),
   isSimulating: false,
   isInVacation: false,
   vacationTargetDate: '',

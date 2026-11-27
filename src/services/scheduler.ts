@@ -40,7 +40,10 @@ export class Scheduler {
           const a = arr[i];
           const b = arr[slots - 1 - i];
           if (!a || !b) continue; // bye: el equipo emparejado con el hueco descansa
-          const swap = leg === 1; // vuelta: se invierten las localías
+          // Alternancia Berger: el pivote arr[0] alterna local/visitante cada fecha;
+          // los cruces pares/impares invierten en la segunda vuelta.
+          const baseFlip = i === 0 ? (r % 2 === 1) : (i % 2 === 1);
+          const swap = leg === 1 ? !baseFlip : baseFlip;
           const home = swap ? b : a;
           const away = swap ? a : b;
           fixtures.push({ id: generateUUID(), competitionId: leagueId, homeTeamId: home.id, awayTeamId: away.id, date: new Date(currentRoundDate), played: false, squadType, stage: 'REGULAR' });
@@ -78,7 +81,10 @@ export class Scheduler {
         const a = arr[i];
         const b = arr[slots - 1 - i];
         if (!a || !b) continue; // bye
-        fixtures.push({ id: generateUUID(), competitionId: leagueId, homeTeamId: a.id, awayTeamId: b.id, date: new Date(roundDate), played: false, squadType, stage: 'GROUP', groupId });
+        const swap = i === 0 ? (r % 2 === 1) : (i % 2 === 1);
+        const home = swap ? b : a;
+        const away = swap ? a : b;
+        fixtures.push({ id: generateUUID(), competitionId: leagueId, homeTeamId: home.id, awayTeamId: away.id, date: new Date(roundDate), played: false, squadType, stage: 'GROUP', groupId });
       }
       const last = arr[slots - 1];
       for (let k = slots - 1; k > 1; k--) arr[k] = arr[k - 1];
@@ -90,7 +96,7 @@ export class Scheduler {
   /**
    * Formato argentino (Primera División): 2 zonas de 15 equipos.
    * - Fase de zonas: 14 partidos intra-zona (todos contra todos, ida) + 2 interzonales.
-   *   Total: 16 partidos por equipo.
+   *   Total: 16 partidos por equipo (8 local, 8 visitante).
    * - Los 8 primeros de cada zona clasifican a playoffs (se generan dinámicamente).
    */
   static generateZonedLeagueFixtures(leagueId: string, clubs: Club[], startDate: Date, squadType: SquadType = 'SENIOR'): Fixture[] {
@@ -109,44 +115,108 @@ export class Scheduler {
     fixtures.push(...this.generateSingleRoundRobinWithBye(leagueId, zonaA, 1, startDate, squadType));
     fixtures.push(...this.generateSingleRoundRobinWithBye(leagueId, zonaB, 2, startDate, squadType));
 
-    // 2) Dos fechas interzonales (emparejando por ranking: aprox. los clásicos interzonales)
-    const intraWeeks = Math.max(zonaA.length, zonaB.length) + 1; // rondas intra (con bye) ya consumidas
+    // 2) Dos fechas interzonales (alternando localías: 1 local y 1 visitante por club)
+    const intraWeeks = Math.max(zonaA.length, zonaB.length) + (Math.max(zonaA.length, zonaB.length) % 2 === 1 ? 1 : 0);
+    const pairCount = Math.min(zonaA.length, zonaB.length);
     for (let inter = 0; inter < 2; inter++) {
       const roundDate = new Date(startDate);
       roundDate.setDate(roundDate.getDate() + (intraWeeks + inter) * 7);
-      for (let i = 0; i < Math.max(zonaA.length, zonaB.length); i++) {
-        const a = zonaA[i % zonaA.length];
+      for (let i = 0; i < pairCount; i++) {
+        const a = zonaA[i];
         const b = zonaB[(i + inter) % zonaB.length];
         if (!a || !b) continue;
-        fixtures.push({ id: generateUUID(), competitionId: leagueId, homeTeamId: a.id, awayTeamId: b.id, date: new Date(roundDate), played: false, squadType, stage: 'GROUP', groupId: inter === 0 ? 3 : 4 });
+        const swap = inter === 0 ? (i % 2 === 1) : (i % 2 === 0);
+        const home = swap ? b : a;
+        const away = swap ? a : b;
+        fixtures.push({ id: generateUUID(), competitionId: leagueId, homeTeamId: home.id, awayTeamId: away.id, date: new Date(roundDate), played: false, squadType, stage: 'GROUP', groupId: inter === 0 ? 3 : 4 });
       }
     }
 
     return fixtures.sort((a, b) => a.date.getTime() - b.date.getTime());
   }
 
-  static generateCupRound(competitionId: string, clubs: Club[], roundDate: Date, stage: MatchStage): Fixture[] {
+  static generateCupRound(
+    competitionId: string,
+    clubs: Club[],
+    roundDate: Date,
+    stage: MatchStage,
+    opts?: {
+      preserveOrder?: boolean;
+      lowerTierHome?: boolean;
+      allNeutral?: boolean;
+      isNeutralStage?: boolean;
+      twoLegged?: boolean;
+      tierByLeague?: Map<string, number>;
+    }
+  ): Fixture[] {
      const fixtures: Fixture[] = [];
-     const shuffled = [...clubs].sort(() => Math.random() - 0.5);
+     const ordered = opts?.preserveOrder ? [...clubs] : [...clubs].sort(() => Math.random() - 0.5);
      
      // Ensure Cup rounds are mid-week (Wednesday) to avoid conflict
      const safeDate = new Date(roundDate);
      while(safeDate.getDay() !== 3) {
         safeDate.setDate(safeDate.getDate() + 1);
      }
+     const leg2Date = new Date(safeDate);
+     leg2Date.setDate(leg2Date.getDate() + 7);
 
-     for (let i = 0; i < shuffled.length; i += 2) {
-        if (shuffled[i] && shuffled[i+1]) {
+     const neutral = Boolean(opts?.allNeutral || opts?.isNeutralStage || stage === 'FINAL' || competitionId === 'W_CLUB');
+
+     for (let i = 0; i < ordered.length; i += 2) {
+        const clubA = ordered[i];
+        const clubB = ordered[i + 1];
+        if (!clubA || !clubB) continue;
+
+        let home = clubA;
+        let away = clubB;
+        if (!neutral && opts?.lowerTierHome && opts.tierByLeague) {
+           const tierA = opts.tierByLeague.get(clubA.leagueId) ?? 1;
+           const tierB = opts.tierByLeague.get(clubB.leagueId) ?? 1;
+           if (tierB > tierA) {
+              home = clubB;
+              away = clubA;
+           }
+        }
+
+        if (opts?.twoLegged) {
+           const tieId = generateUUID();
            fixtures.push({
               id: generateUUID(),
               competitionId,
-              homeTeamId: shuffled[i].id,
-              awayTeamId: shuffled[i+1].id,
+              homeTeamId: home.id,
+              awayTeamId: away.id,
               date: new Date(safeDate),
               played: false,
               squadType: 'SENIOR',
-              stage: stage,
-              isNeutral: stage === 'FINAL' || competitionId === 'W_CLUB' // Club World Cup always neutral
+              stage,
+              isNeutral: false,
+              leg: 1,
+              tieId,
+           });
+           fixtures.push({
+              id: generateUUID(),
+              competitionId,
+              homeTeamId: away.id,
+              awayTeamId: home.id,
+              date: new Date(leg2Date),
+              played: false,
+              squadType: 'SENIOR',
+              stage,
+              isNeutral: false,
+              leg: 2,
+              tieId,
+           });
+        } else {
+           fixtures.push({
+              id: generateUUID(),
+              competitionId,
+              homeTeamId: home.id,
+              awayTeamId: away.id,
+              date: new Date(safeDate),
+              played: false,
+              squadType: 'SENIOR',
+              stage,
+              isNeutral: neutral,
            });
         }
      }

@@ -2,6 +2,7 @@ import { Player, Position, PlayerStats, Attribute } from '../types';
 import { generateUUID, randomInt } from './utils';
 import { NATIONS } from '../constants';
 import { REGEN_DB, NAMES_DB } from '../data/static';
+import { computeRealisticPlayerValue, computeRealisticPlayerSalary } from './economyCalibration';
 
 type DocPosition = 'POR' | 'DEF' | 'LAT' | 'PIV' | 'MC' | 'EXT' | 'DEL';
 type InternalAttr = keyof PlayerStats['internal'];
@@ -193,8 +194,8 @@ export function generatePlayer(
   const ca = Math.max(40, Math.min(200, overall + randomInt(-10, 10)));
   const pa = Math.min(200, ca + randomInt(0, 40));
   const birthDate = new Date(2008 - age, randomInt(0, 11), randomInt(1, 28));
-  const value = Math.round(ca * ca * 2000);
-  const salary = Math.round(ca * 2000 / 12);
+  const value = computeRealisticPlayerValue({ ca, pa, age, clubRep: 3500, leagueRep: 3500, country: nationality });
+  const salary = computeRealisticPlayerSalary({ ca, age, squad: 'SENIOR', clubRep: 3500, leagueRep: 3500, country: nationality });
 
   return {
     id: generateUUID(),
@@ -228,7 +229,7 @@ export function generatePlayer(
     leadership: randomInt(5, 20),
     consistency: randomInt(5, 20),
     bigMatchTemperament: randomInt(5, 20),
-    releaseClause: Math.round(value * 3),
+    releaseClause: Math.round(value * 2.2),
     yellowCardsAccumulated: 0,
     formRatings: [],
     tacticalFamiliarity: 50,

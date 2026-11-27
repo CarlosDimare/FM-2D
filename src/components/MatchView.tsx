@@ -12,6 +12,7 @@ import {
   syncEngineTacticsToFm2Settings,
 } from '../services/matchEngineBridge';
 import { getBenchSizeForCompetition, world } from '../services/worldManager';
+import { useGameStore } from '../stores/gameStore';
 import { useMatchStore } from '../stores/matchStore';
 import {
   Club,
@@ -172,7 +173,7 @@ export const MatchView: React.FC<MatchViewProps> = ({
   const maxSubs = 5;
   const isKnockout = Boolean(
     fixture &&
-      ['ROUND_OF_32', 'ROUND_OF_16', 'QUARTER_FINAL', 'SEMI_FINAL', 'FINAL'].includes(
+      ['ROUND_OF_64', 'ROUND_OF_32', 'ROUND_OF_16', 'QUARTER_FINAL', 'SEMI_FINAL', 'FINAL'].includes(
         fixture.stage
       )
   );
@@ -640,6 +641,26 @@ export const MatchView: React.FC<MatchViewProps> = ({
     soundEngine.setEnabled(false);
 
     const finalSnap = engineRef.current.getSnapshot();
+    let allowPenalties = isKnockout && fixture?.leg !== 1;
+    let forcePenalties = false;
+    if (isKnockout && fixture?.leg === 2) {
+      const leg1 = useGameStore.getState().fixtures.find(
+        (x) =>
+          x.leg === 1 &&
+          (fixture.tieId
+            ? x.tieId === fixture.tieId
+            : x.competitionId === fixture.competitionId &&
+              x.stage === fixture.stage &&
+              x.homeTeamId === fixture.awayTeamId &&
+              x.awayTeamId === fixture.homeTeamId)
+      );
+      if (leg1 && leg1.played) {
+        const aggHome = finalSnap.homeScore + (leg1.awayScore ?? 0);
+        const aggAway = finalSnap.awayScore + (leg1.homeScore ?? 0);
+        allowPenalties = false;
+        forcePenalties = aggHome === aggAway;
+      }
+    }
     const extracted = extractFm2ResultFromSnapshot(
       finalSnap,
       homeTeam.id,
@@ -649,7 +670,8 @@ export const MatchView: React.FC<MatchViewProps> = ({
         fixtureId: fixture?.id,
         competitionId: fixture?.competitionId,
         date: currentDate,
-        allowPenalties: isKnockout,
+        allowPenalties,
+        forcePenalties,
       }
     );
 
@@ -696,6 +718,11 @@ export const MatchView: React.FC<MatchViewProps> = ({
     finishedOnce,
     fixture?.competitionId,
     fixture?.id,
+    fixture?.leg,
+    fixture?.stage,
+    fixture?.tieId,
+    fixture?.awayTeamId,
+    fixture?.homeTeamId,
     homeTeam.id,
     isKnockout,
     onFinish,

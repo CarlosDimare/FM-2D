@@ -1141,7 +1141,11 @@ export function sendOffers(clubId: string, playerIds: string[], date: Date): num
   });
   // Validación acumulada: si el lote excede el presupuesto, no se envía nada.
   if (total > club.finances.transferBudget) return 0;
-  amounts.forEach(({ pid, amount }) => world.makeTransferOffer(pid, clubId, amount, 'PURCHASE', date, 100));
-  if (amounts.length > 0) notifyOffers();
-  return amounts.length;
+  let sent = 0;
+  amounts.forEach(({ pid, amount }) => {
+    const res = world.makeTransferOffer(pid, clubId, amount, 'PURCHASE', date, 100);
+    if (res?.ok) sent++;
+  });
+  if (sent > 0) notifyOffers();
+  return sent;
 }

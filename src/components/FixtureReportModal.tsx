@@ -33,6 +33,7 @@ type ReportTab = 'SUMMARY' | 'LINEUPS' | 'STATS';
 const STAGE_TITLES: Record<string, string> = {
   REGULAR: 'Fase Regular',
   GROUP: 'Fase de Grupos',
+  ROUND_OF_64: '32avos de Final',
   ROUND_OF_32: '16avos de Final',
   ROUND_OF_16: 'Octavos de Final',
   QUARTER_FINAL: 'Cuartos de Final',

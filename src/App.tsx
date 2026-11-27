@@ -21,6 +21,7 @@ import { ChronicleView } from './components/ChronicleView';
 import { ManagerProfileView } from './components/ManagerProfileView';
 import { HallOfFameView } from './components/HallOfFameView';
 import { SeasonHistoryView } from './components/SeasonHistoryView';
+import { MatchesScheduleView } from './components/MatchesScheduleView';
 import { InboxView } from './components/InboxView';
 import { MediaView } from './components/MediaView';
 import { TransferOfferModal } from './components/TransferOfferModal';
@@ -39,6 +40,7 @@ import {
   getClubHexPalette,
 } from './components/ClubBannerChrome';
 import { LeagueLogoBadge, NationalJerseyIcon } from './components/LeagueAndKitIcons';
+import { DOMESTIC_CUP_IDS } from './services/domesticCupFormats';
 
 function lazyWithReload(importFn: () => Promise<any>) {
   return lazy(() => importFn().catch(err => {
@@ -106,7 +108,6 @@ const AttrBar: React.FC<{ label: string; value: number; color: string }> = ({ la
 
 const App: React.FC = () => {
   const [showOnboarding, setShowOnboarding] = React.useState(false);
-  const [scheduleCompFilter, setScheduleCompFilter] = React.useState('ALL');
   const [lastMatchStats, setLastMatchStats] = React.useState<Record<string, PlayerMatchStats>>({});
   const [lastChronicle, setLastChronicle] = React.useState<Chronicle | null>(null);
   const [isSackedModalOpen, setIsSackedModalOpen] = React.useState(false);
@@ -121,6 +122,7 @@ const App: React.FC = () => {
   const [expandedContinents, setExpandedContinents] = React.useState<Record<string, boolean>>({
     'América del Sur': true,
   });
+  const [viewCupId, setViewCupId] = React.useState<string>('');
   const importFileInputRef = React.useRef<HTMLInputElement | null>(null);
 
   React.useEffect(() => {
@@ -1650,6 +1652,7 @@ const startVacation = async (targetOverride?: Date) => {
                 <div className="flex-1 space-y-1 overflow-y-auto">
                   {world.competitions.filter(c => {
                     if (c.id === userClub.leagueId) return true;
+                    if (c.type === 'CUP' && c.country === userClub.country) return true;
                     if (c.type !== 'LEAGUE') return fixtures.some(f => f.competitionId === c.id && (f.homeTeamId === userClub.id || f.awayTeamId === userClub.id));
                     return false;
                   }).map(comp => {
@@ -1658,12 +1661,29 @@ const startVacation = async (targetOverride?: Date) => {
                       const table = world.getLeagueTable(comp.id, fixtures, 'SENIOR');
                       const rank = table.findIndex(e => e.clubId === userClub.id) + 1;
                       statusText = rank > 0 ? `${rank}º` : '-';
-                    } else statusText = "En curso";
+                    } else {
+                      const userInDraw = fixtures.some(f => f.competitionId === comp.id && (f.homeTeamId === userClub.id || f.awayTeamId === userClub.id));
+                      const hasFinal = fixtures.some(f => f.competitionId === comp.id && f.stage === 'FINAL' && f.played);
+                      statusText = hasFinal ? 'Finalizada' : userInDraw ? 'En curso' : 'Espera ronda';
+                    }
                     return (
-                      <div key={comp.id} className="flex justify-between items-center gap-2 p-1.5 bg-slate-300/50 rounded-sm border-l-2 border-[#3a4a3a]">
-                        <span className="text-[10px] font-black text-slate-800 uppercase leading-snug break-words flex-1 min-w-0">{comp.name}</span>
+                      <button
+                        key={comp.id}
+                        type="button"
+                        onClick={() => {
+                          if (comp.type === 'LEAGUE') {
+                            setViewLeagueId(comp.id);
+                            setView('TABLE');
+                          } else {
+                            setViewCupId(comp.id);
+                            setView(`COMP_${comp.id}`);
+                          }
+                        }}
+                        className="w-full flex justify-between items-center gap-2 p-1.5 bg-slate-300/50 hover:bg-[#ccd7cc] rounded-sm border-l-2 border-[#3a4a3a] transition-colors cursor-pointer text-left"
+                      >
+                        <span className="text-[10px] font-black text-slate-800 uppercase leading-snug break-words flex-1 min-w-0 hover:underline">{comp.name}</span>
                         <span className="text-[10px] font-bold text-slate-950 uppercase shrink-0 font-mono tabular-nums">{statusText}</span>
-                      </div>
+                      </button>
                     );
                   })}
                 </div>
@@ -1755,6 +1775,35 @@ const startVacation = async (targetOverride?: Date) => {
             />
           </div>
         );
+      case 'CUPS': {
+        const domesticCups = DOMESTIC_CUP_IDS
+          .map(id => world.competitions.find(c => c.id === id))
+          .filter((c): c is NonNullable<typeof c> => Boolean(c));
+        const continentalCups = world.competitions.filter(
+          c =>
+            (c.type.startsWith('CONTINENTAL') || c.type === 'GLOBAL') &&
+            c.id !== 'WC_Q' &&
+            fixtures.some(f => f.competitionId === c.id)
+        );
+        const orderedDomestic = [
+          ...domesticCups.filter(c => c.country === userClub.country),
+          ...domesticCups.filter(c => c.country !== userClub.country),
+        ];
+        const allCups = [...orderedDomestic, ...continentalCups];
+        const activeCup =
+          allCups.find(c => c.id === viewCupId) ||
+          orderedDomestic[0] ||
+          allCups[0];
+        return activeCup ? (
+          <TournamentHub
+            competition={activeCup}
+            fixtures={fixtures}
+            userClubId={userClub.id}
+            allCups={allCups}
+            onSelectCompetition={setViewCupId}
+          />
+        ) : null;
+      }
       case 'MARKET':
         return <MarketView userClubId={userClub.id} onSelectPlayer={setSelectedPlayer} currentDate={currentDate} />;
       case 'SEARCH':
@@ -2073,55 +2122,44 @@ const startVacation = async (targetOverride?: Date) => {
         }
         if (currentView.endsWith('_SCHEDULE')) {
           const type = currentView.split('_')[0] as SquadType;
-          const squadFixtures = fixtures.filter(f => (f.homeTeamId === userClub.id || f.awayTeamId === userClub.id) && f.squadType === type);
-          const compIds = [...new Set(squadFixtures.map(f => f.competitionId))].sort();
-          const activeCompFilter = scheduleCompFilter !== 'ALL' && compIds.includes(scheduleCompFilter) ? scheduleCompFilter : 'ALL';
-          const filteredFixtures = activeCompFilter === 'ALL' ? squadFixtures : squadFixtures.filter(f => f.competitionId === activeCompFilter);
           return (
-            <div className="p-4 h-full flex flex-col">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-4">
-                <h2 className="text-xl font-black text-slate-950 uppercase tracking-tighter border-b border-slate-500 pb-2 italic">Calendario - {type}</h2>
-                <select
-                  value={activeCompFilter}
-                  onChange={(e) => setScheduleCompFilter(e.target.value)}
-                  className="bg-slate-100 border border-slate-500 rounded-sm px-3 py-1.5 text-[10px] font-black uppercase text-slate-800 outline-none focus:border-slate-800 max-w-[240px]"
-                >
-                  <option value="ALL">Todas las competiciones</option>
-                  {compIds.map(cid => {
-                    const comp = world.competitions.find(c => c.id === cid);
-                    return <option key={cid} value={cid}>{comp?.name || cid}</option>;
-                  })}
-                </select>
-              </div>
-              <div className="bg-slate-200 rounded-sm border border-slate-500 overflow-y-auto shadow-md flex-1 p-2">
-                {filteredFixtures.length === 0 && (
-                  <div className="p-10 text-center text-slate-500 italic uppercase font-bold tracking-widest text-[10px]">Sin partidos para esta competición</div>
-                )}
-                {filteredFixtures.map(f => {
-                  const home = world.getClub(f.homeTeamId); const away = world.getClub(f.awayTeamId);
-                  const isPenalty = f.penaltyHome !== undefined;
-                  const comp = world.competitions.find(c => c.id === f.competitionId);
-                  return (
-                    <div key={f.id} className="flex flex-col p-2 border-b border-slate-400 hover:bg-slate-300">
-                      <div className="flex items-center text-[11px]">
-                        <div className="w-20 text-slate-700 font-mono font-bold">{f.date.toLocaleDateString()}</div>
-                        <div className="flex-1 text-right font-black text-slate-900 pr-2 uppercase">{home?.name}</div>
-                        <div className={`w-20 text-center font-black bg-slate-300 rounded px-1 border border-slate-500 ${f.played ? 'text-slate-950' : 'text-slate-500'}`}>
-                          {f.played ? (isPenalty ? `${f.homeScore}-${f.awayScore} (p)` : `${f.homeScore}-${f.awayScore}`) : 'v'}
-                        </div>
-                        <div className="flex-1 text-left font-black text-slate-900 pl-2 uppercase">{away?.name}</div>
-                      </div>
-                      <div className="ml-20 text-[9px] font-black uppercase text-slate-500 italic tracking-widest mt-1">{comp?.name || 'Amistoso'}</div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
+            <MatchesScheduleView
+              userClub={userClub}
+              squadType={type}
+              onSquadChange={(newType) => setView(`${newType}_SCHEDULE`)}
+              fixtures={fixtures}
+              currentDate={currentDate}
+            />
           );
         }
         if (currentView.startsWith('COMP_')) {
           const competition = world.competitions.find(c => c.id === currentView.replace('COMP_', ''));
-          return competition ? <TournamentHub competition={competition} fixtures={fixtures} userClubId={userClub.id} /> : null;
+          const domesticCups = DOMESTIC_CUP_IDS
+            .map(id => world.competitions.find(c => c.id === id))
+            .filter((c): c is NonNullable<typeof c> => Boolean(c));
+          const continentalCups = world.competitions.filter(
+            c =>
+              (c.type.startsWith('CONTINENTAL') || c.type === 'GLOBAL') &&
+              c.id !== 'WC_Q' &&
+              fixtures.some(f => f.competitionId === c.id)
+          );
+          const allCups = [
+            ...domesticCups.filter(c => c.country === userClub.country),
+            ...domesticCups.filter(c => c.country !== userClub.country),
+            ...continentalCups,
+          ];
+          return competition ? (
+            <TournamentHub
+              competition={competition}
+              fixtures={fixtures}
+              userClubId={userClub.id}
+              allCups={allCups}
+              onSelectCompetition={(id) => {
+                setViewCupId(id);
+                setView(`COMP_${id}`);
+              }}
+            />
+          ) : null;
         }
         return null;
     }
@@ -2756,9 +2794,11 @@ const startVacation = async (targetOverride?: Date) => {
       };
     }
 
-    if (currentView === 'TABLE' || currentView.startsWith('COMP_')) {
+    if (currentView === 'TABLE' || currentView === 'CUPS' || currentView.startsWith('COMP_')) {
       const targetCompId = currentView.startsWith('COMP_')
         ? currentView.replace('COMP_', '')
+        : currentView === 'CUPS'
+        ? (viewCupId || world.competitions.find(c => c.type === 'CUP' && c.country === userClub?.country)?.id || 'C_ARG')
         : (viewLeagueId || userClub?.leagueId);
       const comp = world.competitions.find(c => c.id === targetCompId);
       if (comp) {
@@ -2766,7 +2806,7 @@ const startVacation = async (targetOverride?: Date) => {
           club: getCompetitionPalette(comp),
           title: comp.name,
           shortCode: comp.country || comp.confederation || 'LIGA',
-          subtitle: `${comp.country || comp.confederation || 'Internacional'} · ${comp.type === 'CUP' ? 'Copa' : `División ${comp.tier || 1}`}`,
+          subtitle: `${comp.country || comp.confederation || 'Internacional'} · ${comp.type === 'CUP' ? 'Copa Nacional' : `División ${comp.tier || 1}`}`,
           showShield: true,
         };
       }
@@ -3260,7 +3300,7 @@ const startVacation = async (targetOverride?: Date) => {
             <p className="text-sm font-black text-red-700 uppercase">La directiva de {sackedClubName} te ha despedido.</p>
             <p className="text-xs font-bold text-slate-600">Tu contrato ha sido rescindido por los malos resultados.</p>
             <div className="flex gap-2 justify-center">
-              <FMButton variant="primary" onClick={() => { setIsSackedModalOpen(false); setGameState('SETUP_USER'); useGameStore.getState().resetForNewCareer(); }} className="px-6">Nueva carrera</FMButton>
+              <FMButton variant="primary" onClick={() => { setIsSackedModalOpen(false); setCurrentDate(new Date(2025, 6, 20)); setSeasonEndDate(new Date(2026, 6, 10)); setGameState('SETUP_USER'); useGameStore.getState().resetForNewCareer(); }} className="px-6">Nueva carrera</FMButton>
               <FMButton variant="secondary" onClick={() => setIsSackedModalOpen(false)} className="px-6">Cerrar</FMButton>
             </div>
           </div>

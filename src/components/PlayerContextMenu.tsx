@@ -31,7 +31,7 @@ export const PlayerContextMenu: React.FC<PlayerContextMenuProps> = ({ player, x,
   };
 
   const setStatus = (status: 'NONE' | 'TRANSFERABLE' | 'LOANABLE') => {
-    player.transferStatus = status;
+    world.setPlayerTransferStatus(player.id, status);
   };
 
   return (

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Home, Users, Clipboard, Play, MoreHorizontal, Trophy, ShoppingBag, Wallet, Briefcase, Dumbbell, Binoculars, Award, RefreshCw, Zap, SkipForward, BookMarked, Sun, Newspaper, TrendingUp, Save } from 'lucide-react';
+import { Home, Users, Clipboard, Play, MoreHorizontal, Trophy, ShoppingBag, Wallet, Briefcase, Dumbbell, Binoculars, Award, RefreshCw, Zap, SkipForward, BookMarked, Sun, Newspaper, TrendingUp, Save, Calendar, Medal } from 'lucide-react';
 import { useUIStore } from '../stores/uiStore';
 import { PWAInstallButton } from './PWAControls';
 
@@ -12,6 +12,7 @@ const tabs = [
 ];
 
 const moreItems = [
+  { id: 'SENIOR_SCHEDULE', label: 'Partidos', icon: Calendar },
   { id: 'TABLE', label: 'Clasificación', icon: Trophy },
   { id: 'LEAGUE_RANKING', label: 'Ranking Ligas', icon: TrendingUp },
   { id: 'MEDIA', label: 'Prensa', icon: Newspaper },
@@ -133,7 +134,7 @@ const nationalTabs = [
                 { id: '__SAVE__', label: 'Guardar', icon: Save },
               ] : moreItems).map(item => {
                 const Icon = item.icon;
-                const active = currentView === item.id;
+                const active = currentView === item.id || (item.id === 'CUPS' && currentView.startsWith('COMP_'));
                 const isSaveItem = item.id === '__SAVE__';
                 return (
                   <button

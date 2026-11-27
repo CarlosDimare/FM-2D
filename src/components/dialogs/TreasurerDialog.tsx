@@ -4,6 +4,7 @@ import { notifyClubs, useWorldStore } from '../../stores/worldStore';
 import { useGameStore } from '../../stores/gameStore';
 import { useDialogueStore } from '../../stores/dialogueStore';
 import { getTreasurer } from '../../services/staffAdviceService';
+import { computeClubFinancialProjection } from '../../services/economyCalibration';
 import { CharacterDialog } from './CharacterDialog';
 import { SpeechBubble } from './SpeechBubble';
 import { FMButton } from '../FMUI';
@@ -36,24 +37,19 @@ export const TreasurerDialog: React.FC = () => {
 
   const players = world.getPlayersByClub(club.id);
   const staffList = world.getStaffByClub(club.id);
-  const currentSalaries =
-    players.reduce((s, p) => s + p.salary, 0) +
-    staffList.reduce((s, st) => s + st.salary, 0);
-
-  const sponsorships = Math.round(club.reputation * 80);
-  const seasonTicket = Math.round(club.stadiumCapacity * 0.35 * 12 * 0.45);
-  const merchandising = Math.round(club.reputation * 25);
-  const totalMonthlyIncome = club.finances.monthlyIncome + sponsorships + seasonTicket + merchandising;
-  const operational = club.reputation * 10;
-  const totalMonthlyExpense = currentSalaries + operational;
-  const netMonthly = totalMonthlyIncome - totalMonthlyExpense;
+  const proj = computeClubFinancialProjection(club, players, staffList);
+  const currentSalaries = proj.totalSalaries;
+  const totalMonthlyIncome = proj.totalMonthlyIncome;
+  const totalMonthlyExpense = proj.totalMonthlyExpenses;
+  const netMonthly = proj.netMonthly;
   const projected6m = club.finances.balance + netMonthly * 6;
   const wagePct = club.finances.wageBudget > 0 ? (currentSalaries / club.finances.wageBudget) * 100 : 100;
 
   const highestPaid = [...players].sort((a, b) => b.salary - a.salary).slice(0, 3);
+  const lowBalance = club.finances.balance < Math.max(150_000, club.reputation * 120);
 
   const mainAdvice =
-    club.finances.balance < 1_000_000
+    lowBalance
       ? `Señor, la caja está ajustada (${fmt(club.finances.balance)}). Te recomiendo frenar fichajes caros, vender jugadores sin minutos y cuidar la masa salarial (${wagePct.toFixed(0)}%).`
       : wagePct > 95
       ? `Señor, estamos al límite del presupuesto salarial (${wagePct.toFixed(0)}%). Podemos mover parte del presupuesto de fichajes hacia sueldos para evitar sanciones o renovaciones fallidas.`
@@ -67,11 +63,12 @@ export const TreasurerDialog: React.FC = () => {
       setReply('No queda suficiente presupuesto de fichajes para transferir hacia salarios.');
       return;
     }
+    const wageGain = Math.max(500, Math.round(move / 12));
     club.finances.transferBudget -= move;
-    club.finances.wageBudget += Math.round(move / 12);
+    club.finances.wageBudget += wageGain;
     notifyClubs();
-    world.addInboxMessage('FINANCE', 'Ajuste presupuestario del Tesorero', `${staffName} reasignó ${fmt(move)} del presupuesto de fichajes al margen salarial (+${fmt(Math.round(move / 12))}/mes).`, currentDate, treasurer?.id);
-    setReply(`Listo, Señor. Reasigné ${fmt(move)} de fichajes hacia salarios (+${fmt(Math.round(move / 12))}/mes de margen).`);
+    world.addInboxMessage('FINANCE', 'Ajuste presupuestario del Tesorero', `${staffName} reasignó ${fmt(move)} del presupuesto de fichajes al margen salarial (+${fmt(wageGain)}/mes).`, currentDate, treasurer?.id);
+    setReply(`Listo, Señor. Reasigné ${fmt(move)} de fichajes hacia salarios (+${fmt(wageGain)}/mes de margen).`);
   };
 
   const handleWagesToTransfer = () => {
@@ -81,7 +78,7 @@ export const TreasurerDialog: React.FC = () => {
       return;
     }
     const monthlyShift = Math.round(surplus * 0.5);
-    const transferGain = monthlyShift * 10;
+    const transferGain = monthlyShift * 12;
     club.finances.wageBudget -= monthlyShift;
     club.finances.transferBudget += transferGain;
     notifyClubs();

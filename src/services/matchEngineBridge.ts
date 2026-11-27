@@ -1011,6 +1011,7 @@ export function extractFm2ResultFromSnapshot(
     competitionId?: string;
     date?: Date;
     allowPenalties?: boolean;
+    forcePenalties?: boolean;
   }
 ): Fm2EngineMatchResult {
   const allPlayers = [...snapshot.homePlayers, ...snapshot.awayPlayers];
@@ -1059,7 +1060,7 @@ export function extractFm2ResultFromSnapshot(
 
   let penaltyHome: number | undefined;
   let penaltyAway: number | undefined;
-  if (options?.allowPenalties && snapshot.homeScore === snapshot.awayScore) {
+  if (options?.forcePenalties || (options?.allowPenalties && snapshot.homeScore === snapshot.awayScore)) {
     const pens = simulatePenaltyShootout(snapshot.homePlayers, snapshot.awayPlayers);
     penaltyHome = pens.penaltyHome;
     penaltyAway = pens.penaltyAway;

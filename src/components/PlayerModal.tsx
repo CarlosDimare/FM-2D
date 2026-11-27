@@ -5,7 +5,7 @@ import { world } from '../services/worldManager';
 import { ProfileNarrativeEngine } from '../services/engine';
 import { TransferOfferModal } from './TransferOfferModal';
 import { ContractNegotiationModal } from './ContractNegotiationModal';
-import { X, MessageSquare, Activity, Map, FileText, History, Minus, ShieldAlert, ArrowRightLeft, UserX, UserPlus, Users, AlertCircle, Info, Award, ShieldAlert as DisciplineIcon, Shield, User, Star, ChevronLeft, ChevronRight, Cake, Ruler, Weight, UserCircle, FolderPlus, FolderMinus } from 'lucide-react';
+import { X, MessageSquare, Activity, Map, FileText, History, Minus, ShieldAlert, ArrowRightLeft, UserX, UserPlus, Users, AlertCircle, Info, Award, ShieldAlert as DisciplineIcon, Shield, User, Star, ChevronLeft, ChevronRight, Cake, Ruler, Weight, UserCircle, FolderPlus, FolderMinus, DollarSign, ShieldCheck, HandCoins } from 'lucide-react';
 import { FMTable, FMTableCell, FMButton, FMBox } from './FMUI';
 import { getFlagUrl } from '../data/static';
 import { confirmAction, showToast } from '../stores/feedbackStore';
@@ -153,6 +153,8 @@ export const PlayerModal: React.FC<PlayerModalProps> = ({ player, onClose, userC
   const [activeTab, setActiveTab] = useState<'PROFILE' | 'PERSONAL' | 'POSITIONS' | 'HISTORY' | 'CONTRACT' | 'INTERACTION'>('PROFILE');
   const [expandedVisible, setExpandedVisible] = useState<string | null>(null);
   const [showRenewalModal, setShowRenewalModal] = useState(false);
+  const [showOfferModal, setShowOfferModal] = useState(false);
+  const [showFreeAgentModal, setShowFreeAgentModal] = useState(false);
   
   const { comparePlayerA, setComparePlayerA, setComparePlayerB } = useUIStore();
   useWorldStore(s => s._tick);
@@ -160,6 +162,8 @@ export const PlayerModal: React.FC<PlayerModalProps> = ({ player, onClose, userC
   useEffect(() => {
     setExpandedVisible(null);
     setShowRenewalModal(false);
+    setShowOfferModal(false);
+    setShowFreeAgentModal(false);
   }, [player?.id]);
 
   if (!player) return null;
@@ -481,8 +485,36 @@ export const PlayerModal: React.FC<PlayerModalProps> = ({ player, onClose, userC
                 world.ensurePlayerPastHistory(player);
                 const sortedHistory = [...(player.history || [])].sort((a, b) => b.year - a.year);
                 const clubsPlayed = player.careerStats?.clubsPlayedFor || [];
+                const currentSeasonStats = (() => {
+                  let apps = 0, goals = 0, assists = 0, cleanSheets = 0, totalRatingSum = 0, ratingCount = 0;
+                  Object.values(player.statsByCompetition || {}).forEach((st: any) => {
+                    apps += st.appearances || 0;
+                    goals += st.goals || 0;
+                    assists += st.assists || 0;
+                    cleanSheets += st.cleanSheets || 0;
+                    if (st.appearances > 0 && st.totalRating) {
+                      totalRatingSum += st.totalRating;
+                      ratingCount += st.appearances;
+                    }
+                  });
+                  const avgRating = ratingCount > 0 ? (totalRatingSum / ratingCount).toFixed(2) : '—';
+                  return { apps, goals, assists, cleanSheets, avgRating };
+                })();
+
                 return (
-                <div className="h-full overflow-hidden p-1.5 flex flex-col gap-1.5">
+                <div className="h-full overflow-hidden p-1.5 flex flex-col gap-1.5 custom-scroll">
+                   <FMBox title="Temporada Actual (2025/2026)" className="shrink-0" noPadding>
+                     <div className="p-2 bg-white">
+                       <div className="grid grid-cols-5 gap-1 text-center text-[9.5px]">
+                         <div className="bg-emerald-50 border border-emerald-200 rounded-sm py-1"><span className="font-black text-slate-900 block font-mono">{currentSeasonStats.apps}</span><span className="text-[7.5px] font-bold uppercase text-slate-500">Partidos</span></div>
+                         <div className="bg-emerald-50 border border-emerald-200 rounded-sm py-1"><span className="font-black text-green-700 block font-mono">{currentSeasonStats.goals}</span><span className="text-[7.5px] font-bold uppercase text-slate-500">Goles</span></div>
+                         <div className="bg-emerald-50 border border-emerald-200 rounded-sm py-1"><span className="font-black text-blue-700 block font-mono">{currentSeasonStats.assists}</span><span className="text-[7.5px] font-bold uppercase text-slate-500">Asist.</span></div>
+                         <div className="bg-emerald-50 border border-emerald-200 rounded-sm py-1"><span className="font-black text-slate-900 block font-mono">{currentSeasonStats.cleanSheets}</span><span className="text-[7.5px] font-bold uppercase text-slate-500">Vallas</span></div>
+                         <div className="bg-emerald-50 border border-emerald-200 rounded-sm py-1"><span className="font-black text-amber-700 block font-mono">{currentSeasonStats.avgRating}</span><span className="text-[7.5px] font-bold uppercase text-slate-500">Nota</span></div>
+                       </div>
+                     </div>
+                   </FMBox>
+
                    {player.careerStats && (player.careerStats.totalApps > 0 || clubsPlayed.length > 0) && (
                      <FMBox title="Resumen de Carrera" className="shrink-0" noPadding>
                        <div className="p-2 bg-white">
@@ -555,31 +587,106 @@ export const PlayerModal: React.FC<PlayerModalProps> = ({ player, onClose, userC
              })()}
 
              {activeTab === 'CONTRACT' && (
-                <div className="max-w-2xl mx-auto space-y-4 md:space-y-6 pt-4 w-full overflow-y-auto px-2">
+                <div className="max-w-2xl mx-auto space-y-4 md:space-y-5 pt-3 pb-4 w-full overflow-y-auto px-2">
                    <FMBox title="Detalles del Contrato">
                       <div className="p-3 md:p-4 bg-white space-y-3 md:space-y-4">
                          <div className="flex justify-between border-b pb-2"><span className="text-[10px] font-black text-slate-400 uppercase">Valor estimado</span><span className="text-lg md:text-xl font-black text-slate-900">£{player.value.toLocaleString()}</span></div>
-                         <div className="flex justify-between border-b pb-2"><span className="text-[10px] font-black text-slate-400 uppercase">Sueldo mensual</span><span className="text-lg md:text-xl font-black text-blue-900">£{player.salary.toLocaleString()}</span></div>
-                         <div className="flex justify-between border-b pb-2"><span className="text-[10px] font-black text-slate-400 uppercase">Vencimiento</span><span className="text-sm font-bold text-slate-700">{player.contractExpiry.toLocaleDateString()}</span></div>
-                         <div className="flex justify-between border-b pb-2"><span className="text-[10px] font-black text-slate-400 uppercase">Estado Transferencia</span><span className="text-xs font-black text-orange-600 uppercase">{player.transferStatus === 'TRANSFERABLE' ? 'Transferible' : player.transferStatus === 'LOANABLE' ? 'Cedible' : 'Indiscutible'}</span></div>
+                         <div className="flex justify-between border-b pb-2"><span className="text-[10px] font-black text-slate-400 uppercase">Sueldo mensual</span><span className="text-lg md:text-xl font-black text-blue-900">£{player.salary.toLocaleString()}/mes</span></div>
+                         {player.releaseClause && player.clubId !== 'FREE_AGENT' && (
+                           <div className="flex justify-between border-b pb-2"><span className="text-[10px] font-black text-slate-400 uppercase">Cláusula de rescisión</span><span className="text-sm font-bold text-slate-700">£{player.releaseClause.toLocaleString()}</span></div>
+                         )}
+                         <div className="flex justify-between border-b pb-2"><span className="text-[10px] font-black text-slate-400 uppercase">Vencimiento</span><span className="text-sm font-bold text-slate-700">{player.clubId === 'FREE_AGENT' ? 'Agente libre' : player.contractExpiry.toLocaleDateString()}</span></div>
+                         <div className="flex justify-between pb-1"><span className="text-[10px] font-black text-slate-400 uppercase">Estado Transferencia</span><span className={`text-xs font-black uppercase ${player.transferStatus === 'TRANSFERABLE' ? 'text-orange-600' : player.transferStatus === 'LOANABLE' ? 'text-blue-700' : 'text-slate-600'}`}>{player.transferStatus === 'TRANSFERABLE' ? 'Transferible' : player.transferStatus === 'LOANABLE' ? 'Cedible' : 'En el plantel'}</span></div>
                       </div>
                    </FMBox>
                    {isUserPlayer && (
-                      <div className="grid grid-cols-2 gap-2">
-                         <FMButton variant="primary" onClick={() => setShowRenewalModal(true)}>Renovar Contrato</FMButton>
-                         <FMButton variant="danger" onClick={handleRescind}>Rescindir</FMButton>
-                      </div>
+                      <>
+                        <FMBox title="Situación en el Mercado">
+                          <div className="p-3 bg-white space-y-2.5">
+                            <p className="text-[10px] font-bold text-slate-600">
+                              Declararlo transferible o cedible activa el interés de otros clubes en el mercado según su nivel y salario.
+                            </p>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                              <FMButton
+                                variant={player.transferStatus === 'TRANSFERABLE' ? 'secondary' : 'primary'}
+                                onClick={() => {
+                                  const nextStatus = player.transferStatus === 'TRANSFERABLE' ? 'NONE' : 'TRANSFERABLE';
+                                  world.setPlayerTransferStatus(player.id, nextStatus);
+                                  notifyAll();
+                                  showToast(
+                                    nextStatus === 'TRANSFERABLE'
+                                      ? `${player.name} fue declarado transferible.`
+                                      : `${player.name} salió de la lista de transferibles.`,
+                                    'info'
+                                  );
+                                }}
+                              >
+                                <DollarSign size={12} />
+                                {player.transferStatus === 'TRANSFERABLE' ? 'Quitar de Transferibles' : 'Declarar Transferible'}
+                              </FMButton>
+                              <FMButton
+                                variant={player.transferStatus === 'LOANABLE' ? 'secondary' : 'primary'}
+                                onClick={() => {
+                                  const nextStatus = player.transferStatus === 'LOANABLE' ? 'NONE' : 'LOANABLE';
+                                  world.setPlayerTransferStatus(player.id, nextStatus);
+                                  notifyAll();
+                                  showToast(
+                                    nextStatus === 'LOANABLE'
+                                      ? `${player.name} fue declarado cedible.`
+                                      : `${player.name} salió de la lista de cedibles.`,
+                                    'info'
+                                  );
+                                }}
+                              >
+                                <ShieldCheck size={12} />
+                                {player.transferStatus === 'LOANABLE' ? 'Quitar de Cedibles' : 'Declarar Cedible'}
+                              </FMButton>
+                            </div>
+                          </div>
+                        </FMBox>
+                        <div className="grid grid-cols-2 gap-2">
+                           <FMButton variant="primary" onClick={() => setShowRenewalModal(true)}>Renovar Contrato</FMButton>
+                           <FMButton variant="danger" onClick={handleRescind}>Rescindir</FMButton>
+                        </div>
+                      </>
                    )}
                    {!isUserPlayer && userClubId && (
-                      <FMBox title="Carpeta de refuerzos">
-                         <div className="p-3 bg-white">
-                            <p className="text-[10px] font-bold text-slate-600 mb-2">¿Quieres que la directiva evalúe su fichaje? Pónelo en la carpeta y el director deportivo lo estudiará junto a sus candidatos.</p>
-                            <FMButton variant={isInFolder ? 'secondary' : 'primary'} onClick={handlePonerEnCarpeta} className="w-full py-2 text-[10px]">
-                               {isInFolder ? <FolderMinus size={12} /> : <FolderPlus size={12} />}
-                               {isInFolder ? 'Quitar de la carpeta' : 'Poner en carpeta'}
-                            </FMButton>
-                         </div>
-                      </FMBox>
+                      <>
+                        <FMBox title="Negociación de Fichaje">
+                          <div className="p-3 bg-white space-y-2">
+                            {player.clubId === 'FREE_AGENT' ? (
+                              <>
+                                <p className="text-[10px] font-bold text-slate-600">
+                                  Es jugador libre: puedes negociar directamente su contrato personal sin pagar traspaso.
+                                </p>
+                                <FMButton variant="primary" onClick={() => setShowFreeAgentModal(true)} className="w-full py-2 text-[10px]">
+                                  <UserPlus size={13} /> Negociar Contrato (Agente Libre)
+                                </FMButton>
+                              </>
+                            ) : (
+                              <>
+                                <p className="text-[10px] font-bold text-slate-600">
+                                  Envía una propuesta formal de traspaso o cesión al club propietario.
+                                </p>
+                                <FMButton variant="primary" onClick={() => setShowOfferModal(true)} className="w-full py-2 text-[10px]">
+                                  <HandCoins size={13} /> Realizar Oferta de Fichaje / Cesión
+                                </FMButton>
+                              </>
+                            )}
+                          </div>
+                        </FMBox>
+                        {player.clubId !== 'FREE_AGENT' && (
+                          <FMBox title="Carpeta de refuerzos">
+                             <div className="p-3 bg-white">
+                                <p className="text-[10px] font-bold text-slate-600 mb-2">¿Quieres que la directiva evalúe su fichaje? Pónelo en la carpeta y el director deportivo lo estudiará junto a sus candidatos.</p>
+                                <FMButton variant={isInFolder ? 'secondary' : 'primary'} onClick={handlePonerEnCarpeta} className="w-full py-2 text-[10px]">
+                                   {isInFolder ? <FolderMinus size={12} /> : <FolderPlus size={12} />}
+                                   {isInFolder ? 'Quitar de la carpeta' : 'Poner en carpeta'}
+                                </FMButton>
+                             </div>
+                          </FMBox>
+                        )}
+                      </>
                    )}
                 </div>
              )}
@@ -596,15 +703,41 @@ export const PlayerModal: React.FC<PlayerModalProps> = ({ player, onClose, userC
           </div>
         </div>
       </div>
-      {showRenewalModal && (
+      {showRenewalModal && userClubId && (
         <ContractNegotiationModal
           player={player}
           userClubId={userClubId}
           currentDate={currentDate}
+          mode="RENEWAL"
           onClose={() => setShowRenewalModal(false)}
           onRenewed={() => {
             markContractPromiseFulfilled(player, currentDate);
             setShowRenewalModal(false);
+          }}
+        />
+      )}
+      {showFreeAgentModal && userClubId && (
+        <ContractNegotiationModal
+          player={player}
+          userClubId={userClubId}
+          currentDate={currentDate}
+          mode="FREE_AGENT"
+          onClose={() => setShowFreeAgentModal(false)}
+          onRenewed={() => {
+            showToast(`¡${player.name} firmó contrato con tu club!`, 'success');
+            setShowFreeAgentModal(false);
+            notifyAll();
+          }}
+        />
+      )}
+      {showOfferModal && userClubId && (
+        <TransferOfferModal
+          player={player}
+          userClubId={userClubId}
+          currentDate={currentDate}
+          onClose={() => setShowOfferModal(false)}
+          onOfferMade={() => {
+            notifyAll();
           }}
         />
       )}

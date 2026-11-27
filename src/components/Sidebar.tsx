@@ -15,6 +15,8 @@ import {
   Newspaper,
   TrendingUp,
   Save,
+  Calendar,
+  Medal,
 } from 'lucide-react';
 import { Club } from '../types';
 import { PWAInstallButton } from './PWAControls';
@@ -32,6 +34,7 @@ const primaryClubItems = [
   { id: 'HOME', label: 'Inicio', icon: Home },
   { id: 'SENIOR_SQUAD', label: 'Plantilla', icon: Users },
   { id: 'SENIOR_TACTICS', label: 'Táctica', icon: Clipboard },
+  { id: 'SENIOR_SCHEDULE', label: 'Partidos', icon: Calendar },
 ];
 
 const clubMoreItems = [
@@ -63,6 +66,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     if (id === currentView) return true;
     if (id === 'SENIOR_SQUAD' && currentView.endsWith('_SQUAD')) return true;
     if (id === 'SENIOR_TACTICS' && currentView.endsWith('_TACTICS')) return true;
+    if (id === 'SENIOR_SCHEDULE' && currentView.endsWith('_SCHEDULE')) return true;
     return false;
   };
 
@@ -118,7 +122,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   key={item.id}
                   label={item.label}
                   icon={item.icon}
-                  active={currentView === item.id}
+                  active={currentView === item.id || (item.id === 'CUPS' && currentView.startsWith('COMP_'))}
                   onClick={() => setView(item.id)}
                 />
               ))}

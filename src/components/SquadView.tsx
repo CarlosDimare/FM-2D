@@ -74,6 +74,12 @@ export const SquadView: React.FC<SquadViewProps> = ({ players, onSelectPlayer, o
     return `£${value.toFixed(0)}`;
   };
 
+  const formatMoney = (v: number) => {
+    if (v >= 1000000) return `£${(v / 1000000).toFixed(1)}M`;
+    if (v >= 1000) return `£${Math.round(v / 1000)}k`;
+    return `£${Math.round(v)}`;
+  };
+
   const handleSort = (field: SortField) => {
     if (sortField === field) setSortDesc(!sortDesc);
     else { 
@@ -212,7 +218,7 @@ export const SquadView: React.FC<SquadViewProps> = ({ players, onSelectPlayer, o
                     <FMTableCell className="text-center font-bold" isNumber>
                         <span className={player.fitness < 70 ? 'text-red-600' : 'text-green-700'}>{Math.round(player.fitness)}%</span>
                     </FMTableCell>
-                    <FMTableCell className="text-right font-black" isNumber>£{(player.value / 1000000).toFixed(1)}M</FMTableCell>
+                    <FMTableCell className="text-right font-black" isNumber>{formatMoney(player.value)}</FMTableCell>
                     </tr>
                 ))}
             </FMTable>
@@ -256,7 +262,7 @@ export const SquadView: React.FC<SquadViewProps> = ({ players, onSelectPlayer, o
                     <FMTableCell className="text-center font-bold" isNumber>
                         <span className={player.morale < 40 ? 'text-red-600' : 'text-blue-700'}>{Math.round(player.morale)}%</span>
                     </FMTableCell>
-                    <FMTableCell className="text-right font-black" isNumber>£{(player.value / 1000000).toFixed(1)}M</FMTableCell>
+                    <FMTableCell className="text-right font-black" isNumber>{formatMoney(player.value)}</FMTableCell>
                     </tr>
                 ))}
             </FMTable>
@@ -294,7 +300,7 @@ export const SquadView: React.FC<SquadViewProps> = ({ players, onSelectPlayer, o
                     <FMTableCell className="text-center font-bold text-[10px]" isNumber>
                         <span className={player.fitness < 70 ? 'text-red-600' : 'text-green-700'}>{Math.round(player.fitness)}%</span>
                     </FMTableCell>
-                    <FMTableCell className="text-right font-black text-[10px]" isNumber>£{(player.value / 1000000).toFixed(1)}M</FMTableCell>
+                    <FMTableCell className="text-right font-black text-[10px]" isNumber>{formatMoney(player.value)}</FMTableCell>
                     </tr>
                 ))}
             </FMTable>
